@@ -28,13 +28,9 @@
     "views": {
       "project-explorer": [
         {
-          "id": "project-explorer.projects",
-          "name": "%view.projects.name%",
-          "icon": "resources/sidebar.svg"
-        },
-        {
           "id": "project-explorer.recent",
-          "name": "%view.recent.name%"
+          "name": "%view.recent.name%",
+          "icon": "resources/sidebar.svg"
         },
         {
           "id": "project-explorer.favorites",
@@ -51,7 +47,7 @@
       {
         "command": "project-explorer.addProject",
         "title": "%command.addProject%",
-        "icon": "$(add)"
+        "icon": "$(root-folder-opened)"
       },
       {
         "command": "project-explorer.gitClone",
@@ -133,32 +129,42 @@
       "view/title": [
         {
           "command": "project-explorer.addProject",
-          "when": "view == project-explorer.projects",
+          "when": "view == project-explorer.recent",
           "group": "navigation@1"
         },
         {
           "command": "project-explorer.gitClone",
-          "when": "view == project-explorer.projects",
+          "when": "view == project-explorer.recent",
           "group": "navigation@3"
         },
         {
           "command": "project-explorer.addGroup",
-          "when": "view == project-explorer.projects",
-          "group": "navigation@4"
+          "when": "view == project-explorer.favorites",
+          "group": "navigation@1"
         },
         {
           "command": "project-explorer.toggleCollapse",
-          "when": "view == project-explorer.projects",
-          "group": "navigation@5"
+          "when": "view == project-explorer.favorites",
+          "group": "navigation@2"
         },
         {
           "command": "project-explorer.cleanInvalid",
-          "when": "view == project-explorer.projects",
+          "when": "view == project-explorer.recent",
+          "group": "overflow@1"
+        },
+        {
+          "command": "project-explorer.cleanInvalid",
+          "when": "view == project-explorer.favorites",
           "group": "overflow@1"
         },
         {
           "command": "project-explorer.openSettings",
-          "when": "view == project-explorer.projects",
+          "when": "view == project-explorer.recent",
+          "group": "overflow@2"
+        },
+        {
+          "command": "project-explorer.openSettings",
+          "when": "view == project-explorer.favorites",
           "group": "overflow@2"
         }
       ],

@@ -35,7 +35,7 @@ export class ProjectTreeProvider
       const g = element.item;
       const hasChildren =
         this.groupService.getChildren(g.id).length > 0 ||
-        this.projectService.getByGroup(g.id).length > 0;
+        this.projectService.getByGroup(g.id).some((p) => p.isFavorite);
       const item = new vscode.TreeItem(
         g.name,
         hasChildren
@@ -89,6 +89,7 @@ export class ProjectTreeProvider
       children.push(
         ...this.projectService
           .getByGroup(element.item.id)
+          .filter((p) => p.isFavorite)
           .map((p) => ({ type: "project" as const, item: p }))
       );
       return children;
@@ -109,6 +110,7 @@ export class ProjectTreeProvider
     result.push(
       ...this.projectService
         .getUngrouped()
+        .filter((p) => p.isFavorite)
         .map((p) => ({ type: "project" as const, item: p }))
     );
 
