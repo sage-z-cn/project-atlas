@@ -112,9 +112,23 @@
       {
         "command": "project-explorer.deleteGroup",
         "title": "%command.deleteGroup%"
-      },
+      }
     ],
     "menus": {
+      "commandPalette": [
+        { "command": "project-explorer.addGroup", "when": "false" },
+        { "command": "project-explorer.toggleCollapse", "when": "false" },
+        { "command": "project-explorer.openSettings", "when": "false" },
+        { "command": "project-explorer.openInNewWindow", "when": "false" },
+        { "command": "project-explorer.openInCurrentWindow", "when": "false" },
+        { "command": "project-explorer.revealInExplorer", "when": "false" },
+        { "command": "project-explorer.addFavorite", "when": "false" },
+        { "command": "project-explorer.removeFavorite", "when": "false" },
+        { "command": "project-explorer.renameProject", "when": "false" },
+        { "command": "project-explorer.deleteProject", "when": "false" },
+        { "command": "project-explorer.renameGroup", "when": "false" },
+        { "command": "project-explorer.deleteGroup", "when": "false" }
+      ],
       "view/title": [
         {
           "command": "project-explorer.addProject",
