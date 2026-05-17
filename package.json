@@ -1,6 +1,6 @@
 {
   "name": "project-explorer",
-  "displayName": "Project Explorer",
+  "displayName": "%viewContainer.title%",
   "description": "Auto-record projects, one-click switch. / 自动记录，一键即达。",
   "version": "0.0.1",
   "engines": {
@@ -9,15 +9,224 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
+  "l10n": "./l10n",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "project-explorer",
+          "title": "%viewContainer.title%",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "project-explorer": [
+        {
+          "id": "project-explorer.projects",
+          "name": "%view.projects.name%",
+          "icon": "resources/icon.svg"
+        },
+        {
+          "id": "project-explorer.recent",
+          "name": "%view.recent.name%"
+        },
+        {
+          "id": "project-explorer.favorites",
+          "name": "%view.favorites.name%"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "project-explorer.helloWorld",
-        "title": "Hello World"
+        "command": "project-explorer.openProject",
+        "title": "%command.openProject%",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "project-explorer.addProject",
+        "title": "%command.addProject%",
+        "icon": "$(add)"
+      },
+      {
+        "command": "project-explorer.gitClone",
+        "title": "%command.gitClone%",
+        "icon": "$(git-clone)"
+      },
+      {
+        "command": "project-explorer.addGroup",
+        "title": "%command.addGroup%",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "project-explorer.toggleCollapse",
+        "title": "%command.toggleCollapse%",
+        "icon": "$(collapse-all)"
+      },
+      {
+        "command": "project-explorer.cleanInvalid",
+        "title": "%command.cleanInvalid%",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "project-explorer.openSettings",
+        "title": "%command.openSettings%",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "project-explorer.openInNewWindow",
+        "title": "%command.openInNewWindow%"
+      },
+      {
+        "command": "project-explorer.openInCurrentWindow",
+        "title": "%command.openInCurrentWindow%"
+      },
+      {
+        "command": "project-explorer.revealInExplorer",
+        "title": "%command.revealInExplorer%"
+      },
+      {
+        "command": "project-explorer.addFavorite",
+        "title": "%command.addFavorite%"
+      },
+      {
+        "command": "project-explorer.removeFavorite",
+        "title": "%command.removeFavorite%"
+      },
+      {
+        "command": "project-explorer.renameProject",
+        "title": "%command.renameProject%"
+      },
+      {
+        "command": "project-explorer.deleteProject",
+        "title": "%command.deleteProject%"
+      },
+      {
+        "command": "project-explorer.renameGroup",
+        "title": "%command.renameGroup%"
+      },
+      {
+        "command": "project-explorer.deleteGroup",
+        "title": "%command.deleteGroup%"
+      },
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "project-explorer.addProject",
+          "when": "view == project-explorer.projects",
+          "group": "navigation@1"
+        },
+        {
+          "command": "project-explorer.gitClone",
+          "when": "view == project-explorer.projects",
+          "group": "navigation@3"
+        },
+        {
+          "command": "project-explorer.addGroup",
+          "when": "view == project-explorer.projects",
+          "group": "navigation@4"
+        },
+        {
+          "command": "project-explorer.toggleCollapse",
+          "when": "view == project-explorer.projects",
+          "group": "navigation@5"
+        },
+        {
+          "command": "project-explorer.cleanInvalid",
+          "when": "view == project-explorer.projects",
+          "group": "overflow@1"
+        },
+        {
+          "command": "project-explorer.openSettings",
+          "when": "view == project-explorer.projects",
+          "group": "overflow@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "project-explorer.openInNewWindow",
+          "when": "viewItem =~ /^(project|project-invalid|project-fav|project-fav-invalid|favorite-project|favorite-project-invalid|recent-project|recent-project-invalid)$/",
+          "group": "1_open@1"
+        },
+        {
+          "command": "project-explorer.openInCurrentWindow",
+          "when": "viewItem =~ /^(project|project-invalid|project-fav|project-fav-invalid|favorite-project|favorite-project-invalid|recent-project|recent-project-invalid)$/",
+          "group": "1_open@2"
+        },
+        {
+          "command": "project-explorer.revealInExplorer",
+          "when": "viewItem =~ /^(project|project-invalid|project-fav|project-fav-invalid|favorite-project|favorite-project-invalid|recent-project|recent-project-invalid)$/",
+          "group": "1_open@3"
+        },
+        {
+          "command": "project-explorer.addFavorite",
+          "when": "viewItem =~ /^(project|project-invalid|recent-project|recent-project-invalid)$/",
+          "group": "2_manage@1"
+        },
+        {
+          "command": "project-explorer.removeFavorite",
+          "when": "viewItem =~ /^(project-fav|project-fav-invalid|favorite-project|favorite-project-invalid)$/",
+          "group": "2_manage@1"
+        },
+        {
+          "command": "project-explorer.renameProject",
+          "when": "viewItem =~ /^(project|project-invalid|project-fav|project-fav-invalid|favorite-project|favorite-project-invalid|recent-project|recent-project-invalid)$/",
+          "group": "2_manage@2"
+        },
+        {
+          "command": "project-explorer.deleteProject",
+          "when": "viewItem =~ /^(project|project-invalid|project-fav|project-fav-invalid|favorite-project|favorite-project-invalid|recent-project|recent-project-invalid)$/",
+          "group": "2_manage@3"
+        },
+        {
+          "command": "project-explorer.renameGroup",
+          "when": "viewItem == group",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "project-explorer.deleteGroup",
+          "when": "viewItem == group",
+          "group": "1_manage@2"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "project-explorer.openProject",
+        "key": "alt+o",
+        "mac": "alt+o"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "%config.title%",
+      "properties": {
+        "projectExplorer.recentProjectsLimit": {
+          "type": "number",
+          "default": 20,
+          "description": "%config.recentProjectsLimit%"
+        },
+        "projectExplorer.openProjectMode": {
+          "type": "string",
+          "default": "ask",
+          "enum": [
+            "ask",
+            "currentWindow",
+            "newWindow"
+          ],
+          "enumDescriptions": [
+            "Ask each time",
+            "Always open in current window",
+            "Always open in new window"
+          ],
+          "description": "%config.openProjectMode%"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

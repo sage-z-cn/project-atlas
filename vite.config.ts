@@ -12,7 +12,7 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     rollupOptions: {
-      external: ["vscode"],
+      external: ["vscode", "path", "fs", "crypto", "child_process"],
     },
     minify: "esbuild",
   },

@@ -1,26 +1,53 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
+import { StorageService } from "./services/storageService";
+import { ProjectService } from "./services/projectService";
+import { GroupService } from "./services/groupService";
+import { ProjectTreeProvider } from "./providers/projectTreeProvider";
+import { FavoriteTreeProvider } from "./providers/favoriteTreeProvider";
+import { RecentTreeProvider } from "./providers/recentTreeProvider";
+import { registerProjectCommands } from "./commands/projectCommands";
+import { registerGroupCommands } from "./commands/groupCommands";
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+  const storage = new StorageService(context);
+  const projectService = new ProjectService(storage);
+  const groupService = new GroupService(storage);
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "project-explorer" is now active!');
+  const projectProvider = new ProjectTreeProvider(projectService, groupService);
+  const favoriteProvider = new FavoriteTreeProvider(projectService);
+  const recentProvider = new RecentTreeProvider(projectService);
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('project-explorer.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from project-explorer!');
-	});
+  const refreshAll = () => {
+    projectProvider.refresh();
+    favoriteProvider.refresh();
+    recentProvider.refresh();
+  };
 
-	context.subscriptions.push(disposable);
+  storage.onDidChange(() => refreshAll());
+
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider(
+      "project-explorer.projects",
+      projectProvider
+    ),
+    vscode.window.registerTreeDataProvider(
+      "project-explorer.favorites",
+      favoriteProvider
+    ),
+    vscode.window.registerTreeDataProvider(
+      "project-explorer.recent",
+      recentProvider
+    )
+  );
+
+  registerProjectCommands(context, projectService, refreshAll);
+  registerGroupCommands(context, groupService, projectService, refreshAll);
+
+  projectService.recordCurrentWorkspace();
+
+  const config = vscode.workspace.getConfiguration("projectExplorer");
+  const limit = config.get<number>("recentProjectsLimit", 20);
+  projectService.checkValidity(limit);
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}

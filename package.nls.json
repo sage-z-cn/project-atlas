@@ -1,0 +1,28 @@
+{
+  "viewContainer.title": "Project Explorer",
+  "view.projects.name": "Projects",
+  "view.recent.name": "Recent",
+  "view.favorites.name": "Favorites",
+
+  "command.openProject": "Open Project...",
+  "command.addProject": "Add Project...",
+  "command.gitClone": "Git Clone...",
+  "command.addGroup": "New Group",
+  "command.toggleCollapse": "Toggle Collapse",
+  "command.cleanInvalid": "Clean Invalid Projects",
+  "command.openSettings": "Settings",
+  "command.openInNewWindow": "Open in New Window",
+  "command.openInCurrentWindow": "Open in Current Window",
+  "command.revealInExplorer": "Reveal in File Explorer",
+  "command.addFavorite": "Add to Favorites",
+  "command.removeFavorite": "Remove from Favorites",
+  "command.renameProject": "Rename",
+  "command.deleteProject": "Remove",
+  "command.renameGroup": "Rename Group",
+  "command.deleteGroup": "Delete Group",
+  "config.title": "Project Explorer",
+  "config.recentProjectsLimit": "Maximum number of recent projects to display.",
+  "config.openProjectMode": "How to open projects: 'ask' (prompt each time), 'currentWindow', or 'newWindow'.",
+
+  "group.recent": "Recent Projects"
+}

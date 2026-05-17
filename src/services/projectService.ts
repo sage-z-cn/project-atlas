@@ -1,0 +1,196 @@
+import * as path from "path";
+import type { ProjectItem } from "../models/project";
+import { StorageService } from "./storageService";
+import { generateId, getWorkspaceName, getWorkspacePath, isPathValid } from "../utils/validator";
+
+export class ProjectService {
+  constructor(private storage: StorageService) {}
+
+  getAll(): ProjectItem[] {
+    return this.storage.getData().projects;
+  }
+
+  getById(id: string): ProjectItem | undefined {
+    return this.getAll().find((p) => p.id === id);
+  }
+
+  getByPath(p: string): ProjectItem | undefined {
+    return this.getAll().find((proj) => proj.path === p);
+  }
+
+  getRecent(limit: number): ProjectItem[] {
+    return [...this.getAll()]
+      .filter((p) => p.isValid)
+      .sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)
+      .slice(0, limit);
+  }
+
+  getByGroup(groupId: string): ProjectItem[] {
+    return this.getAll()
+      .filter((p) => p.groupId === groupId)
+      .sort((a, b) => a.order - b.order);
+  }
+
+  getUngrouped(): ProjectItem[] {
+    return this.getAll()
+      .filter((p) => !p.groupId)
+      .sort((a, b) => a.order - b.order);
+  }
+
+  getFavorites(): ProjectItem[] {
+    return this.getAll().filter((p) => p.isFavorite);
+  }
+
+  getNextOrder(groupId: string | undefined): number {
+    const siblings = groupId ? this.getByGroup(groupId) : this.getUngrouped();
+    return siblings.length > 0 ? Math.max(...siblings.map((s) => s.order)) + 1 : 0;
+  }
+
+  recordCurrentWorkspace(): Thenable<void> {
+    const wsPath = getWorkspacePath();
+    if (!wsPath) {return Promise.resolve();}
+
+    const existing = this.getByPath(wsPath);
+    if (existing) {
+      return this.storage.updateData((data) => ({
+        ...data,
+        projects: data.projects.map((p) =>
+          p.id === existing.id ? { ...p, lastOpenedAt: Date.now() } : p
+        ),
+      }));
+    }
+
+    const project: ProjectItem = {
+      id: generateId(),
+      name: getWorkspaceName(),
+      path: wsPath,
+      lastOpenedAt: Date.now(),
+      order: this.getAll().length,
+      isFavorite: false,
+      isValid: true,
+    };
+
+    return this.storage.updateData((data) => ({
+      ...data,
+      projects: [...data.projects, project],
+    }));
+  }
+
+  addProject(p: string, name?: string): Thenable<ProjectItem> {
+    const existing = this.getByPath(p);
+    if (existing) {
+      return this.storage
+        .updateData((data) => ({
+          ...data,
+          projects: data.projects.map((proj) =>
+            proj.id === existing.id ? { ...proj, lastOpenedAt: Date.now() } : proj
+          ),
+        }))
+        .then(() => existing);
+    }
+
+    const project: ProjectItem = {
+      id: generateId(),
+      name: name || path.basename(p),
+      path: p,
+      lastOpenedAt: Date.now(),
+      order: this.getNextOrder(undefined),
+      isFavorite: false,
+      isValid: true,
+    };
+
+    return this.storage
+      .updateData((data) => ({
+        ...data,
+        projects: [...data.projects, project],
+      }))
+      .then(() => project);
+  }
+
+  deleteProject(id: string): Thenable<void> {
+    return this.storage.updateData((data) => ({
+      ...data,
+      projects: data.projects.filter((p) => p.id !== id),
+    }));
+  }
+
+  renameProject(id: string, newName: string): Thenable<void> {
+    return this.storage.updateData((data) => ({
+      ...data,
+      projects: data.projects.map((p) =>
+        p.id === id ? { ...p, name: newName } : p
+      ),
+    }));
+  }
+
+  setFavorite(id: string, value: boolean): Thenable<void> {
+    return this.storage.updateData((data) => ({
+      ...data,
+      projects: data.projects.map((p) =>
+        p.id === id ? { ...p, isFavorite: value } : p
+      ),
+    }));
+  }
+
+  moveToGroup(id: string, groupId: string | undefined): Thenable<void> {
+    return this.storage.updateData((data) => {
+      const order = data.projects
+        .filter((p) => p.groupId === groupId)
+        .reduce((max, p) => Math.max(max, p.order), -1) + 1;
+
+      return {
+        ...data,
+        projects: data.projects.map((p) =>
+          p.id === id ? { ...p, groupId, order } : p
+        ),
+      };
+    });
+  }
+
+  updateOrder(id: string, order: number): Thenable<void> {
+    return this.storage.updateData((data) => ({
+      ...data,
+      projects: data.projects.map((p) =>
+        p.id === id ? { ...p, order } : p
+      ),
+    }));
+  }
+
+  // Only validates the most recent N projects to avoid costly FS checks on large datasets at startup.
+  // Use "Clean Invalid Projects" command to scan and remove all invalid entries.
+  checkValidity(limit: number): Thenable<ProjectItem[]> {
+    const data = this.storage.getData();
+    const recent = [...data.projects]
+      .sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)
+      .slice(0, limit);
+
+    const cache = new Map<string, boolean>();
+    for (const p of recent) {
+      const valid = isPathValid(p.path);
+      cache.set(p.id, valid);
+    }
+
+    const changed = recent.filter((p) => cache.get(p.id) !== p.isValid);
+    if (changed.length === 0) {return Promise.resolve([]);}
+
+    return this.storage
+      .updateData((d) => ({
+        ...d,
+        projects: d.projects.map((p) => {
+          const newValid = cache.get(p.id);
+          return newValid !== undefined ? { ...p, isValid: newValid } : p;
+        }),
+      }))
+      .then(() => changed);
+  }
+
+  cleanInvalid(): Thenable<number> {
+    const before = this.getAll().length;
+    return this.storage
+      .updateData((data) => ({
+        ...data,
+        projects: data.projects.filter((p) => p.isValid),
+      }))
+      .then(() => before - this.getAll().length);
+  }
+}

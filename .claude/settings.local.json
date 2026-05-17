@@ -3,7 +3,11 @@
     "allow": [
       "Bash(gh *)",
       "Bash(npm *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(npx eslint *)",
+      "Bash(node -e ' *)",
+      "Bash(node *)",
+      "Bash(npx sql.js -h)"
     ]
   }
 }
