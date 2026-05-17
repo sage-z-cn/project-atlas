@@ -17,7 +17,6 @@ export class FavoriteTreeProvider implements vscode.TreeDataProvider<ProjectItem
   getTreeItem(element: ProjectItem): vscode.TreeItem {
     const item = new vscode.TreeItem(element.name);
     item.id = element.id;
-    item.description = element.path;
     item.iconPath = new vscode.ThemeIcon("star-full");
     item.contextValue = element.isValid ? "favorite-project" : "favorite-project-invalid";
     item.resourceUri = vscode.Uri.file(element.path);
@@ -28,7 +27,7 @@ export class FavoriteTreeProvider implements vscode.TreeDataProvider<ProjectItem
     };
 
     if (!element.isValid) {
-      item.description = `${element.path} (${vscode.l10n.t("Invalid")})`;
+      item.description = vscode.l10n.t("Invalid");
       item.iconPath = new vscode.ThemeIcon(
         "star-full",
         new vscode.ThemeColor("disabledForeground")

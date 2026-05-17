@@ -28,5 +28,9 @@
   "Remove All": "全部移除",
   "Removed {0} invalid project(s).": "已移除 {0} 个无效项目。",
   "Recent Projects": "最近项目",
-  "Invalid": "无效"
+  "Invalid": "无效",
+  "just now": "刚刚",
+  "{0} min ago": "{0} 分钟前",
+  "{0} hr ago": "{0} 小时前",
+  "{0} days ago": "{0} 天前"
 }

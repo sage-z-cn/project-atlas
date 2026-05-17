@@ -2,6 +2,19 @@ import * as vscode from "vscode";
 import type { ProjectItem } from "../models/project";
 import { ProjectService } from "../services/projectService";
 
+function formatRelativeTime(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) {return vscode.l10n.t("just now");}
+  if (minutes < 60) {return vscode.l10n.t("{0} min ago", String(minutes));}
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {return vscode.l10n.t("{0} hr ago", String(hours));}
+  const days = Math.floor(hours / 24);
+  if (days < 30) {return vscode.l10n.t("{0} days ago", String(days));}
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 type TreeNode = { type: "project"; item: ProjectItem };
 
 export class RecentTreeProvider implements vscode.TreeDataProvider<TreeNode> {
@@ -20,7 +33,7 @@ export class RecentTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     const p = element.item;
     const treeItem = new vscode.TreeItem(p.name);
     treeItem.id = p.id;
-    treeItem.description = p.path;
+    treeItem.description = formatRelativeTime(p.lastOpenedAt);
     treeItem.iconPath = new vscode.ThemeIcon("clock");
     treeItem.contextValue = p.isValid ? "recent-project" : "recent-project-invalid";
     treeItem.resourceUri = vscode.Uri.file(p.path);
@@ -31,7 +44,7 @@ export class RecentTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     };
 
     if (!p.isValid) {
-      treeItem.description = `${p.path} (${vscode.l10n.t("Invalid")})`;
+      treeItem.description = vscode.l10n.t("Invalid");
       treeItem.iconPath = new vscode.ThemeIcon(
         "clock",
         new vscode.ThemeColor("disabledForeground")
