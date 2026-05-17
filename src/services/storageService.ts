@@ -4,8 +4,9 @@ import type { ProjectData } from "../models/storage";
 const STORAGE_KEY = "projectExplorer.data";
 
 const DEFAULT_DATA: ProjectData = {
-  version: 1,
-  projects: [],
+  version: 2,
+  recentProjects: [],
+  favoriteProjects: [],
   groups: [],
 };
 

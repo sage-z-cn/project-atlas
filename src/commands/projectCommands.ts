@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as cp from "child_process";
 import { ProjectService } from "../services/projectService";
+import { FavoriteService } from "../services/favoriteService";
 import { resolveOpenMode, openFolder } from "../utils/opener";
 import type { ProjectItem } from "../models/project";
 
@@ -12,6 +13,7 @@ const GIT_URL_RE = /^(https?|git|ssh|file):\/\/|^[\w-]+@[\w.-]+:/;
 export function registerProjectCommands(
   context: vscode.ExtensionContext,
   projectService: ProjectService,
+  favoriteService: FavoriteService,
   refreshAll: () => void
 ): void {
   const register = (cmd: string, handler: (...args: any[]) => any) => {
@@ -25,7 +27,6 @@ export function registerProjectCommands(
   register("gitClone", gitCloneCmd);
   register("openInNewWindow", openInNewWindowCmd);
   register("openInCurrentWindow", openInCurrentWindowCmd);
-  // Internal command for tree item click — not exposed in command palette
   register("openProjectBySetting", openProjectBySettingCmd);
   register("revealInExplorer", revealInExplorerCmd);
   register("addFavorite", addFavoriteCmd);
@@ -77,13 +78,11 @@ export function registerProjectCommands(
     if (!repoName) {
       repoName = "repo";
     }
-    // Sanitize repoName to prevent path traversal
     repoName = repoName.replace(/\.\./g, "").replace(/[\\/:]/g, "");
     if (!repoName) {
       repoName = "repo";
     }
     const clonePath = path.join(targetDir, repoName);
-    // Ensure clonePath stays within targetDir
     if (!clonePath.startsWith(path.resolve(targetDir))) {
       vscode.window.showErrorMessage(vscode.l10n.t("Invalid repository URL."));
       return;
@@ -156,13 +155,13 @@ export function registerProjectCommands(
 
   async function addFavoriteCmd(node: TreeNode) {
     if (node?.type !== "project" || !node.item) {return;}
-    await projectService.setFavorite(node.item.id, true);
+    await favoriteService.add({ name: node.item.name, path: node.item.path });
     refreshAll();
   }
 
   async function removeFavoriteCmd(node: TreeNode) {
     if (node?.type !== "project" || !node.item) {return;}
-    await projectService.setFavorite(node.item.id, false);
+    await favoriteService.delete(node.item.id);
     refreshAll();
   }
 
@@ -174,6 +173,7 @@ export function registerProjectCommands(
     });
     if (!newName) {return;}
     await projectService.renameProject(node.item.id, newName);
+    await favoriteService.rename(node.item.id, newName);
     refreshAll();
   }
 

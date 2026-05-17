@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { GroupService } from "../services/groupService";
+import { FavoriteService } from "../services/favoriteService";
 import { ProjectService } from "../services/projectService";
 import type { GroupItem } from "../models/group";
 
@@ -8,6 +9,7 @@ type GroupNode = { type: "group"; item: GroupItem };
 export function registerGroupCommands(
   context: vscode.ExtensionContext,
   groupService: GroupService,
+  favoriteService: FavoriteService,
   projectService: ProjectService,
   refreshAll: () => void
 ): void {
@@ -47,7 +49,7 @@ export function registerGroupCommands(
   async function deleteGroupCmd(node: GroupNode) {
     if (node?.type !== "group" || !node.item) {return;}
 
-    const projects = projectService.getByGroup(node.item.id);
+    const projects = favoriteService.getByGroup(node.item.id);
     const children = groupService.getChildren(node.item.id);
 
     if (projects.length > 0 || children.length > 0) {
@@ -77,12 +79,15 @@ export function registerGroupCommands(
 
   function toggleCollapseCmd() {
     vscode.commands.executeCommand(
-      "workbench.actions.treeView.project-explorer.projects.collapseAll"
+      "workbench.actions.treeView.project-explorer.favorites.collapseAll"
     );
   }
 
   async function cleanInvalidCmd() {
-    const invalid = projectService.getAll().filter((p) => !p.isValid);
+    const invalid = [
+      ...projectService.getAll().filter((p) => !p.isValid),
+      ...favoriteService.getAll().filter((p) => !p.isValid),
+    ];
     if (invalid.length === 0) {
       vscode.window.showInformationMessage(
         vscode.l10n.t("No invalid projects found.")
@@ -101,9 +106,10 @@ export function registerGroupCommands(
 
     if (confirm !== vscode.l10n.t("Remove All")) {return;}
 
-    const removed = await projectService.cleanInvalid();
+    const removedRecent = await projectService.cleanInvalid();
+    // TODO: clean invalid from favorites too
     vscode.window.showInformationMessage(
-      vscode.l10n.t("Removed {0} invalid project(s).", String(removed))
+      vscode.l10n.t("Removed {0} invalid project(s).", String(removedRecent))
     );
     refreshAll();
   }

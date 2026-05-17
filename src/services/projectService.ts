@@ -7,7 +7,7 @@ export class ProjectService {
   constructor(private storage: StorageService) {}
 
   getAll(): ProjectItem[] {
-    return this.storage.getData().projects;
+    return this.storage.getData().recentProjects;
   }
 
   getById(id: string): ProjectItem | undefined {
@@ -25,27 +25,6 @@ export class ProjectService {
       .slice(0, limit);
   }
 
-  getByGroup(groupId: string): ProjectItem[] {
-    return this.getAll()
-      .filter((p) => p.groupId === groupId)
-      .sort((a, b) => a.order - b.order);
-  }
-
-  getUngrouped(): ProjectItem[] {
-    return this.getAll()
-      .filter((p) => !p.groupId)
-      .sort((a, b) => a.order - b.order);
-  }
-
-  getFavorites(): ProjectItem[] {
-    return this.getAll().filter((p) => p.isFavorite);
-  }
-
-  getNextOrder(groupId: string | undefined): number {
-    const siblings = groupId ? this.getByGroup(groupId) : this.getUngrouped();
-    return siblings.length > 0 ? Math.max(...siblings.map((s) => s.order)) + 1 : 0;
-  }
-
   recordCurrentWorkspace(): Thenable<void> {
     const wsPath = getWorkspacePath();
     if (!wsPath) {return Promise.resolve();}
@@ -54,7 +33,7 @@ export class ProjectService {
     if (existing) {
       return this.storage.updateData((data) => ({
         ...data,
-        projects: data.projects.map((p) =>
+        recentProjects: data.recentProjects.map((p) =>
           p.id === existing.id ? { ...p, lastOpenedAt: Date.now() } : p
         ),
       }));
@@ -72,7 +51,7 @@ export class ProjectService {
 
     return this.storage.updateData((data) => ({
       ...data,
-      projects: [...data.projects, project],
+      recentProjects: [...data.recentProjects, project],
     }));
   }
 
@@ -82,7 +61,7 @@ export class ProjectService {
       return this.storage
         .updateData((data) => ({
           ...data,
-          projects: data.projects.map((proj) =>
+          recentProjects: data.recentProjects.map((proj) =>
             proj.id === existing.id ? { ...proj, lastOpenedAt: Date.now() } : proj
           ),
         }))
@@ -94,7 +73,7 @@ export class ProjectService {
       name: name || path.basename(p),
       path: p,
       lastOpenedAt: Date.now(),
-      order: this.getNextOrder(undefined),
+      order: this.getAll().length,
       isFavorite: false,
       isValid: true,
     };
@@ -102,7 +81,7 @@ export class ProjectService {
     return this.storage
       .updateData((data) => ({
         ...data,
-        projects: [...data.projects, project],
+        recentProjects: [...data.recentProjects, project],
       }))
       .then(() => project);
   }
@@ -110,88 +89,22 @@ export class ProjectService {
   deleteProject(id: string): Thenable<void> {
     return this.storage.updateData((data) => ({
       ...data,
-      projects: data.projects.filter((p) => p.id !== id),
+      recentProjects: data.recentProjects.filter((p) => p.id !== id),
     }));
   }
 
   renameProject(id: string, newName: string): Thenable<void> {
     return this.storage.updateData((data) => ({
       ...data,
-      projects: data.projects.map((p) =>
+      recentProjects: data.recentProjects.map((p) =>
         p.id === id ? { ...p, name: newName } : p
       ),
     }));
   }
 
-  setFavorite(id: string, value: boolean): Thenable<void> {
-    return this.storage.updateData((data) => ({
-      ...data,
-      projects: data.projects.map((p) =>
-        p.id === id ? { ...p, isFavorite: value } : p
-      ),
-    }));
-  }
-
-  moveToGroup(id: string, groupId: string | undefined): Thenable<void> {
-    return this.storage.updateData((data) => {
-      const order = data.projects
-        .filter((p) => p.groupId === groupId)
-        .reduce((max, p) => Math.max(max, p.order), -1) + 1;
-
-      return {
-        ...data,
-        projects: data.projects.map((p) =>
-          p.id === id ? { ...p, groupId, order } : p
-        ),
-      };
-    });
-  }
-
-  reorderAfter(draggedId: string, targetId: string): Thenable<void> {
-    if (draggedId === targetId) {return Promise.resolve();}
-    return this.storage.updateData((data) => {
-      const dragged = data.projects.find((p) => p.id === draggedId);
-      const target = data.projects.find((p) => p.id === targetId);
-      if (!dragged || !target) {return data;}
-
-      const groupId = target.groupId;
-      const siblings = data.projects
-        .filter((p) => p.groupId === groupId && p.id !== draggedId)
-        .sort((a, b) => a.order - b.order);
-
-      const targetIndex = siblings.findIndex((p) => p.id === targetId);
-      siblings.splice(targetIndex, 0, { ...dragged, groupId });
-
-      const orderMap = new Map<string, number>();
-      siblings.forEach((p, i) => orderMap.set(p.id, i));
-
-      return {
-        ...data,
-        projects: data.projects.map((p) => {
-          const newOrder = orderMap.get(p.id);
-          if (newOrder !== undefined) {
-            return { ...p, order: newOrder, groupId };
-          }
-          return p;
-        }),
-      };
-    });
-  }
-
-  updateOrder(id: string, order: number): Thenable<void> {
-    return this.storage.updateData((data) => ({
-      ...data,
-      projects: data.projects.map((p) =>
-        p.id === id ? { ...p, order } : p
-      ),
-    }));
-  }
-
-  // Only validates the most recent N projects to avoid costly FS checks on large datasets at startup.
-  // Use "Clean Invalid Projects" command to scan and remove all invalid entries.
   checkValidity(limit: number): Thenable<ProjectItem[]> {
     const data = this.storage.getData();
-    const recent = [...data.projects]
+    const recent = [...data.recentProjects]
       .sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)
       .slice(0, limit);
 
@@ -207,7 +120,7 @@ export class ProjectService {
     return this.storage
       .updateData((d) => ({
         ...d,
-        projects: d.projects.map((p) => {
+        recentProjects: d.recentProjects.map((p) => {
           const newValid = cache.get(p.id);
           return newValid !== undefined ? { ...p, isValid: newValid } : p;
         }),
@@ -220,7 +133,7 @@ export class ProjectService {
     return this.storage
       .updateData((data) => ({
         ...data,
-        projects: data.projects.filter((p) => p.isValid),
+        recentProjects: data.recentProjects.filter((p) => p.isValid),
       }))
       .then(() => before - this.getAll().length);
   }

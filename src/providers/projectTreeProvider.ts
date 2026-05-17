@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import type { ProjectItem } from "../models/project";
 import type { GroupItem } from "../models/group";
-import { ProjectService } from "../services/projectService";
+import { FavoriteService } from "../services/favoriteService";
 import { GroupService } from "../services/groupService";
 
 type TreeNode =
@@ -22,7 +22,7 @@ export class ProjectTreeProvider
   dragMimeTypes = ["application/vnd.code.tree.project-explorer"];
 
   constructor(
-    private projectService: ProjectService,
+    private favoriteService: FavoriteService,
     private groupService: GroupService
   ) {}
 
@@ -35,7 +35,7 @@ export class ProjectTreeProvider
       const g = element.item;
       const hasChildren =
         this.groupService.getChildren(g.id).length > 0 ||
-        this.projectService.getByGroup(g.id).some((p) => p.isFavorite);
+        this.favoriteService.getByGroup(g.id).length > 0;
       const item = new vscode.TreeItem(
         g.name,
         hasChildren
@@ -53,7 +53,7 @@ export class ProjectTreeProvider
     const treeItem = new vscode.TreeItem(p.name);
     treeItem.id = p.id;
     treeItem.iconPath = new vscode.ThemeIcon("circle-small");
-    let ctx = p.isFavorite ? "project-fav" : "project";
+    let ctx = "project";
     if (!p.isValid) { ctx += "-invalid"; }
     treeItem.contextValue = ctx;
     treeItem.resourceUri = vscode.Uri.file(p.path);
@@ -87,9 +87,8 @@ export class ProjectTreeProvider
           .map((g) => ({ type: "group" as const, item: g }))
       );
       children.push(
-        ...this.projectService
+        ...this.favoriteService
           .getByGroup(element.item.id)
-          .filter((p) => p.isFavorite)
           .map((p) => ({ type: "project" as const, item: p }))
       );
       return children;
@@ -108,9 +107,8 @@ export class ProjectTreeProvider
     );
 
     result.push(
-      ...this.projectService
+      ...this.favoriteService
         .getUngrouped()
-        .filter((p) => p.isFavorite)
         .map((p) => ({ type: "project" as const, item: p }))
     );
 
@@ -166,11 +164,11 @@ export class ProjectTreeProvider
     target: TreeNode | undefined
   ): Promise<void> {
     if (target?.type === "group") {
-      await this.projectService.moveToGroup(projectId, target.item.id);
+      await this.favoriteService.moveToGroup(projectId, target.item.id);
     } else if (target?.type === "project") {
-      await this.projectService.reorderAfter(projectId, target.item.id);
+      await this.favoriteService.reorderAfter(projectId, target.item.id);
     } else {
-      await this.projectService.moveToGroup(projectId, undefined);
+      await this.favoriteService.moveToGroup(projectId, undefined);
     }
   }
 

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { StorageService } from "./services/storageService";
 import { ProjectService } from "./services/projectService";
+import { FavoriteService } from "./services/favoriteService";
 import { GroupService } from "./services/groupService";
 import { ProjectTreeProvider } from "./providers/projectTreeProvider";
 import { RecentTreeProvider } from "./providers/recentTreeProvider";
@@ -10,9 +11,10 @@ import { registerGroupCommands } from "./commands/groupCommands";
 export function activate(context: vscode.ExtensionContext) {
   const storage = new StorageService(context);
   const projectService = new ProjectService(storage);
+  const favoriteService = new FavoriteService(storage);
   const groupService = new GroupService(storage);
 
-  const projectProvider = new ProjectTreeProvider(projectService, groupService);
+  const projectProvider = new ProjectTreeProvider(favoriteService, groupService);
   const recentProvider = new RecentTreeProvider(projectService);
 
   const refreshAll = () => {
@@ -33,8 +35,8 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  registerProjectCommands(context, projectService, refreshAll);
-  registerGroupCommands(context, groupService, projectService, refreshAll);
+  registerProjectCommands(context, projectService, favoriteService, refreshAll);
+  registerGroupCommands(context, groupService, favoriteService, projectService, refreshAll);
 
   projectService.recordCurrentWorkspace();
 

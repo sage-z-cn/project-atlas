@@ -3,6 +3,7 @@ import type { GroupItem } from "./group";
 
 export interface ProjectData {
   version: number;
-  projects: ProjectItem[];
+  recentProjects: ProjectItem[];
+  favoriteProjects: ProjectItem[];
   groups: GroupItem[];
 }
