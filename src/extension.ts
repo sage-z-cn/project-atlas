@@ -26,10 +26,10 @@ export function activate(context: vscode.ExtensionContext) {
   storage.onDidChange(() => refreshAll());
 
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider(
-      "project-explorer.projects",
-      projectProvider
-    ),
+    vscode.window.createTreeView("project-explorer.projects", {
+      treeDataProvider: projectProvider,
+      dragAndDropController: projectProvider,
+    }),
     vscode.window.registerTreeDataProvider(
       "project-explorer.favorites",
       favoriteProvider

@@ -147,6 +147,37 @@ export class ProjectService {
     });
   }
 
+  reorderAfter(draggedId: string, targetId: string): Thenable<void> {
+    if (draggedId === targetId) {return Promise.resolve();}
+    return this.storage.updateData((data) => {
+      const dragged = data.projects.find((p) => p.id === draggedId);
+      const target = data.projects.find((p) => p.id === targetId);
+      if (!dragged || !target) {return data;}
+
+      const groupId = target.groupId;
+      const siblings = data.projects
+        .filter((p) => p.groupId === groupId && p.id !== draggedId)
+        .sort((a, b) => a.order - b.order);
+
+      const targetIndex = siblings.findIndex((p) => p.id === targetId);
+      siblings.splice(targetIndex, 0, { ...dragged, groupId });
+
+      const orderMap = new Map<string, number>();
+      siblings.forEach((p, i) => orderMap.set(p.id, i));
+
+      return {
+        ...data,
+        projects: data.projects.map((p) => {
+          const newOrder = orderMap.get(p.id);
+          if (newOrder !== undefined) {
+            return { ...p, order: newOrder, groupId };
+          }
+          return p;
+        }),
+      };
+    });
+  }
+
   updateOrder(id: string, order: number): Thenable<void> {
     return this.storage.updateData((data) => ({
       ...data,

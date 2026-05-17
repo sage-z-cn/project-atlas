@@ -122,6 +122,37 @@ export class GroupService {
     }));
   }
 
+  reorderAfter(draggedId: string, targetId: string): Thenable<void> {
+    if (draggedId === targetId) {return Promise.resolve();}
+    return this.storage.updateData((data) => {
+      const dragged = data.groups.find((g) => g.id === draggedId);
+      const target = data.groups.find((g) => g.id === targetId);
+      if (!dragged || !target) {return data;}
+
+      const parentId = target.parentId;
+      const siblings = data.groups
+        .filter((g) => g.parentId === parentId && !g.isHidden && g.id !== draggedId)
+        .sort((a, b) => a.order - b.order);
+
+      const targetIndex = siblings.findIndex((g) => g.id === targetId);
+      siblings.splice(targetIndex, 0, { ...dragged, parentId });
+
+      const orderMap = new Map<string, number>();
+      siblings.forEach((g, i) => orderMap.set(g.id, i));
+
+      return {
+        ...data,
+        groups: data.groups.map((g) => {
+          const newOrder = orderMap.get(g.id);
+          if (newOrder !== undefined) {
+            return { ...g, order: newOrder, parentId };
+          }
+          return g;
+        }),
+      };
+    });
+  }
+
   updateParent(id: string, parentId: string | undefined): Thenable<void> {
     return this.storage.updateData((data) => ({
       ...data,

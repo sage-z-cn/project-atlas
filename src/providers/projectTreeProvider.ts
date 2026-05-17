@@ -52,8 +52,7 @@ export class ProjectTreeProvider
     const p = element.item;
     const treeItem = new vscode.TreeItem(p.name);
     treeItem.id = p.id;
-    treeItem.description = p.path;
-    treeItem.iconPath = new vscode.ThemeIcon("project");
+    treeItem.iconPath = new vscode.ThemeIcon("circle-small");
     let ctx = p.isFavorite ? "project-fav" : "project";
     if (!p.isValid) { ctx += "-invalid"; }
     treeItem.contextValue = ctx;
@@ -65,7 +64,7 @@ export class ProjectTreeProvider
     };
 
     if (!p.isValid) {
-      treeItem.description = `${p.path} (${vscode.l10n.t("Invalid")})`;
+      treeItem.description = vscode.l10n.t("Invalid");
       treeItem.iconPath = new vscode.ThemeIcon(
         "folder",
         new vscode.ThemeColor("disabledForeground")
@@ -164,26 +163,33 @@ export class ProjectTreeProvider
     projectId: string,
     target: TreeNode | undefined
   ): Promise<void> {
-    let targetGroupId: string | undefined;
-
     if (target?.type === "group") {
-      targetGroupId = target.item.id;
-    } else if (target?.type === "project" && target.item.groupId) {
-      targetGroupId = target.item.groupId;
+      await this.projectService.moveToGroup(projectId, target.item.id);
+    } else if (target?.type === "project") {
+      await this.projectService.reorderAfter(projectId, target.item.id);
+    } else {
+      await this.projectService.moveToGroup(projectId, undefined);
     }
-
-    await this.projectService.moveToGroup(projectId, targetGroupId);
   }
 
   private async dropGroup(
     groupId: string,
     target: TreeNode | undefined
   ): Promise<void> {
-    if (target?.type === "group") {
-      if (this.groupService.isDescendant(target.item.id, groupId)) {return;}
-      await this.groupService.updateParent(groupId, target.item.id);
-    } else {
+    if (!target || target.type === "project") {
       await this.groupService.updateParent(groupId, undefined);
+      return;
+    }
+
+    if (this.groupService.isDescendant(target.item.id, groupId)) {return;}
+
+    const dragged = this.groupService.getById(groupId);
+    if (!dragged) {return;}
+
+    if (dragged.parentId === target.item.parentId) {
+      await this.groupService.reorderAfter(groupId, target.item.id);
+    } else {
+      await this.groupService.updateParent(groupId, target.item.id);
     }
   }
 
