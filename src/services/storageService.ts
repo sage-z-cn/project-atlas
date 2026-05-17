@@ -18,12 +18,19 @@ export class StorageService {
   constructor(private context: vscode.ExtensionContext) {}
 
   getData(): ProjectData {
-    const raw = this.context.globalState.get<ProjectData>(STORAGE_KEY);
+    const raw = this.context.globalState.get<any>(STORAGE_KEY);
     if (!raw) {
       this.context.globalState.update(STORAGE_KEY, DEFAULT_DATA);
       return structuredClone(DEFAULT_DATA);
     }
-    return structuredClone(raw);
+    if (!raw.recentProjects) {
+      const projects: any[] = raw.projects || [];
+      raw.recentProjects = projects;
+      raw.favoriteProjects = projects.filter((p: any) => p.isFavorite);
+      delete raw.projects;
+      this.context.globalState.update(STORAGE_KEY, raw);
+    }
+    return structuredClone(raw as ProjectData);
   }
 
   saveData(data: ProjectData): Thenable<void> {
