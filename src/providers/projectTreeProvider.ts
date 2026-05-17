@@ -53,7 +53,7 @@ export class ProjectTreeProvider
     const treeItem = new vscode.TreeItem(p.name);
     treeItem.id = p.id;
     treeItem.description = p.path;
-    treeItem.iconPath = new vscode.ThemeIcon("folder");
+    treeItem.iconPath = new vscode.ThemeIcon("project");
     let ctx = p.isFavorite ? "project-fav" : "project";
     if (!p.isValid) { ctx += "-invalid"; }
     treeItem.contextValue = ctx;
