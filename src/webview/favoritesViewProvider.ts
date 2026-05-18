@@ -38,6 +38,10 @@ export class FavoritesViewProvider extends BaseViewProvider {
     this.postMessage({ type: "collapseAll" });
   }
 
+  expandAll() {
+    this.postMessage({ type: "expandAll" });
+  }
+
   private buildTree(): TreeNodeDto[] {
     const result: TreeNodeDto[] = [];
 
@@ -227,7 +231,7 @@ export class FavoritesViewProvider extends BaseViewProvider {
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
 let tree = [];
-let expanded = new Set();
+let expanded = new Set(vscode.getState()?.expanded ?? []);
 let activeId = null;
 let ctxTarget = null;
 let dragData = null;
@@ -259,6 +263,19 @@ window.addEventListener("message", (e) => {
     render();
   } else if (msg.type === "collapseAll") {
     expanded.clear();
+    saveState();
+    render();
+  } else if (msg.type === "expandAll") {
+    function collectGroups(nodes) {
+      for (const n of nodes) {
+        if (n.type === "group") {
+          expanded.add(n.id);
+          if (n.children) { collectGroups(n.children); }
+        }
+      }
+    }
+    collectGroups(tree);
+    saveState();
     render();
   }
 });
@@ -326,6 +343,7 @@ document.getElementById("tree").addEventListener("click", (e) => {
   const type = node.dataset.type;
   if (type === "group") {
     if (expanded.has(id)) { expanded.delete(id); } else { expanded.add(id); }
+    saveState();
     render();
     return;
   }
@@ -499,6 +517,10 @@ document.getElementById("tree").addEventListener("drop", (e) => {
   dragData = null;
   lastDropTarget = null;
 });
+
+function saveState() {
+  vscode.setState({ expanded: [...expanded] });
+}
 
 function clearIndicator() {
   if (currentIndicator) { currentIndicator.remove(); currentIndicator = null; }

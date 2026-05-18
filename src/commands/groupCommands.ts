@@ -24,7 +24,8 @@ export function registerGroupCommands(
   register("addGroup", addGroupCmd);
   register("renameGroup", renameGroupCmd);
   register("deleteGroup", deleteGroupCmd);
-  register("toggleCollapse", toggleCollapseCmd);
+  register("collapseAll", collapseAllCmd);
+  register("expandAll", expandAllCmd);
   register("cleanInvalid", cleanInvalidCmd);
   register("openSettings", openSettingsCmd);
   register("addCurrentToFavorites", addCurrentToFavoritesCmd);
@@ -74,8 +75,12 @@ export function registerGroupCommands(
     refreshAll();
   }
 
-  function toggleCollapseCmd() {
+  function collapseAllCmd() {
     favoritesView.collapseAll();
+  }
+
+  function expandAllCmd() {
+    favoritesView.expandAll();
   }
 
   async function cleanInvalidCmd() {

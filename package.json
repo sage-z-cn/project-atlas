@@ -63,9 +63,14 @@
         "icon": "$(new-folder)"
       },
       {
-        "command": "project-explorer.toggleCollapse",
-        "title": "%command.toggleCollapse%",
+        "command": "project-explorer.collapseAll",
+        "title": "%command.collapseAll%",
         "icon": "$(collapse-all)"
+      },
+      {
+        "command": "project-explorer.expandAll",
+        "title": "%command.expandAll%",
+        "icon": "$(expand-all)"
       },
       {
         "command": "project-explorer.addCurrentToFavorites",
@@ -126,7 +131,11 @@
           "when": "false"
         },
         {
-          "command": "project-explorer.toggleCollapse",
+          "command": "project-explorer.collapseAll",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.expandAll",
           "when": "false"
         },
         {
@@ -187,7 +196,12 @@
           "group": "navigation@1"
         },
         {
-          "command": "project-explorer.toggleCollapse",
+          "command": "project-explorer.collapseAll",
+          "when": "view == project-explorer.favorites",
+          "group": "navigation@2"
+        },
+        {
+          "command": "project-explorer.expandAll",
           "when": "view == project-explorer.favorites",
           "group": "navigation@2"
         },
