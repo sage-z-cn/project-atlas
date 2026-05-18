@@ -3,7 +3,7 @@ import { BaseViewProvider } from "./baseViewProvider";
 import { FavoriteService } from "../services/favoriteService";
 import { GroupService } from "../services/groupService";
 import { ProjectService } from "../services/projectService";
-import { resolveOpenMode, openFolder } from "../utils/opener";
+import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
 import { getProjectTypeIcon } from "../utils/projectTypeDetector";
 import type { ProjectType } from "../models/project";
 
@@ -680,7 +680,7 @@ vscode.postMessage({ type: "ready" });
         await openFolder(vscode.Uri.file(project.path), false);
         break;
       case "revealInExplorer":
-        vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(project.path));
+        openInOS(vscode.Uri.file(project.path));
         break;
       case "removeFavorite":
         await this.favoriteService.remove(id);

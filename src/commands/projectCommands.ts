@@ -3,7 +3,7 @@ import * as path from "path";
 import * as cp from "child_process";
 import { ProjectService } from "../services/projectService";
 import { FavoriteService } from "../services/favoriteService";
-import { resolveOpenMode, openFolder } from "../utils/opener";
+import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
 import type { ProjectItem } from "../models/project";
 
 type TreeNode = { type: string; item: ProjectItem };
@@ -150,7 +150,7 @@ export function registerProjectCommands(
 
   function revealInExplorerCmd(node: TreeNode) {
     if (node?.type !== "project" || !node.item) {return;}
-    vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(node.item.path));
+    openInOS(vscode.Uri.file(node.item.path));
   }
 
   async function addFavoriteCmd(node: TreeNode) {

@@ -35,3 +35,7 @@ export async function resolveOpenMode(): Promise<boolean> {
 export function openFolder(uri: vscode.Uri, newWindow: boolean): Thenable<boolean> {
   return vscode.commands.executeCommand("vscode.openFolder", uri, newWindow) as Thenable<boolean>;
 }
+
+export function openInOS(uri: vscode.Uri): void {
+  vscode.env.openExternal(uri);
+}

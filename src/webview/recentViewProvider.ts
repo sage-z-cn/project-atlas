@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { BaseViewProvider } from "./baseViewProvider";
 import { ProjectService } from "../services/projectService";
 import { FavoriteService } from "../services/favoriteService";
-import { resolveOpenMode, openFolder } from "../utils/opener";
+import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
 import { getProjectTypeIcon } from "../utils/projectTypeDetector";
 import type { ProjectType } from "../models/project";
 
@@ -89,7 +89,7 @@ export class RecentViewProvider extends BaseViewProvider {
     display: flex;
     align-items: flex-start;
     min-height: var(--item-height);
-    padding: 4px 8px 4px 16px;
+    padding: 4px 8px 4px 8px;
     cursor: pointer;
     overflow: hidden;
   }
@@ -324,10 +324,7 @@ vscode.postMessage({ type: "ready" });
         await openFolder(vscode.Uri.file(project.path), false);
         break;
       case "revealInExplorer":
-        vscode.commands.executeCommand(
-          "revealFileInOS",
-          vscode.Uri.file(project.path)
-        );
+        openInOS(vscode.Uri.file(project.path));
         break;
       case "addFavorite":
         await this.favoriteService.add({
