@@ -34,7 +34,8 @@
         },
         {
           "id": "project-explorer.favorites",
-          "name": "%view.favorites.name%"
+          "name": "%view.favorites.name%",
+          "icon": "resources/sidebar.svg"
         }
       ]
     },
