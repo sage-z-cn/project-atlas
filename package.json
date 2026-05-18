@@ -30,12 +30,14 @@
         {
           "id": "project-explorer.recent",
           "name": "%view.recent.name%",
-          "icon": "resources/sidebar.svg"
+          "icon": "resources/sidebar.svg",
+          "type": "webview"
         },
         {
           "id": "project-explorer.favorites",
           "name": "%view.favorites.name%",
-          "icon": "resources/sidebar.svg"
+          "icon": "resources/sidebar.svg",
+          "type": "webview"
         }
       ]
     },
@@ -114,18 +116,54 @@
     ],
     "menus": {
       "commandPalette": [
-        { "command": "project-explorer.addGroup", "when": "false" },
-        { "command": "project-explorer.toggleCollapse", "when": "false" },
-        { "command": "project-explorer.openSettings", "when": "false" },
-        { "command": "project-explorer.openInNewWindow", "when": "false" },
-        { "command": "project-explorer.openInCurrentWindow", "when": "false" },
-        { "command": "project-explorer.revealInExplorer", "when": "false" },
-        { "command": "project-explorer.addFavorite", "when": "false" },
-        { "command": "project-explorer.removeFavorite", "when": "false" },
-        { "command": "project-explorer.renameProject", "when": "false" },
-        { "command": "project-explorer.deleteProject", "when": "false" },
-        { "command": "project-explorer.renameGroup", "when": "false" },
-        { "command": "project-explorer.deleteGroup", "when": "false" }
+        {
+          "command": "project-explorer.addGroup",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.toggleCollapse",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.openSettings",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.openInNewWindow",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.openInCurrentWindow",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.revealInExplorer",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.addFavorite",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.removeFavorite",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.renameProject",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.deleteProject",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.renameGroup",
+          "when": "false"
+        },
+        {
+          "command": "project-explorer.deleteGroup",
+          "when": "false"
+        }
       ],
       "view/title": [
         {
@@ -246,6 +284,21 @@
             "Always open in new window"
           ],
           "description": "%config.openProjectMode%"
+        },
+        "projectExplorer.clickToOpen": {
+          "type": "string",
+          "default": "followIDE",
+          "enum": [
+            "singleClick",
+            "doubleClick",
+            "followIDE"
+          ],
+          "enumDescriptions": [
+            "Single click to open",
+            "Double click to open",
+            "Follow IDE setting (workbench.list.openMode)"
+          ],
+          "description": "%config.clickToOpen%"
         }
       }
     }
@@ -269,5 +322,8 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.0.13"
+  },
+  "dependencies": {
+    "@vscode/codicons": "^0.0.45"
   }
 }

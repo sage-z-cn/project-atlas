@@ -32,5 +32,18 @@
   "just now": "刚刚",
   "{0} min ago": "{0} 分钟前",
   "{0} hr ago": "{0} 小时前",
-  "{0} days ago": "{0} 天前"
+  "{0} days ago": "{0} 天前",
+  "Open in New Window": "在新窗口中打开",
+  "Open in Current Window": "在当前窗口中打开",
+  "Reveal in File Explorer": "在文件资源管理器中显示",
+  "Add to Favorites": "添加到收藏",
+  "Rename": "重命名",
+  "Remove from Favorites": "从收藏中移除",
+  "Rename Group": "重命名分组",
+  "Delete Group": "删除分组",
+  "No recent projects": "暂无最近项目",
+  "No favorites yet": "暂无收藏",
+  "Single click to open": "单击打开",
+  "Double click to open": "双击打开",
+  "Follow IDE setting (workbench.list.openMode)": "跟随 IDE 设置 (workbench.list.openMode)"
 }

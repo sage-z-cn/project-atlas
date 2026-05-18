@@ -1,3 +1,5 @@
+export type ProjectType = "python" | "java" | "javascript" | "unknown";
+
 export interface ProjectItem {
   id: string;
   name: string;
@@ -7,4 +9,5 @@ export interface ProjectItem {
   order: number;
   isFavorite: boolean;
   isValid: boolean;
+  projectType?: ProjectType;
 }

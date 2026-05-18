@@ -2,6 +2,7 @@ import * as path from "path";
 import type { ProjectItem } from "../models/project";
 import { StorageService } from "./storageService";
 import { generateId } from "../utils/validator";
+import { detectProjectType } from "../utils/projectTypeDetector";
 
 export class FavoriteService {
   constructor(private storage: StorageService) {}
@@ -41,6 +42,7 @@ export class FavoriteService {
       return Promise.resolve(existing);
     }
 
+    const projectType = detectProjectType(project.path);
     const item: ProjectItem = {
       id: generateId(),
       name: project.name,
@@ -49,6 +51,7 @@ export class FavoriteService {
       order: this.getNextOrder(undefined),
       isFavorite: true,
       isValid: true,
+      projectType: projectType.type,
     };
 
     return this.storage

@@ -3,8 +3,8 @@ import { StorageService } from "./services/storageService";
 import { ProjectService } from "./services/projectService";
 import { FavoriteService } from "./services/favoriteService";
 import { GroupService } from "./services/groupService";
-import { ProjectTreeProvider } from "./providers/projectTreeProvider";
-import { RecentTreeProvider } from "./providers/recentTreeProvider";
+import { RecentViewProvider } from "./webview/recentViewProvider";
+import { FavoritesViewProvider } from "./webview/favoritesViewProvider";
 import { registerProjectCommands } from "./commands/projectCommands";
 import { registerGroupCommands } from "./commands/groupCommands";
 
@@ -14,29 +14,38 @@ export function activate(context: vscode.ExtensionContext) {
   const favoriteService = new FavoriteService(storage);
   const groupService = new GroupService(storage);
 
-  const projectProvider = new ProjectTreeProvider(favoriteService, groupService);
-  const recentProvider = new RecentTreeProvider(projectService);
+  const recentView = new RecentViewProvider(
+    context.extensionUri,
+    projectService,
+    favoriteService
+  );
+  const favoritesView = new FavoritesViewProvider(
+    context.extensionUri,
+    favoriteService,
+    groupService,
+    projectService
+  );
 
   const refreshAll = () => {
-    projectProvider.refresh();
-    recentProvider.refresh();
+    recentView.refresh();
+    favoritesView.refresh();
   };
 
   storage.onDidChange(() => refreshAll());
 
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider(
+    vscode.window.registerWebviewViewProvider(
       "project-explorer.recent",
-      recentProvider
+      recentView
     ),
-    vscode.window.createTreeView("project-explorer.favorites", {
-      treeDataProvider: projectProvider,
-      dragAndDropController: projectProvider,
-    })
+    vscode.window.registerWebviewViewProvider(
+      "project-explorer.favorites",
+      favoritesView
+    )
   );
 
   registerProjectCommands(context, projectService, favoriteService, refreshAll);
-  registerGroupCommands(context, groupService, favoriteService, projectService, refreshAll);
+  registerGroupCommands(context, groupService, favoriteService, projectService, refreshAll, favoritesView);
 
   projectService.recordCurrentWorkspace();
 

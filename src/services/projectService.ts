@@ -2,6 +2,7 @@ import * as path from "path";
 import type { ProjectItem } from "../models/project";
 import { StorageService } from "./storageService";
 import { generateId, getWorkspaceName, getWorkspacePath, isPathValid } from "../utils/validator";
+import { detectProjectType } from "../utils/projectTypeDetector";
 
 export class ProjectService {
   constructor(private storage: StorageService) {}
@@ -31,14 +32,21 @@ export class ProjectService {
 
     const existing = this.getByPath(wsPath);
     if (existing) {
+      const projectType = detectProjectType(wsPath);
       return this.storage.updateData((data) => ({
         ...data,
         recentProjects: data.recentProjects.map((p) =>
-          p.id === existing.id ? { ...p, lastOpenedAt: Date.now() } : p
+          p.id === existing.id
+            ? { ...p, lastOpenedAt: Date.now(), projectType: projectType.type }
+            : p
+        ),
+        favoriteProjects: data.favoriteProjects.map((p) =>
+          p.path === wsPath ? { ...p, projectType: projectType.type } : p
         ),
       }));
     }
 
+    const projectType = detectProjectType(wsPath);
     const project: ProjectItem = {
       id: generateId(),
       name: getWorkspaceName(),
@@ -47,6 +55,7 @@ export class ProjectService {
       order: this.getAll().length,
       isFavorite: false,
       isValid: true,
+      projectType: projectType.type,
     };
 
     return this.storage.updateData((data) => ({
@@ -58,16 +67,23 @@ export class ProjectService {
   addProject(p: string, name?: string): Thenable<ProjectItem> {
     const existing = this.getByPath(p);
     if (existing) {
+      const projectType = detectProjectType(p);
       return this.storage
         .updateData((data) => ({
           ...data,
           recentProjects: data.recentProjects.map((proj) =>
-            proj.id === existing.id ? { ...proj, lastOpenedAt: Date.now() } : proj
+            proj.id === existing.id
+              ? { ...proj, lastOpenedAt: Date.now(), projectType: projectType.type }
+              : proj
+          ),
+          favoriteProjects: data.favoriteProjects.map((proj) =>
+            proj.path === p ? { ...proj, projectType: projectType.type } : proj
           ),
         }))
         .then(() => existing);
     }
 
+    const projectType = detectProjectType(p);
     const project: ProjectItem = {
       id: generateId(),
       name: name || path.basename(p),
@@ -76,6 +92,7 @@ export class ProjectService {
       order: this.getAll().length,
       isFavorite: false,
       isValid: true,
+      projectType: projectType.type,
     };
 
     return this.storage

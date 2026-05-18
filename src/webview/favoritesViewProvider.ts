@@ -1,0 +1,651 @@
+import * as vscode from "vscode";
+import { BaseViewProvider } from "./baseViewProvider";
+import { FavoriteService } from "../services/favoriteService";
+import { GroupService } from "../services/groupService";
+import { ProjectService } from "../services/projectService";
+import { resolveOpenMode, openFolder } from "../utils/opener";
+import { getProjectTypeIcon } from "../utils/projectTypeDetector";
+import type { ProjectType } from "../models/project";
+
+interface TreeNodeDto {
+  id: string;
+  type: "group" | "project";
+  name: string;
+  path?: string;
+  isValid?: boolean;
+  icon?: string;
+  fileIcon?: string;
+  children?: TreeNodeDto[];
+}
+
+export class FavoritesViewProvider extends BaseViewProvider {
+  constructor(
+    extensionUri: vscode.Uri,
+    private favoriteService: FavoriteService,
+    private groupService: GroupService,
+    private projectService: ProjectService
+  ) {
+    super(extensionUri);
+  }
+
+  refresh() {
+    const tree = this.buildTree();
+    const clickMode = this.resolveClickMode();
+    this.postMessage({ type: "data", tree, clickMode });
+  }
+
+  collapseAll() {
+    this.postMessage({ type: "collapseAll" });
+  }
+
+  private buildTree(): TreeNodeDto[] {
+    const result: TreeNodeDto[] = [];
+
+    const addGroup = (groupId: string): TreeNodeDto => {
+      const g = this.groupService.getById(groupId)!;
+      const children: TreeNodeDto[] = [];
+      for (const child of this.groupService.getChildren(groupId)) {
+        children.push(addGroup(child.id));
+      }
+      for (const p of this.favoriteService.getByGroup(groupId)) {
+        const iconInfo = getProjectTypeIcon(p.projectType);
+        children.push({
+          id: p.id,
+          type: "project",
+          name: p.name,
+          path: p.path,
+          isValid: p.isValid,
+          icon: iconInfo.icon,
+          fileIcon: iconInfo.fileIcon,
+        });
+      }
+      return { id: g.id, type: "group", name: g.name, children };
+    };
+
+    for (const g of this.groupService.getRootGroups()) {
+      result.push(addGroup(g.id));
+    }
+    for (const p of this.favoriteService.getUngrouped()) {
+      const iconInfo = getProjectTypeIcon(p.projectType);
+      result.push({
+        id: p.id,
+        type: "project",
+        name: p.name,
+        path: p.path,
+        isValid: p.isValid,
+        icon: iconInfo.icon,
+        fileIcon: iconInfo.fileIcon,
+      });
+    }
+    return result;
+  }
+
+  protected getHtmlContent(webview: vscode.Webview): string {
+    const nonce = this.getNonce();
+    const codiconCss = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css')
+    );
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+<link href="${codiconCss}" rel="stylesheet" nonce="${nonce}">
+<style nonce="${nonce}">
+  :root { --item-height: 22px; --indent: 0px; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    color: var(--vscode-foreground);
+    background: var(--vscode-sideBar-background);
+    padding: 4px 0;
+    user-select: none;
+  }
+  .tree-node {
+    display: flex;
+    align-items: center;
+    height: var(--item-height);
+    padding: 0 8px 0 0;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    position: relative;
+  }
+  .tree-node:hover { background: var(--vscode-list-hoverBackground); }
+  .tree-node.active { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+  .tree-node.invalid { opacity: 0.5; }
+  .tree-node.drag-over-inside { background: var(--vscode-list-focusHighlightForeground); outline: 1px solid var(--vscode-focusBorder); border-radius: 3px; }
+  .indent { flex-shrink: 0; }
+  .chevron {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon.folder { color: var(--vscode-icon.foreground); }
+  .icon.project { color: var(--vscode-icon.foreground); }
+  .label { overflow: hidden; text-overflow: ellipsis; flex: 1; }
+  .children { overflow: hidden; }
+  .children.collapsed { display: none; }
+  .drop-indicator {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--vscode-focusBorder);
+    pointer-events: none;
+    z-index: 100;
+  }
+  .drop-indicator.before { top: 0; }
+  .drop-indicator.after { bottom: 0; }
+  .empty {
+    padding: 8px 16px;
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+  }
+  .context-menu {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    background: var(--vscode-menu-background);
+    border: 1px solid var(--vscode-menu-border);
+    border-radius: 4px;
+    padding: 4px 0;
+    min-width: 200px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .context-menu .menu-item {
+    padding: 4px 24px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .context-menu .menu-item:hover { background: var(--vscode-menu-selectionBackground); color: var(--vscode-menu-selectionForeground); }
+  .context-menu .separator { height: 1px; background: var(--vscode-menu-separatorBackground); margin: 4px 0; }
+</style>
+</head>
+<body>
+<div id="tree"></div>
+<div id="ctx" class="context-menu"></div>
+<script nonce="${nonce}">
+const vscode = acquireVsCodeApi();
+let tree = [];
+let expanded = new Set();
+let activeId = null;
+let ctxTarget = null;
+let dragData = null;
+let currentIndicator = null;
+let currentOverNode = null;
+let lastDropTarget = null;
+let clickMode = "singleClick";
+let clickTimer = null;
+let pendingClickId = null;
+
+const MENU_PROJECT = [
+  { action: "openInNewWindow", label: ${JSON.stringify(vscode.l10n.t("Open in New Window"))} },
+  { action: "openInCurrentWindow", label: ${JSON.stringify(vscode.l10n.t("Open in Current Window"))} },
+  { action: "revealInExplorer", label: ${JSON.stringify(vscode.l10n.t("Reveal in File Explorer"))} },
+  { sep: true },
+  { action: "removeFavorite", label: ${JSON.stringify(vscode.l10n.t("Remove from Favorites"))} },
+  { action: "rename", label: ${JSON.stringify(vscode.l10n.t("Rename"))} },
+  { action: "delete", label: ${JSON.stringify(vscode.l10n.t("Delete"))} },
+];
+const MENU_GROUP = [
+  { action: "renameGroup", label: ${JSON.stringify(vscode.l10n.t("Rename Group"))} },
+  { action: "deleteGroup", label: ${JSON.stringify(vscode.l10n.t("Delete Group"))} },
+];
+
+window.addEventListener("message", (e) => {
+  const msg = e.data;
+  if (msg.type === "data") {
+    tree = msg.tree;
+    if (msg.clickMode) { clickMode = msg.clickMode; }
+    render();
+  } else if (msg.type === "collapseAll") {
+    expanded.clear();
+    render();
+  }
+});
+
+function render() {
+  const container = document.getElementById("tree");
+  if (!tree || tree.length === 0) {
+    container.innerHTML = '<div class="empty">${JSON.stringify(vscode.l10n.t("No favorites yet"))}</div>';
+    return;
+  }
+  container.innerHTML = renderNodes(tree, 0);
+  container.querySelectorAll("[data-indent]").forEach(function(el) {
+    el.style.paddingLeft = el.dataset.indent + "px";
+  });
+}
+
+function renderNodes(nodes, depth) {
+  let html = "";
+  for (const node of nodes) {
+    const isGroup = node.type === "group";
+    const isExpanded = expanded.has(node.id);
+    const indentPx = depth * 8 + (isGroup ? 0 : 16);
+    const iconClass = isGroup ? "folder" : "project";
+    const iconCodicon = isGroup ? (isExpanded ? "codicon codicon-folder-opened" : "codicon codicon-folder") : "codicon codicon-" + (node.icon || "vscode");
+    const invalidClass = !isGroup && !node.isValid ? " invalid" : "";
+    const activeClass = node.id === activeId ? " active" : "";
+
+    html += '<div class="tree-node' + invalidClass + activeClass + '" data-id="' + node.id + '" data-type="' + node.type + '" draggable="true" data-indent="' + indentPx + '">';
+    if (isGroup) {
+      const chevronCodicon = isExpanded ? "codicon codicon-chevron-down" : "codicon codicon-chevron-right";
+      html += '<span class="chevron" data-toggle="' + node.id + '"><i class="' + chevronCodicon + '"></i></span>';
+    }
+    html += '<span class="icon ' + iconClass + '"><i class="' + iconCodicon + '"></i></span>';
+    html += '<span class="label">' + esc(node.name) + '</span>';
+    html += '</div>';
+
+    if (isGroup && node.children) {
+      html += '<div class="children' + (isExpanded ? '' : ' collapsed') + '" data-parent="' + node.id + '">';
+      html += renderNodes(node.children, depth + 1);
+      html += '</div>';
+    }
+  }
+  return html;
+}
+
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+// Click / toggle
+document.getElementById("tree").addEventListener("click", (e) => {
+  const node = e.target.closest(".tree-node");
+  if (!node) {return;}
+  const id = node.dataset.id;
+  const type = node.dataset.type;
+  if (type === "group") {
+    if (expanded.has(id)) { expanded.delete(id); } else { expanded.add(id); }
+    render();
+    return;
+  }
+  if (type === "project") {
+    activeId = id;
+    render();
+    if (clickMode === "singleClick") {
+      vscode.postMessage({ type: "open", id });
+    } else {
+      if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+      if (pendingClickId === id) {
+        pendingClickId = null;
+        vscode.postMessage({ type: "open", id });
+      } else {
+        pendingClickId = id;
+        clickTimer = setTimeout(() => { pendingClickId = null; }, 400);
+      }
+    }
+  }
+});
+
+// Context menu
+document.getElementById("tree").addEventListener("contextmenu", (e) => {
+  const node = e.target.closest(".tree-node");
+  if (!node) {return;}
+  e.preventDefault();
+  ctxTarget = { id: node.dataset.id, type: node.dataset.type };
+  showMenu(e.clientX, e.clientY, node.dataset.type === "group" ? "group" : "project");
+});
+
+document.addEventListener("click", () => { hideMenu(); });
+
+function showMenu(x, y, type) {
+  const menu = document.getElementById("ctx");
+  const items = type === "group" ? MENU_GROUP : MENU_PROJECT;
+  menu.innerHTML = items.map(i =>
+    i.sep ? '<div class="separator"></div>'
+    : '<div class="menu-item" data-action="' + i.action + '">' + esc(i.label) + '</div>'
+  ).join("");
+  menu.style.display = "block";
+  const rect = document.body.getBoundingClientRect();
+  if (x + 220 > rect.right) { x = rect.right - 220; }
+  if (y + menu.offsetHeight > rect.bottom) { y = rect.bottom - menu.offsetHeight; }
+  menu.style.left = x + "px";
+  menu.style.top = y + "px";
+}
+
+function hideMenu() { document.getElementById("ctx").style.display = "none"; }
+
+document.getElementById("ctx").addEventListener("click", (e) => {
+  const el = e.target.closest(".menu-item");
+  if (!el || !ctxTarget) {return;}
+  vscode.postMessage({ type: "contextAction", id: ctxTarget.id, itemType: ctxTarget.type, action: el.dataset.action });
+  hideMenu();
+});
+
+// Drag and drop
+document.getElementById("tree").addEventListener("dragstart", (e) => {
+  const node = e.target.closest(".tree-node");
+  if (!node) {return;}
+  dragData = { id: node.dataset.id, type: node.dataset.type };
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", node.dataset.id);
+  node.style.opacity = "0.5";
+});
+
+document.getElementById("tree").addEventListener("dragend", (e) => {
+  const node = e.target.closest(".tree-node");
+  if (node) { node.style.opacity = ""; }
+  clearIndicator();
+  dragData = null;
+});
+
+document.getElementById("tree").addEventListener("dragover", (e) => {
+  e.preventDefault();
+  if (!dragData) {return;}
+  const node = e.target.closest(".tree-node");
+  if (!node) { clearIndicator(); return; }
+
+  // Don't allow dropping on self
+  if (node.dataset.id === dragData.id) { clearIndicator(); return; }
+
+  const rect = node.getBoundingClientRect();
+  const y = e.clientY - rect.top;
+  const h = rect.height;
+  const isGroup = node.dataset.type === "group";
+  let position;
+
+  if (isGroup) {
+    if (y < h * 0.25) { position = "before"; }
+    else if (y > h * 0.75) { position = "after"; }
+    else { position = "inside"; }
+  } else {
+    position = y < h / 2 ? "before" : "after";
+  }
+
+  // Don't allow dropping group inside project
+  if (dragData.type === "group" && position === "inside" && !isGroup) {
+    clearIndicator(); return;
+  }
+
+  // Don't allow dropping project inside project
+  if (dragData.type === "project" && position === "inside" && !isGroup) {
+    clearIndicator(); return;
+  }
+
+  clearIndicator();
+  currentOverNode = node;
+  lastDropTarget = { id: node.dataset.id, type: node.dataset.type, position };
+
+  if (position === "inside") {
+    node.classList.add("drag-over-inside");
+  } else {
+    const ind = document.createElement("div");
+    ind.className = "drop-indicator " + position;
+    node.appendChild(ind);
+    currentIndicator = ind;
+  }
+});
+
+document.getElementById("tree").addEventListener("dragleave", (e) => {
+  const node = e.target.closest(".tree-node");
+  if (node && node === currentOverNode) { clearIndicator(); }
+});
+
+document.getElementById("tree").addEventListener("drop", (e) => {
+  e.preventDefault();
+  if (!dragData || !lastDropTarget) {return;}
+
+  vscode.postMessage({
+    type: "drop",
+    drag: dragData,
+    target: { id: lastDropTarget.id, type: lastDropTarget.type },
+    position: lastDropTarget.position,
+  });
+
+  clearIndicator();
+  dragData = null;
+  lastDropTarget = null;
+});
+
+function clearIndicator() {
+  if (currentIndicator) { currentIndicator.remove(); currentIndicator = null; }
+  if (currentOverNode) { currentOverNode.classList.remove("drag-over-inside"); currentOverNode = null; }
+}
+vscode.postMessage({ type: "ready" });
+</script>
+</body>
+</html>`;
+  }
+
+  protected async onMessage(msg: {
+    type: string;
+    id?: string;
+    itemType?: string;
+    action?: string;
+    drag?: { id: string; type: string };
+    target?: { id: string; type: string };
+    position?: string;
+  }) {
+    switch (msg.type) {
+      case "open":
+        if (msg.id) { await this.openProject(msg.id); }
+        break;
+      case "drop":
+        if (msg.drag && msg.target && msg.position) {
+          await this.handleDrop(msg.drag, msg.target, msg.position);
+        }
+        break;
+      case "contextAction":
+        if (msg.id && msg.action) {
+          await this.handleContextAction(msg.id, msg.itemType || "project", msg.action);
+        }
+        break;
+    }
+  }
+
+  private async openProject(id: string) {
+    const project = this.favoriteService.getById(id);
+    if (!project) {return;}
+    const config = vscode.workspace.getConfiguration("projectExplorer");
+    const mode = config.get<string>("openProjectMode", "ask");
+
+    if (mode === "currentWindow") {
+      await openFolder(vscode.Uri.file(project.path), false);
+    } else if (mode === "newWindow") {
+      await openFolder(vscode.Uri.file(project.path), true);
+    } else {
+      try {
+        const newWindow = await resolveOpenMode();
+        await openFolder(vscode.Uri.file(project.path), newWindow);
+      } catch { /* cancelled */ }
+    }
+  }
+
+  private async handleDrop(
+    drag: { id: string; type: string },
+    target: { id: string; type: string },
+    position: string
+  ) {
+    if (drag.id === target.id) {return;}
+
+    if (drag.type === "project") {
+      await this.dropProject(drag.id, target, position);
+    } else if (drag.type === "group") {
+      await this.dropGroup(drag.id, target, position);
+    }
+  }
+
+  private async dropProject(
+    projectId: string,
+    target: { id: string; type: string },
+    position: string
+  ) {
+    if (position === "inside" && target.type === "group") {
+      await this.favoriteService.moveToGroup(projectId, target.id);
+    } else if (target.type === "project") {
+      if (position === "before") {
+        await this.favoriteService.reorderAfter(projectId, target.id);
+      } else if (position === "after") {
+        const targetProject = this.favoriteService.getById(target.id);
+        if (targetProject) {
+          const siblings = this.favoriteService.getByGroup(targetProject.groupId);
+          const idx = siblings.findIndex((p) => p.id === target.id);
+          if (idx >= 0 && idx < siblings.length - 1) {
+            await this.favoriteService.reorderAfter(projectId, siblings[idx + 1].id);
+          } else {
+            await this.favoriteService.moveToGroup(projectId, targetProject.groupId);
+          }
+        }
+      }
+    } else if (target.type === "group") {
+      if (position === "before" || position === "after") {
+        const targetGroup = this.groupService.getById(target.id);
+        if (targetGroup) {
+          await this.favoriteService.moveToGroup(
+            projectId,
+            targetGroup.parentId || undefined
+          );
+        }
+      }
+    }
+  }
+
+  private async dropGroup(
+    groupId: string,
+    target: { id: string; type: string },
+    position: string
+  ) {
+    if (position === "inside" && target.type === "group") {
+      if (this.groupService.isDescendant(target.id, groupId)) {return;}
+      await this.groupService.updateParent(groupId, target.id);
+    } else if (position === "before" || position === "after") {
+      if (target.type === "group") {
+        const targetGroup = this.groupService.getById(target.id);
+        if (!targetGroup) {return;}
+        if (this.groupService.isDescendant(target.id, groupId)) {return;}
+        const dragged = this.groupService.getById(groupId);
+        if (dragged && dragged.parentId === targetGroup.parentId) {
+          if (position === "before") {
+            await this.groupService.reorderAfter(groupId, target.id);
+          } else {
+            const siblings = this.groupService.getChildren(targetGroup.parentId);
+            const idx = siblings.findIndex((g) => g.id === target.id);
+            if (idx >= 0 && idx < siblings.length - 1) {
+              await this.groupService.reorderAfter(groupId, siblings[idx + 1].id);
+            } else {
+              await this.groupService.updateParent(groupId, targetGroup.parentId || undefined);
+            }
+          }
+        } else {
+          await this.groupService.updateParent(
+            groupId,
+            targetGroup.parentId || undefined
+          );
+        }
+      } else {
+        // Dropped near a project at root level
+        await this.groupService.updateParent(groupId, undefined);
+      }
+    }
+  }
+
+  private async handleContextAction(
+    id: string,
+    itemType: string,
+    action: string
+  ) {
+    if (itemType === "group") {
+      await this.handleGroupAction(id, action);
+    } else {
+      await this.handleProjectAction(id, action);
+    }
+  }
+
+  private async handleProjectAction(id: string, action: string) {
+    const project = this.favoriteService.getById(id) || this.projectService.getById(id);
+    if (!project) {return;}
+
+    switch (action) {
+      case "openInNewWindow":
+        await openFolder(vscode.Uri.file(project.path), true);
+        break;
+      case "openInCurrentWindow":
+        await openFolder(vscode.Uri.file(project.path), false);
+        break;
+      case "revealInExplorer":
+        vscode.commands.executeCommand("revealFileInOS", vscode.Uri.file(project.path));
+        break;
+      case "removeFavorite":
+        await this.favoriteService.delete(id);
+        break;
+      case "rename": {
+        const newName = await vscode.window.showInputBox({
+          prompt: vscode.l10n.t("Rename project"),
+          value: project.name,
+        });
+        if (newName) {
+          await this.projectService.renameProject(id, newName);
+          await this.favoriteService.rename(id, newName);
+        }
+        break;
+      }
+      case "delete": {
+        const confirm = await vscode.window.showWarningMessage(
+          vscode.l10n.t("Delete project '{0}'?", project.name),
+          { modal: true },
+          vscode.l10n.t("Delete")
+        );
+        if (confirm === vscode.l10n.t("Delete")) {
+          await this.projectService.deleteProject(id);
+        }
+        break;
+      }
+    }
+  }
+
+  private async handleGroupAction(id: string, action: string) {
+    switch (action) {
+      case "renameGroup": {
+        const group = this.groupService.getById(id);
+        if (!group) {return;}
+        const newName = await vscode.window.showInputBox({
+          prompt: vscode.l10n.t("Rename group"),
+          value: group.name,
+        });
+        if (newName) {
+          await this.groupService.renameGroup(id, newName);
+        }
+        break;
+      }
+      case "deleteGroup": {
+        const group = this.groupService.getById(id);
+        if (!group) {return;}
+        const projects = this.favoriteService.getByGroup(id);
+        const children = this.groupService.getChildren(id);
+        if (projects.length > 0 || children.length > 0) {
+          const act = await vscode.window.showWarningMessage(
+            vscode.l10n.t("Group '{0}' contains items. What would you like to do?", group.name),
+            { modal: true },
+            vscode.l10n.t("Move to parent"),
+            vscode.l10n.t("Delete all")
+          );
+          if (!act) {return;}
+          await this.groupService.deleteGroup(id, act === vscode.l10n.t("Move to parent"));
+        } else {
+          const confirm = await vscode.window.showWarningMessage(
+            vscode.l10n.t("Delete group '{0}'?", group.name),
+            { modal: true },
+            vscode.l10n.t("Delete")
+          );
+          if (confirm === vscode.l10n.t("Delete")) {
+            await this.groupService.deleteGroup(id, true);
+          }
+        }
+        break;
+      }
+    }
+  }
+}

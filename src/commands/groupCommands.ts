@@ -3,6 +3,7 @@ import { GroupService } from "../services/groupService";
 import { FavoriteService } from "../services/favoriteService";
 import { ProjectService } from "../services/projectService";
 import type { GroupItem } from "../models/group";
+import type { FavoritesViewProvider } from "../webview/favoritesViewProvider";
 
 type GroupNode = { type: "group"; item: GroupItem };
 
@@ -11,7 +12,8 @@ export function registerGroupCommands(
   groupService: GroupService,
   favoriteService: FavoriteService,
   projectService: ProjectService,
-  refreshAll: () => void
+  refreshAll: () => void,
+  favoritesView: FavoritesViewProvider
 ): void {
   const register = (cmd: string, handler: (...args: any[]) => any) => {
     context.subscriptions.push(
@@ -78,9 +80,7 @@ export function registerGroupCommands(
   }
 
   function toggleCollapseCmd() {
-    vscode.commands.executeCommand(
-      "workbench.actions.treeView.project-explorer.favorites.collapseAll"
-    );
+    favoritesView.collapseAll();
   }
 
   async function cleanInvalidCmd() {
