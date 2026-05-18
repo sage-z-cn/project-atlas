@@ -119,18 +119,32 @@ export class FavoritesViewProvider extends BaseViewProvider {
   .tree-node.active { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
   .tree-node.invalid { opacity: 0.5; }
   .tree-node.drag-over-inside { background: var(--vscode-list-focusHighlightForeground); outline: 1px solid var(--vscode-focusBorder); border-radius: 3px; }
-  .indent { flex-shrink: 0; position: relative; }
+  .indent { flex-shrink: 0; position: relative; align-self: stretch; margin: -4px 0; z-index: 1; }
+  .indent[data-width="16"] { width: 16px; }
+  .indent[data-width="32"] { width: 32px; }
+  .indent[data-width="48"] { width: 48px; }
+  .indent[data-width="64"] { width: 64px; }
+  .indent[data-width="80"] { width: 80px; }
+  .indent[data-width="96"] { width: 96px; }
+  .indent[data-width="112"] { width: 112px; }
+  .indent[data-width="128"] { width: 128px; }
   .indent-guide {
     position: absolute;
     top: 0;
-    bottom: 0;
+    height: 100%;
     width: 1px;
-    background-color: transparent;
+    background-color: var(--vscode-tree-inactiveIndentGuidesStroke, #808080);
     pointer-events: none;
-    transition: background-color 0.1s ease;
+    z-index: 1;
   }
-  #tree:hover .indent-guide { background-color: var(--vscode-tree-inactiveIndentGuidesStroke, rgba(169, 169, 169, 0.4)); }
-  .indent-guide.active { background-color: var(--vscode-tree-indentGuidesStroke, #a9a9a9); }
+  .indent-guide[data-level="0"] { left: 8px; }
+  .indent-guide[data-level="1"] { left: 24px; }
+  .indent-guide[data-level="2"] { left: 40px; }
+  .indent-guide[data-level="3"] { left: 56px; }
+  .indent-guide[data-level="4"] { left: 72px; }
+  .indent-guide[data-level="5"] { left: 88px; }
+  .indent-guide[data-level="6"] { left: 104px; }
+  .indent-guide[data-level="7"] { left: 120px; }
   .chevron {
     flex-shrink: 0;
     width: 16px;
@@ -256,9 +270,6 @@ function render() {
     return;
   }
   container.innerHTML = renderNodes(tree, 0);
-  container.querySelectorAll("[data-indent]").forEach(function(el) {
-    el.style.paddingLeft = el.dataset.indent + "px";
-  });
 }
 
 function renderNodes(nodes, depth) {
@@ -266,7 +277,6 @@ function renderNodes(nodes, depth) {
   for (const node of nodes) {
     const isGroup = node.type === "group";
     const isExpanded = expanded.has(node.id);
-    const indentPx = depth * 8 + (isGroup ? 0 : 16);
     const useDevicon = !isGroup && node.iconSource === "devicon";
     const iconClass = isGroup ? "folder" : (useDevicon ? "project devicon" : "project");
     const iconContent = isGroup
@@ -274,14 +284,17 @@ function renderNodes(nodes, depth) {
       : (useDevicon ? node.icon : "codicon codicon-" + (node.icon || "vscode"));
     const invalidClass = !isGroup && !node.isValid ? " invalid" : "";
     const activeClass = node.id === activeId ? " active" : "";
+    const projectClass = !isGroup ? " is-project" : "";
 
-    html += '<div class="tree-node' + invalidClass + activeClass + '" data-id="' + node.id + '" data-type="' + node.type + '" draggable="true" data-indent="' + indentPx + '">';
-    if (depth > 0) {
-      html += '<span class="indent">';
+    const indentWidth = isGroup ? depth * 16 : (depth + 1) * 16;
+
+    html += '<div class="tree-node' + invalidClass + activeClass + projectClass + '" data-id="' + node.id + '" data-type="' + node.type + '" draggable="true">';
+    if (indentWidth > 0) {
+      html += '<div class="indent" data-width="' + indentWidth + '">';
       for (let i = 0; i < depth; i++) {
-        html += '<span class="indent-guide" style="left: ' + (i * 8 + 4) + 'px;"></span>';
+        html += '<div class="indent-guide" data-level="' + i + '"></div>';
       }
-      html += '</span>';
+      html += '</div>';
     }
     if (isGroup) {
       const chevronCodicon = isExpanded ? "codicon codicon-chevron-down" : "codicon codicon-chevron-right";
