@@ -119,7 +119,18 @@ export class FavoritesViewProvider extends BaseViewProvider {
   .tree-node.active { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
   .tree-node.invalid { opacity: 0.5; }
   .tree-node.drag-over-inside { background: var(--vscode-list-focusHighlightForeground); outline: 1px solid var(--vscode-focusBorder); border-radius: 3px; }
-  .indent { flex-shrink: 0; }
+  .indent { flex-shrink: 0; position: relative; }
+  .indent-guide {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: transparent;
+    pointer-events: none;
+    transition: background-color 0.1s ease;
+  }
+  #tree:hover .indent-guide { background-color: var(--vscode-tree-inactiveIndentGuidesStroke, rgba(169, 169, 169, 0.4)); }
+  .indent-guide.active { background-color: var(--vscode-tree-indentGuidesStroke, #a9a9a9); }
   .chevron {
     flex-shrink: 0;
     width: 16px;
@@ -265,6 +276,13 @@ function renderNodes(nodes, depth) {
     const activeClass = node.id === activeId ? " active" : "";
 
     html += '<div class="tree-node' + invalidClass + activeClass + '" data-id="' + node.id + '" data-type="' + node.type + '" draggable="true" data-indent="' + indentPx + '">';
+    if (depth > 0) {
+      html += '<span class="indent">';
+      for (let i = 0; i < depth; i++) {
+        html += '<span class="indent-guide" style="left: ' + (i * 8 + 4) + 'px;"></span>';
+      }
+      html += '</span>';
+    }
     if (isGroup) {
       const chevronCodicon = isExpanded ? "codicon codicon-chevron-down" : "codicon codicon-chevron-right";
       html += '<span class="chevron" data-toggle="' + node.id + '"><i class="' + chevronCodicon + '"></i></span>';
