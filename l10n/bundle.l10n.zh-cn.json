@@ -21,7 +21,7 @@
   "Rename group": "重命名分组",
   "Group '{0}' contains items. What would you like to do?": "分组 '{0}' 包含项目，如何处理？",
   "Move to parent": "移至上级",
-  "Delete all": "全部删除",
+  "Remove all from favorites": "全部取消收藏",
   "Delete group '{0}'?": "删除分组 '{0}'？",
   "No invalid projects found.": "未发现无效项目。",
   "Found {0} invalid project(s). Remove them all?": "发现 {0} 个无效项目，是否全部移除？",

@@ -95,6 +95,7 @@ export class RecentViewProvider extends BaseViewProvider {
   }
   .item:hover { background: var(--vscode-list-hoverBackground); }
   .item.active { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+  .item.selected { background: var(--vscode-list-inactiveSelectionBackground); color: var(--vscode-list-inactiveSelectionForeground); }
   .item.invalid { opacity: 0.5; }
   .icon {
     flex-shrink: 0;
@@ -166,6 +167,7 @@ export class RecentViewProvider extends BaseViewProvider {
   }
   .context-menu .menu-item .codicon { font-size: 14px; }
   .context-menu .menu-item:hover { background: var(--vscode-menu-selectionBackground); color: var(--vscode-menu-selectionForeground); }
+  .context-menu .menu-item.disabled { opacity: 0.4; pointer-events: none; }
   .context-menu .separator { height: 1px; background: var(--vscode-menu-separatorBackground); margin: 2px 0; }
 </style>
 </head>
@@ -175,7 +177,9 @@ export class RecentViewProvider extends BaseViewProvider {
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
 let items = [];
-let activeId = null;
+let focusedId = null;
+let selectedIds = new Set();
+let lastClickedId = null;
 let ctxTargetId = null;
 let clickMode = "singleClick";
 let clickTimer = null;
@@ -198,6 +202,14 @@ window.addEventListener("message", (e) => {
   if (msg.type === "data") {
     items = msg.items;
     if (msg.clickMode) { clickMode = msg.clickMode; }
+    selectedIds.clear();
+    focusedId = null;
+    lastClickedId = null;
+    render();
+  } else if (msg.type === "clearSelection") {
+    selectedIds.clear();
+    focusedId = null;
+    lastClickedId = null;
     render();
   }
 });
@@ -211,7 +223,10 @@ function render() {
   list.innerHTML = items.map(p => {
     const iconClass = p.iconSource === "devicon" ? p.icon : 'codicon codicon-' + p.icon;
     const iconStyle = p.iconSource === "devicon" ? 'icon devicon' : 'icon vscode';
-    return '<div class="item' + (p.isValid ? '' : ' invalid') + (p.id === activeId ? ' active' : '') +
+    const isFocused = p.id === focusedId;
+    const isSelected = selectedIds.has(p.id) && !isFocused;
+    return '<div class="item' + (p.isValid ? '' : ' invalid') + (isFocused ? ' active' : '') +
+    (isSelected ? ' selected' : '') +
     '" data-id="' + p.id + '">' +
     '<span class="' + iconStyle + '"><i class="' + iconClass + '"></i></span>' +
     '<div class="content"><div class="label-row"><span class="label">' + esc(p.name) + '</span>' +
@@ -226,8 +241,42 @@ document.getElementById("list").addEventListener("click", (e) => {
   const el = e.target.closest(".item");
   if (!el) {return;}
   const id = el.dataset.id;
-  activeId = id;
+
+  if (e.ctrlKey || e.metaKey) {
+    if (selectedIds.has(id)) {
+      selectedIds.delete(id);
+      focusedId = lastClickedId;
+    } else {
+      selectedIds.add(id);
+      focusedId = id;
+    }
+    lastClickedId = id;
+    render();
+    return;
+  }
+
+  if (e.shiftKey && lastClickedId) {
+    const allIds = items.map(p => p.id);
+    const anchorIdx = allIds.indexOf(lastClickedId);
+    const currentIdx = allIds.indexOf(id);
+    if (anchorIdx !== -1 && currentIdx !== -1) {
+      const start = Math.min(anchorIdx, currentIdx);
+      const end = Math.max(anchorIdx, currentIdx);
+      for (let i = start; i <= end; i++) {
+        selectedIds.add(allIds[i]);
+      }
+    }
+    focusedId = id;
+    render();
+    return;
+  }
+
+  selectedIds.clear();
+  selectedIds.add(id);
+  lastClickedId = id;
+  focusedId = id;
   render();
+
   if (clickMode === "singleClick") {
     vscode.postMessage({ type: "open", id });
   } else {
@@ -246,19 +295,36 @@ document.addEventListener("contextmenu", (e) => {
   const el = e.target.closest(".item");
   if (!el) { e.preventDefault(); return; }
   e.preventDefault();
-  ctxTargetId = el.dataset.id;
+  const id = el.dataset.id;
+  if (!selectedIds.has(id)) {
+    selectedIds.clear();
+    selectedIds.add(id);
+    focusedId = id;
+    lastClickedId = id;
+    render();
+  }
+  ctxTargetId = id;
   showMenu(e.clientX, e.clientY, "project");
 });
 
-document.addEventListener("click", () => { hideMenu(); });
+document.addEventListener("click", (e) => {
+  hideMenu();
+  if (!e.target.closest(".item") && !e.target.closest(".context-menu")) {
+    selectedIds.clear();
+    focusedId = null;
+    lastClickedId = null;
+    render();
+  }
+});
 window.addEventListener("blur", () => { hideMenu(); });
 
 function showMenu(x, y, type) {
   const menu = document.getElementById("ctx");
-  const items = MENU[type] || [];
-  menu.innerHTML = items.map(i =>
+  const menuItems = MENU[type] || [];
+  const multiSelect = selectedIds.size > 1;
+  menu.innerHTML = menuItems.map(i =>
     i.sep ? '<div class="separator"></div>'
-    : '<div class="menu-item" data-action="' + i.action + '"><i class="codicon codicon-' + i.icon + '"></i>' + esc(i.label) + '</div>'
+    : '<div class="menu-item' + (multiSelect && i.action !== "addFavorite" && i.action !== "remove" ? ' disabled' : '') + '" data-action="' + i.action + '"><i class="codicon codicon-' + i.icon + '"></i>' + esc(i.label) + '</div>'
   ).join("");
   menu.style.display = "block";
   const menuW = menu.offsetWidth;
@@ -278,8 +344,9 @@ function hideMenu() { document.getElementById("ctx").style.display = "none"; }
 
 document.getElementById("ctx").addEventListener("click", (e) => {
   const el = e.target.closest(".menu-item");
-  if (!el) {return;}
-  vscode.postMessage({ type: "contextAction", id: ctxTargetId, action: el.dataset.action });
+  if (!el || el.classList.contains("disabled")) {return;}
+  const ids = selectedIds.size > 0 ? [...selectedIds] : (ctxTargetId ? [ctxTargetId] : []);
+  vscode.postMessage({ type: "contextAction", id: ctxTargetId, ids: ids, action: el.dataset.action });
   hideMenu();
 });
 vscode.postMessage({ type: "ready" });
@@ -291,12 +358,17 @@ vscode.postMessage({ type: "ready" });
   protected async onMessage(msg: {
     type: string;
     id?: string;
+    ids?: string[];
     action?: string;
   }) {
     if (msg.type === "open" && msg.id) {
       await this.openProject(msg.id);
-    } else if (msg.type === "contextAction" && msg.id && msg.action) {
-      await this.handleContextAction(msg.id, msg.action);
+    } else if (msg.type === "contextAction" && msg.action) {
+      const ids = msg.ids?.length ? msg.ids : (msg.id ? [msg.id] : []);
+      for (const id of ids) {
+        await this.handleContextAction(id, msg.action!);
+      }
+      this.postMessage({ type: "clearSelection" });
     }
   }
 

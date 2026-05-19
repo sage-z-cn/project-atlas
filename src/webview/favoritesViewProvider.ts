@@ -122,6 +122,7 @@ export class FavoritesViewProvider extends BaseViewProvider {
   }
   .tree-node:hover { background: var(--vscode-list-hoverBackground); }
   .tree-node.active { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+  .tree-node.selected { background: var(--vscode-list-inactiveSelectionBackground); color: var(--vscode-list-inactiveSelectionForeground); }
   .tree-node.invalid { opacity: 0.5; }
   .tree-node.drag-over-inside { background: var(--vscode-list-focusHighlightForeground); outline: 1px solid var(--vscode-focusBorder); border-radius: 3px; }
   .indent { flex-shrink: 0; position: relative; align-self: stretch; margin: -4px 0; z-index: 1; }
@@ -227,6 +228,7 @@ export class FavoritesViewProvider extends BaseViewProvider {
   }
   .context-menu .menu-item .codicon { font-size: 14px; }
   .context-menu .menu-item:hover { background: var(--vscode-menu-selectionBackground); color: var(--vscode-menu-selectionForeground); }
+  .context-menu .menu-item.disabled { opacity: 0.4; pointer-events: none; }
   .context-menu .separator { height: 1px; background: var(--vscode-menu-separatorBackground); margin: 2px 0; }
 </style>
 </head>
@@ -237,7 +239,9 @@ export class FavoritesViewProvider extends BaseViewProvider {
 const vscode = acquireVsCodeApi();
 let tree = [];
 let expanded = new Set(vscode.getState()?.expanded ?? []);
-let activeId = null;
+let focusedId = null;
+let selectedIds = new Set();
+let lastClickedId = null;
 let ctxTarget = null;
 let dragData = null;
 let currentIndicator = null;
@@ -265,6 +269,9 @@ window.addEventListener("message", (e) => {
   if (msg.type === "data") {
     tree = msg.tree;
     if (msg.clickMode) { clickMode = msg.clickMode; }
+    selectedIds.clear();
+    focusedId = null;
+    lastClickedId = null;
     render();
   } else if (msg.type === "collapseAll") {
     expanded.clear();
@@ -305,12 +312,14 @@ function renderNodes(nodes, depth) {
       ? (isExpanded ? "codicon codicon-folder-opened" : "codicon codicon-folder")
       : (useDevicon ? node.icon : "codicon codicon-" + (node.icon || "vscode"));
     const invalidClass = !isGroup && !node.isValid ? " invalid" : "";
-    const activeClass = node.id === activeId ? " active" : "";
+    const isFocused = node.id === focusedId;
+    const activeClass = isFocused ? " active" : "";
+    const selectedClass = selectedIds.has(node.id) && !isFocused ? " selected" : "";
     const projectClass = !isGroup ? " is-project" : "";
 
     const indentWidth = isGroup ? depth * 16 : (depth + 1) * 16;
 
-    html += '<div class="tree-node' + invalidClass + activeClass + projectClass + '" data-id="' + node.id + '" data-type="' + node.type + '" draggable="true">';
+    html += '<div class="tree-node' + invalidClass + activeClass + selectedClass + projectClass + '" data-id="' + node.id + '" data-type="' + node.type + '" draggable="true">';
     if (indentWidth > 0) {
       html += '<div class="indent" data-width="' + indentWidth + '">';
       for (let i = 0; i < depth; i++) {
@@ -340,20 +349,62 @@ function renderNodes(nodes, depth) {
 
 function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 
-// Click / toggle
+function getVisibleNodeIds() {
+  const nodes = document.querySelectorAll('#tree .tree-node');
+  return Array.from(nodes).map(n => n.dataset.id);
+}
+
 document.getElementById("tree").addEventListener("click", (e) => {
   const node = e.target.closest(".tree-node");
   if (!node) {return;}
   const id = node.dataset.id;
   const type = node.dataset.type;
+
+  if (e.ctrlKey || e.metaKey) {
+    if (selectedIds.has(id)) {
+      selectedIds.delete(id);
+      focusedId = lastClickedId;
+    } else {
+      selectedIds.add(id);
+      focusedId = id;
+    }
+    lastClickedId = id;
+    render();
+    return;
+  }
+
+  if (e.shiftKey && lastClickedId) {
+    const allIds = getVisibleNodeIds();
+    const anchorIdx = allIds.indexOf(lastClickedId);
+    const currentIdx = allIds.indexOf(id);
+    if (anchorIdx !== -1 && currentIdx !== -1) {
+      const start = Math.min(anchorIdx, currentIdx);
+      const end = Math.max(anchorIdx, currentIdx);
+      for (let i = start; i <= end; i++) {
+        if (allIds[i]) { selectedIds.add(allIds[i]); }
+      }
+    }
+    focusedId = id;
+    render();
+    return;
+  }
+
   if (type === "group") {
+    selectedIds.clear();
+    selectedIds.add(id);
+    focusedId = id;
+    lastClickedId = id;
     if (expanded.has(id)) { expanded.delete(id); } else { expanded.add(id); }
     saveState();
     render();
     return;
   }
+
   if (type === "project") {
-    activeId = id;
+    selectedIds.clear();
+    selectedIds.add(id);
+    focusedId = id;
+    lastClickedId = id;
     render();
     if (clickMode === "singleClick") {
       vscode.postMessage({ type: "open", id });
@@ -370,24 +421,40 @@ document.getElementById("tree").addEventListener("click", (e) => {
   }
 });
 
-// Context menu
 document.addEventListener("contextmenu", (e) => {
   const node = e.target.closest(".tree-node");
   if (!node) { e.preventDefault(); return; }
   e.preventDefault();
-  ctxTarget = { id: node.dataset.id, type: node.dataset.type };
-  showMenu(e.clientX, e.clientY, node.dataset.type === "group" ? "group" : "project");
+  const id = node.dataset.id;
+  if (!selectedIds.has(id)) {
+    selectedIds.clear();
+    selectedIds.add(id);
+    focusedId = id;
+    lastClickedId = id;
+    render();
+  }
+  ctxTarget = { id: id, type: node.dataset.type };
+  showMenu(e.clientX, e.clientY, node.dataset.type);
 });
 
-document.addEventListener("click", () => { hideMenu(); });
+document.addEventListener("click", (e) => {
+  hideMenu();
+  if (!e.target.closest(".tree-node") && !e.target.closest(".context-menu")) {
+    selectedIds.clear();
+    focusedId = null;
+    lastClickedId = null;
+    render();
+  }
+});
 window.addEventListener("blur", () => { hideMenu(); });
 
 function showMenu(x, y, type) {
   const menu = document.getElementById("ctx");
-  const items = type === "group" ? MENU_GROUP : MENU_PROJECT;
-  menu.innerHTML = items.map(i =>
+  const menuItems = type === "group" ? MENU_GROUP : MENU_PROJECT;
+  const multiSelect = selectedIds.size > 1;
+  menu.innerHTML = menuItems.map(i =>
     i.sep ? '<div class="separator"></div>'
-    : '<div class="menu-item" data-action="' + i.action + '"><i class="codicon codicon-' + i.icon + '"></i>' + esc(i.label) + '</div>'
+    : '<div class="menu-item' + (multiSelect && i.action !== "removeFavorite" && i.action !== "remove" && i.action !== "deleteGroup" ? ' disabled' : '') + '" data-action="' + i.action + '"><i class="codicon codicon-' + i.icon + '"></i>' + esc(i.label) + '</div>'
   ).join("");
   menu.style.display = "block";
   const menuW = menu.offsetWidth;
@@ -407,8 +474,9 @@ function hideMenu() { document.getElementById("ctx").style.display = "none"; }
 
 document.getElementById("ctx").addEventListener("click", (e) => {
   const el = e.target.closest(".menu-item");
-  if (!el || !ctxTarget) {return;}
-  vscode.postMessage({ type: "contextAction", id: ctxTarget.id, itemType: ctxTarget.type, action: el.dataset.action });
+  if (!el || !ctxTarget || el.classList.contains("disabled")) {return;}
+  const ids = selectedIds.size > 0 ? [...selectedIds] : (ctxTarget.id ? [ctxTarget.id] : []);
+  vscode.postMessage({ type: "contextAction", id: ctxTarget.id, ids: ids, itemType: ctxTarget.type, action: el.dataset.action });
   hideMenu();
 });
 
@@ -541,6 +609,7 @@ vscode.postMessage({ type: "ready" });
   protected async onMessage(msg: {
     type: string;
     id?: string;
+    ids?: string[];
     itemType?: string;
     action?: string;
     drag?: { id: string; type: string };
@@ -557,8 +626,21 @@ vscode.postMessage({ type: "ready" });
         }
         break;
       case "contextAction":
-        if (msg.id && msg.action) {
-          await this.handleContextAction(msg.id, msg.itemType || "project", msg.action);
+        if (msg.action) {
+          const ids = msg.ids?.length ? msg.ids : (msg.id ? [msg.id] : []);
+          const isBatch = ids.length > 1;
+          for (const id of ids) {
+            const isGroup = this.groupService.getById(id);
+            const itemType = isGroup ? "group" : "project";
+            let effectiveAction = msg.action;
+            if (isGroup && msg.action === "removeFavorite") {
+              effectiveAction = "deleteGroup";
+            } else if (!isGroup && msg.action === "deleteGroup") {
+              effectiveAction = "removeFavorite";
+            }
+            await this.handleContextAction(id, itemType, effectiveAction, isBatch);
+          }
+          this.postMessage({ type: "clearSelection" });
         }
         break;
     }
@@ -687,10 +769,11 @@ vscode.postMessage({ type: "ready" });
   private async handleContextAction(
     id: string,
     itemType: string,
-    action: string
+    action: string,
+    skipConfirm = false
   ) {
     if (itemType === "group") {
-      await this.handleGroupAction(id, action);
+      await this.handleGroupAction(id, action, skipConfirm);
     } else {
       await this.handleProjectAction(id, action);
     }
@@ -735,9 +818,10 @@ vscode.postMessage({ type: "ready" });
     }
   }
 
-  private async handleGroupAction(id: string, action: string) {
+  private async handleGroupAction(id: string, action: string, skipConfirm = false) {
     switch (action) {
       case "renameGroup": {
+        if (skipConfirm) {return;}
         const group = this.groupService.getById(id);
         if (!group) {return;}
         const newName = await vscode.window.showInputBox({
@@ -755,14 +839,18 @@ vscode.postMessage({ type: "ready" });
         const projects = this.favoriteService.getByGroup(id);
         const children = this.groupService.getChildren(id);
         if (projects.length > 0 || children.length > 0) {
-          const act = await vscode.window.showWarningMessage(
-            vscode.l10n.t("Group '{0}' contains items. What would you like to do?", group.name),
-            { modal: true },
-            vscode.l10n.t("Move to parent"),
-            vscode.l10n.t("Delete all")
-          );
-          if (!act) {return;}
-          await this.groupService.deleteGroup(id, act === vscode.l10n.t("Move to parent"));
+          if (skipConfirm) {
+            await this.groupService.deleteGroup(id, false);
+          } else {
+            const act = await vscode.window.showWarningMessage(
+              vscode.l10n.t("Group '{0}' contains items. What would you like to do?", group.name),
+              { modal: true },
+              vscode.l10n.t("Move to parent"),
+              vscode.l10n.t("Remove all from favorites")
+            );
+            if (!act) {return;}
+            await this.groupService.deleteGroup(id, act === vscode.l10n.t("Move to parent"));
+          }
         } else {
           await this.groupService.deleteGroup(id, true);
         }

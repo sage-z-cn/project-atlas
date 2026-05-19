@@ -64,7 +64,7 @@ export function registerGroupCommands(
         ),
         { modal: true },
         vscode.l10n.t("Move to parent"),
-        vscode.l10n.t("Delete all")
+        vscode.l10n.t("Remove all from favorites")
       );
       if (!action) {return;}
       await groupService.deleteGroup(node.item.id, action === vscode.l10n.t("Move to parent"));
