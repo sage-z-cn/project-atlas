@@ -3,6 +3,7 @@ import * as path from "path";
 import * as cp from "child_process";
 import { ProjectService } from "../services/projectService";
 import { FavoriteService } from "../services/favoriteService";
+import { GroupService } from "../services/groupService";
 import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
 import { normalizePath } from "../utils/validator";
 import type { ProjectItem } from "../models/project";
@@ -15,6 +16,7 @@ export function registerProjectCommands(
   context: vscode.ExtensionContext,
   projectService: ProjectService,
   favoriteService: FavoriteService,
+  groupService: GroupService,
   refreshAll: () => void
 ): void {
   const register = (cmd: string, handler: (...args: any[]) => any) => {
@@ -162,7 +164,9 @@ export function registerProjectCommands(
 
   async function addFavoriteCmd(node: TreeNode) {
     if (node?.type !== "project" || !node.item) {return;}
-    await favoriteService.add({ name: node.item.name, path: node.item.path });
+    const groupId = await groupService.pickGroup();
+    if (groupId === null) {return;}
+    await favoriteService.add({ name: node.item.name, path: node.item.path }, groupId);
     refreshAll();
   }
 
@@ -189,6 +193,8 @@ export function registerProjectCommands(
     await projectService.removeProject(node.item.id);
     refreshAll();
   }
+
+
 
   async function pickAndOpenProject(projects: ProjectItem[]) {
     if (projects.length === 0) {

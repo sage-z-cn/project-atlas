@@ -36,11 +36,14 @@ export class FavoriteService {
     return siblings.length > 0 ? Math.max(...siblings.map((s) => s.order)) + 1 : 0;
   }
 
-  add(project: { name: string; path: string }): Thenable<ProjectItem> {
+  async add(project: { name: string; path: string }, groupId?: string): Promise<ProjectItem> {
     const normalizedPath = normalizePath(project.path);
     const existing = this.getByPath(normalizedPath);
     if (existing) {
-      return Promise.resolve(existing);
+      if (existing.groupId !== groupId) {
+        await this.moveToGroup(existing.id, groupId);
+      }
+      return this.getById(existing.id)!;
     }
 
     const projectType = detectProjectType(normalizedPath);
@@ -49,18 +52,18 @@ export class FavoriteService {
       name: project.name,
       path: normalizedPath,
       lastOpenedAt: Date.now(),
-      order: this.getNextOrder(undefined),
+      order: this.getNextOrder(groupId),
       isFavorite: true,
       isValid: true,
       projectType: projectType.type,
+      groupId,
     };
 
-    return this.storage
-      .updateData((data) => ({
-        ...data,
-        favoriteProjects: [...data.favoriteProjects, item],
-      }))
-      .then(() => item);
+    await this.storage.updateData((data) => ({
+      ...data,
+      favoriteProjects: [...data.favoriteProjects, item],
+    }));
+    return item;
   }
 
   remove(id: string): Thenable<void> {

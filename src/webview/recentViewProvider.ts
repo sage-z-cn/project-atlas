@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { BaseViewProvider } from "./baseViewProvider";
 import { ProjectService } from "../services/projectService";
 import { FavoriteService } from "../services/favoriteService";
+import { GroupService } from "../services/groupService";
 import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
 import { getProjectTypeIcon } from "../utils/projectTypeDetector";
 import type { ProjectType } from "../models/project";
@@ -33,7 +34,8 @@ export class RecentViewProvider extends BaseViewProvider {
   constructor(
     extensionUri: vscode.Uri,
     private projectService: ProjectService,
-    private favoriteService: FavoriteService
+    private favoriteService: FavoriteService,
+    private groupService: GroupService
   ) {
     super(extensionUri);
   }
@@ -404,12 +406,15 @@ vscode.postMessage({ type: "ready" });
       case "revealInExplorer":
         openInOS(vscode.Uri.file(project.path));
         break;
-      case "addFavorite":
+      case "addFavorite": {
+        const groupId = await this.groupService.pickGroup();
+        if (groupId === null) { return; } // user cancelled
         await this.favoriteService.add({
           name: project.name,
           path: project.path,
-        });
+        }, groupId);
         break;
+      }
       case "rename": {
         const newName = await vscode.window.showInputBox({
           prompt: vscode.l10n.t("Rename project"),
@@ -431,4 +436,5 @@ vscode.postMessage({ type: "ready" });
       }
     }
   }
+
 }

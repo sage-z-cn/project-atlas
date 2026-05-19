@@ -1,3 +1,4 @@
+import * as vscode from "vscode";
 import type { GroupItem } from "../models/group";
 import { StorageService } from "./storageService";
 import { generateId } from "../utils/validator";
@@ -160,6 +161,38 @@ export class GroupService {
         g.id === id ? { ...g, parentId } : g
       ),
     }));
+  }
+
+  getSelectableGroups(): { id: string; name: string; path: string }[] {
+    const result: { id: string; name: string; path: string }[] = [];
+    const addTree = (parentId: string | undefined, parentPath: string) => {
+      const children = parentId ? this.getChildren(parentId) : this.getRootGroups();
+      for (const g of children) {
+        const currentPath = parentPath ? parentPath + " / " + g.name : g.name;
+        result.push({ id: g.id, name: g.name, path: currentPath });
+        addTree(g.id, currentPath);
+      }
+    };
+    addTree(undefined, "");
+    return result;
+  }
+
+  async pickGroup(): Promise<string | undefined | null> {
+    const groups = this.getSelectableGroups();
+    if (groups.length === 0) {
+      return undefined;
+    }
+    const items: vscode.QuickPickItem[] = [
+      { label: vscode.l10n.t("Root") },
+      ...groups.map((g) => ({ label: g.path })),
+    ];
+    const selected = await vscode.window.showQuickPick(items, {
+      placeHolder: vscode.l10n.t("Select group for favorite"),
+    });
+    if (!selected) { return null; }
+    const idx = items.indexOf(selected);
+    if (idx <= 0) { return undefined; }
+    return groups[idx - 1].id;
   }
 
   private getDescendantIds(id: string, groups: GroupItem[]): string[] {

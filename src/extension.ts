@@ -17,7 +17,8 @@ export function activate(context: vscode.ExtensionContext) {
   const recentView = new RecentViewProvider(
     context.extensionUri,
     projectService,
-    favoriteService
+    favoriteService,
+    groupService
   );
   const favoritesView = new FavoritesViewProvider(
     context.extensionUri,
@@ -52,7 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
-  registerProjectCommands(context, projectService, favoriteService, refreshAll);
+  registerProjectCommands(context, projectService, favoriteService, groupService, refreshAll);
   registerGroupCommands(context, groupService, favoriteService, projectService, refreshAll, favoritesView);
 
   projectService.recordCurrentWorkspace();

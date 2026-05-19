@@ -43,6 +43,8 @@
   "Enter sub-group name": "输入子分组名称",
   "No recent projects": "暂无最近项目",
   "No favorites yet": "暂无收藏",
+  "Select group for favorite": "选择收藏分组",
+  "Root": "根目录",
   "Single click to open": "单击打开",
   "Double click to open": "双击打开",
   "Follow IDE setting (workbench.list.openMode)": "跟随 IDE 设置 (workbench.list.openMode)"
