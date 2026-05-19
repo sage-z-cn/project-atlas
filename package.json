@@ -1,9 +1,21 @@
 {
   "name": "project-explorer",
-  "displayName": "%viewContainer.title%",
-  "description": "Auto-record projects, one-click switch. / 自动记录，一键即达。",
-  "version": "1.0.0",
+  "displayName": "Project Explorer",
+  "description": "%description%",
+  "version": "1.0.1",
   "license": "GPL-3.0",
+  "publisher": "sagez",
+  "keywords": [
+    "project explorer",
+    "project",
+    "explorer",
+    "recent project",
+    "recent folder",
+    "Project Manager",
+    "switch project",
+    "项目管理",
+    "最近项目"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/sage-z-cn/project-explorer.git"

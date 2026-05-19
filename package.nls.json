@@ -4,6 +4,7 @@
   "view.recent.name": "Recent",
   "view.favorites.name": "Favorites",
 
+  "description": "Auto-record projects, one-click switch.",
   "command.openProject": "Open Project",
   "command.addProject": "Add Project",
   "command.gitClone": "Git Clone",

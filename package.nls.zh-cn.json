@@ -4,6 +4,7 @@
   "view.recent.name": "最近",
   "view.favorites.name": "收藏",
 
+  "description": "自动记录，一键即达",
   "command.openProject": "打开项目",
   "command.addProject": "添加项目",
   "command.gitClone": "Git 克隆",
