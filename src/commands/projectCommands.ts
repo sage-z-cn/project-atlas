@@ -21,7 +21,7 @@ export function registerProjectCommands(
 ): void {
   const register = (cmd: string, handler: (...args: any[]) => any) => {
     context.subscriptions.push(
-      vscode.commands.registerCommand(`project-compass.${cmd}`, handler)
+      vscode.commands.registerCommand(`project-atlas.${cmd}`, handler)
     );
   };
 
@@ -142,7 +142,7 @@ export function registerProjectCommands(
 
   async function openProjectBySettingCmd(node: TreeNode) {
     if (node?.type !== "project" || !node.item) {return;}
-    const config = vscode.workspace.getConfiguration("projectCompass");
+    const config = vscode.workspace.getConfiguration("projectAtlas");
     const mode = config.get<string>("openProjectMode", "ask");
 
     if (mode === "currentWindow") {

@@ -35,7 +35,7 @@ export abstract class BaseViewProvider implements vscode.WebviewViewProvider {
   protected abstract refresh(): void;
 
   protected resolveClickMode(): "singleClick" | "doubleClick" {
-    const config = vscode.workspace.getConfiguration("projectCompass");
+    const config = vscode.workspace.getConfiguration("projectAtlas");
     let mode = config.get<string>("openMode", "followIDE") as ClickMode;
     if (mode === "followIDE") {
       const ideMode = vscode.workspace

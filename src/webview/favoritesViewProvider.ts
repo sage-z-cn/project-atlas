@@ -685,7 +685,7 @@ vscode.postMessage({ type: "ready" });
   private async openProject(id: string) {
     const project = this.favoriteService.getById(id);
     if (!project) {return;}
-    const config = vscode.workspace.getConfiguration("projectCompass");
+    const config = vscode.workspace.getConfiguration("projectAtlas");
     const mode = config.get<string>("openProjectMode", "ask");
 
     if (mode === "currentWindow") {

@@ -18,8 +18,8 @@ export class ProjectTreeProvider
   >();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-  dropMimeTypes = ["application/vnd.code.tree.project-compass"];
-  dragMimeTypes = ["application/vnd.code.tree.project-compass"];
+  dropMimeTypes = ["application/vnd.code.tree.project-atlas"];
+  dragMimeTypes = ["application/vnd.code.tree.project-atlas"];
 
   constructor(
     private favoriteService: FavoriteService,
@@ -45,7 +45,7 @@ export class ProjectTreeProvider
       item.id = g.id;
       item.iconPath = new vscode.ThemeIcon("symbol-folder");
       item.contextValue = "group";
-      item.resourceUri = vscode.Uri.parse(`project-compass://group/${g.id}`);
+      item.resourceUri = vscode.Uri.parse(`project-atlas://group/${g.id}`);
       return item;
     }
 
@@ -58,7 +58,7 @@ export class ProjectTreeProvider
     treeItem.contextValue = ctx;
     treeItem.resourceUri = vscode.Uri.file(p.path);
     treeItem.command = {
-      command: "project-compass.openProjectBySetting",
+      command: "project-atlas.openProjectBySetting",
       title: vscode.l10n.t("Open"),
       arguments: [element],
     };
@@ -123,7 +123,7 @@ export class ProjectTreeProvider
     if (source.length === 0) {return;}
 
     dataTransfer.set(
-      "application/vnd.code.tree.project-compass",
+      "application/vnd.code.tree.project-atlas",
       new vscode.DataTransferItem(
         source.map((n) => ({
           type: n.type,
@@ -139,7 +139,7 @@ export class ProjectTreeProvider
     _token: vscode.CancellationToken
   ): Promise<void> {
     const payload = dataTransfer.get(
-      "application/vnd.code.tree.project-compass"
+      "application/vnd.code.tree.project-atlas"
     );
     if (!payload?.value) {return;}
 

@@ -17,7 +17,7 @@ export function registerGroupCommands(
 ): void {
   const register = (cmd: string, handler: (...args: any[]) => any) => {
     context.subscriptions.push(
-      vscode.commands.registerCommand(`project-compass.${cmd}`, handler)
+      vscode.commands.registerCommand(`project-atlas.${cmd}`, handler)
     );
   };
 
@@ -103,7 +103,7 @@ export function registerGroupCommands(
   function openSettingsCmd() {
     vscode.commands.executeCommand(
       "workbench.action.openSettings",
-      "projectCompass"
+      "projectAtlas"
     );
   }
 

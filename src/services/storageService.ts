@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import type { ProjectData } from "../models/storage";
 import { normalizePath } from "../utils/validator";
 
-const STORAGE_KEY = "projectCompass.data";
+const STORAGE_KEY = "projectAtlas.data";
 
 const DEFAULT_DATA: ProjectData = {
   version: 2,

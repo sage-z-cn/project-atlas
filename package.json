@@ -1,12 +1,12 @@
 {
-  "name": "project-compass",
-  "displayName": "Project Compass",
+  "name": "project-atlas",
+  "displayName": "Project Atlas",
   "description": "%description%",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "license": "GPL-3.0",
   "publisher": "sagez",
   "keywords": [
-    "project compass",
+    "project atlas",
     "project explorer",
     "project dock",
     "project",
@@ -20,7 +20,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/sage-z-cn/project-compass.git"
+    "url": "https://github.com/sage-z-cn/project-atlas.git"
   },
   "icon": "resources/icon.png",
   "engines": {
@@ -38,22 +38,22 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "project-compass",
+          "id": "project-atlas",
           "title": "%viewContainer.title%",
           "icon": "resources/sidebar.svg"
         }
       ]
     },
     "views": {
-      "project-compass": [
+      "project-atlas": [
         {
-          "id": "project-compass.recent",
+          "id": "project-atlas.recent",
           "name": "%view.recent.name%",
           "icon": "resources/sidebar.svg",
           "type": "webview"
         },
         {
-          "id": "project-compass.favorites",
+          "id": "project-atlas.favorites",
           "name": "%view.favorites.name%",
           "icon": "resources/sidebar.svg",
           "type": "webview"
@@ -62,241 +62,241 @@
     },
     "commands": [
       {
-        "command": "project-compass.openProject",
+        "command": "project-atlas.openProject",
         "title": "%command.openProject%",
         "icon": "$(folder-opened)"
       },
       {
-        "command": "project-compass.addProject",
+        "command": "project-atlas.addProject",
         "title": "%command.addProject%",
         "icon": "$(folder-opened)"
       },
       {
-        "command": "project-compass.gitClone",
+        "command": "project-atlas.gitClone",
         "title": "%command.gitClone%",
         "icon": "$(repo-clone)"
       },
       {
-        "command": "project-compass.addGroup",
+        "command": "project-atlas.addGroup",
         "title": "%command.addGroup%",
         "icon": "$(new-folder)"
       },
       {
-        "command": "project-compass.collapseAll",
+        "command": "project-atlas.collapseAll",
         "title": "%command.collapseAll%",
         "icon": "$(collapse-all)"
       },
       {
-        "command": "project-compass.expandAll",
+        "command": "project-atlas.expandAll",
         "title": "%command.expandAll%",
         "icon": "$(expand-all)"
       },
       {
-        "command": "project-compass.addCurrentToFavorites",
+        "command": "project-atlas.addCurrentToFavorites",
         "title": "%command.addCurrentToFavorites%",
         "icon": "$(star-full)"
       },
       {
-        "command": "project-compass.cleanInvalid",
+        "command": "project-atlas.cleanInvalid",
         "title": "%command.cleanInvalid%",
         "icon": "$(trash)"
       },
       {
-        "command": "project-compass.openSettings",
+        "command": "project-atlas.openSettings",
         "title": "%command.openSettings%",
         "icon": "$(gear)"
       },
       {
-        "command": "project-compass.openInNewWindow",
+        "command": "project-atlas.openInNewWindow",
         "title": "%command.openInNewWindow%"
       },
       {
-        "command": "project-compass.openInCurrentWindow",
+        "command": "project-atlas.openInCurrentWindow",
         "title": "%command.openInCurrentWindow%"
       },
       {
-        "command": "project-compass.revealInExplorer",
+        "command": "project-atlas.revealInExplorer",
         "title": "%command.revealInExplorer%"
       },
       {
-        "command": "project-compass.addFavorite",
+        "command": "project-atlas.addFavorite",
         "title": "%command.addFavorite%"
       },
       {
-        "command": "project-compass.removeFavorite",
+        "command": "project-atlas.removeFavorite",
         "title": "%command.removeFavorite%"
       },
       {
-        "command": "project-compass.renameProject",
+        "command": "project-atlas.renameProject",
         "title": "%command.renameProject%"
       },
       {
-        "command": "project-compass.removeProject",
+        "command": "project-atlas.removeProject",
         "title": "%command.removeProject%"
       },
       {
-        "command": "project-compass.renameGroup",
+        "command": "project-atlas.renameGroup",
         "title": "%command.renameGroup%"
       },
       {
-        "command": "project-compass.deleteGroup",
+        "command": "project-atlas.deleteGroup",
         "title": "%command.deleteGroup%"
       }
     ],
     "menus": {
       "commandPalette": [
         {
-          "command": "project-compass.addCurrentToFavorites",
+          "command": "project-atlas.addCurrentToFavorites",
           "when": "false"
         },
         {
-          "command": "project-compass.addGroup",
+          "command": "project-atlas.addGroup",
           "when": "false"
         },
         {
-          "command": "project-compass.collapseAll",
+          "command": "project-atlas.collapseAll",
           "when": "false"
         },
         {
-          "command": "project-compass.expandAll",
+          "command": "project-atlas.expandAll",
           "when": "false"
         },
         {
-          "command": "project-compass.openSettings",
+          "command": "project-atlas.openSettings",
           "when": "false"
         },
         {
-          "command": "project-compass.openInNewWindow",
+          "command": "project-atlas.openInNewWindow",
           "when": "false"
         },
         {
-          "command": "project-compass.openInCurrentWindow",
+          "command": "project-atlas.openInCurrentWindow",
           "when": "false"
         },
         {
-          "command": "project-compass.revealInExplorer",
+          "command": "project-atlas.revealInExplorer",
           "when": "false"
         },
         {
-          "command": "project-compass.addFavorite",
+          "command": "project-atlas.addFavorite",
           "when": "false"
         },
         {
-          "command": "project-compass.removeFavorite",
+          "command": "project-atlas.removeFavorite",
           "when": "false"
         },
         {
-          "command": "project-compass.renameProject",
+          "command": "project-atlas.renameProject",
           "when": "false"
         },
         {
-          "command": "project-compass.removeProject",
+          "command": "project-atlas.removeProject",
           "when": "false"
         },
         {
-          "command": "project-compass.renameGroup",
+          "command": "project-atlas.renameGroup",
           "when": "false"
         },
         {
-          "command": "project-compass.deleteGroup",
+          "command": "project-atlas.deleteGroup",
           "when": "false"
         }
       ],
       "view/title": [
         {
-          "command": "project-compass.addProject",
-          "when": "view == project-compass.recent",
+          "command": "project-atlas.addProject",
+          "when": "view == project-atlas.recent",
           "group": "navigation@1"
         },
         {
-          "command": "project-compass.gitClone",
-          "when": "view == project-compass.recent",
+          "command": "project-atlas.gitClone",
+          "when": "view == project-atlas.recent",
           "group": "navigation@3"
         },
         {
-          "command": "project-compass.addGroup",
-          "when": "view == project-compass.favorites",
+          "command": "project-atlas.addGroup",
+          "when": "view == project-atlas.favorites",
           "group": "navigation@1"
         },
         {
-          "command": "project-compass.expandAll",
-          "when": "view == project-compass.favorites",
+          "command": "project-atlas.expandAll",
+          "when": "view == project-atlas.favorites",
           "group": "navigation@2"
         },
         {
-          "command": "project-compass.collapseAll",
-          "when": "view == project-compass.favorites",
+          "command": "project-atlas.collapseAll",
+          "when": "view == project-atlas.favorites",
           "group": "navigation@3"
         },
         {
-          "command": "project-compass.addCurrentToFavorites",
-          "when": "view == project-compass.favorites",
+          "command": "project-atlas.addCurrentToFavorites",
+          "when": "view == project-atlas.favorites",
           "group": "navigation@0"
         },
         {
-          "command": "project-compass.cleanInvalid",
-          "when": "view == project-compass.recent",
+          "command": "project-atlas.cleanInvalid",
+          "when": "view == project-atlas.recent",
           "group": "overflow@1"
         },
         {
-          "command": "project-compass.cleanInvalid",
-          "when": "view == project-compass.favorites",
+          "command": "project-atlas.cleanInvalid",
+          "when": "view == project-atlas.favorites",
           "group": "overflow@1"
         },
         {
-          "command": "project-compass.openSettings",
-          "when": "view == project-compass.recent",
+          "command": "project-atlas.openSettings",
+          "when": "view == project-atlas.recent",
           "group": "overflow@2"
         },
         {
-          "command": "project-compass.openSettings",
-          "when": "view == project-compass.favorites",
+          "command": "project-atlas.openSettings",
+          "when": "view == project-atlas.favorites",
           "group": "overflow@2"
         }
       ],
       "view/item/context": [
         {
-          "command": "project-compass.openInNewWindow",
+          "command": "project-atlas.openInNewWindow",
           "when": "viewItem =~ /^(project|project-invalid|project-fav|project-fav-invalid|favorite-project|favorite-project-invalid|recent-project|recent-project-invalid)$/",
           "group": "1_open@1"
         },
         {
-          "command": "project-compass.openInCurrentWindow",
+          "command": "project-atlas.openInCurrentWindow",
           "when": "viewItem =~ /^(project|project-invalid|project-fav|project-fav-invalid|favorite-project|favorite-project-invalid|recent-project|recent-project-invalid)$/",
           "group": "1_open@2"
         },
         {
-          "command": "project-compass.revealInExplorer",
+          "command": "project-atlas.revealInExplorer",
           "when": "viewItem =~ /^(project|project-invalid|project-fav|project-fav-invalid|favorite-project|favorite-project-invalid|recent-project|recent-project-invalid)$/",
           "group": "1_open@3"
         },
         {
-          "command": "project-compass.addFavorite",
+          "command": "project-atlas.addFavorite",
           "when": "viewItem =~ /^(project|project-invalid|recent-project|recent-project-invalid)$/",
           "group": "2_manage@1"
         },
         {
-          "command": "project-compass.removeFavorite",
+          "command": "project-atlas.removeFavorite",
           "when": "viewItem =~ /^(project-fav|project-fav-invalid|favorite-project|favorite-project-invalid)$/",
           "group": "2_manage@1"
         },
         {
-          "command": "project-compass.renameProject",
+          "command": "project-atlas.renameProject",
           "when": "viewItem =~ /^(project|project-invalid|project-fav|project-fav-invalid|favorite-project|favorite-project-invalid|recent-project|recent-project-invalid)$/",
           "group": "2_manage@2"
         },
         {
-          "command": "project-compass.removeProject",
+          "command": "project-atlas.removeProject",
           "when": "viewItem =~ /^(project|project-invalid|project-fav|project-fav-invalid|favorite-project|favorite-project-invalid|recent-project|recent-project-invalid)$/",
           "group": "2_manage@3"
         },
         {
-          "command": "project-compass.renameGroup",
+          "command": "project-atlas.renameGroup",
           "when": "viewItem == group",
           "group": "1_manage@1"
         },
         {
-          "command": "project-compass.deleteGroup",
+          "command": "project-atlas.deleteGroup",
           "when": "viewItem == group",
           "group": "1_manage@2"
         }
@@ -304,12 +304,12 @@
     },
     "keybindings": [
       {
-        "command": "project-compass.openProject",
+        "command": "project-atlas.openProject",
         "key": "alt+o",
         "mac": "alt+o"
       },
       {
-        "command": "workbench.view.extension.project-compass",
+        "command": "workbench.view.extension.project-atlas",
         "key": "ctrl+alt+o",
         "mac": "ctrl+alt+o"
       }
@@ -317,12 +317,12 @@
     "configuration": {
       "title": "%config.title%",
       "properties": {
-        "projectCompass.recentProjectsLimit": {
+        "projectAtlas.recentProjectsLimit": {
           "type": "number",
           "default": 50,
           "description": "%config.recentProjectsLimit%"
         },
-        "projectCompass.openProjectMode": {
+        "projectAtlas.openProjectMode": {
           "type": "string",
           "default": "ask",
           "enum": [
@@ -337,7 +337,7 @@
           ],
           "description": "%config.openProjectMode%"
         },
-        "projectCompass.openMode": {
+        "projectAtlas.openMode": {
           "type": "string",
           "default": "followIDE",
           "enum": [

@@ -1,5 +1,6 @@
 {
-  "viewContainer.title": "Project Compass",
+  "displayName": "Project Atlas",
+  "viewContainer.title": "Project Atlas",
   "view.projects.name": "Projects",
   "view.recent.name": "Recent",
   "view.favorites.name": "Favorites",
@@ -23,10 +24,8 @@
   "command.removeProject": "Remove",
   "command.renameGroup": "Rename Group",
   "command.deleteGroup": "Delete Group",
-  "config.title": "Project Compass",
+  "config.title": "Project Atlas",
   "config.recentProjectsLimit": "Maximum number of recent projects to display.",
   "config.openProjectMode": "How to open projects: 'ask' (prompt each time), 'currentWindow', or 'newWindow'.",
   "config.openMode": "Click behavior for opening a project (single click, double click, or follow IDE).",
-
-  "group.recent": "Recent Projects"
 }

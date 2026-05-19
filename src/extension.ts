@@ -36,7 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("projectCompass.openMode") || e.affectsConfiguration("workbench.list.openMode")) {
+      if (e.affectsConfiguration("projectAtlas.openMode") || e.affectsConfiguration("workbench.list.openMode")) {
         refreshAll();
       }
     })
@@ -44,11 +44,11 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
-      "project-compass.recent",
+      "project-atlas.recent",
       recentView
     ),
     vscode.window.registerWebviewViewProvider(
-      "project-compass.favorites",
+      "project-atlas.favorites",
       favoritesView
     )
   );

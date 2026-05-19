@@ -8,7 +8,7 @@ const MODE_ALWAYS_CURRENT = vscode.l10n.t("Always Open in Current Window");
 const MODE_ALWAYS_NEW = vscode.l10n.t("Always Open in New Window");
 
 export async function resolveOpenMode(): Promise<boolean> {
-  const config = vscode.workspace.getConfiguration("projectCompass");
+  const config = vscode.workspace.getConfiguration("projectAtlas");
   const mode = config.get<OpenMode>("openProjectMode", "ask");
 
   if (mode === "currentWindow") {return false;}

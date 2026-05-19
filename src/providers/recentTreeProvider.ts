@@ -38,7 +38,7 @@ export class RecentTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     treeItem.contextValue = p.isValid ? "recent-project" : "recent-project-invalid";
     treeItem.resourceUri = vscode.Uri.file(p.path);
     treeItem.command = {
-      command: "project-compass.openProjectBySetting",
+      command: "project-atlas.openProjectBySetting",
       title: vscode.l10n.t("Open"),
       arguments: [element],
     };
@@ -55,7 +55,7 @@ export class RecentTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   }
 
   getChildren(): TreeNode[] {
-    const config = vscode.workspace.getConfiguration("projectCompass");
+    const config = vscode.workspace.getConfiguration("projectAtlas");
     const limit = config.get<number>("recentProjectsLimit", 50);
     return this.projectService
       .getRecent(limit)
