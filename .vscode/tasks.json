@@ -23,6 +23,15 @@
 			"presentation": {
 				"reveal": "never"
 			}
+		},
+		{
+			"type": "npm",
+			"script": "pack",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always"
+			},
+			"group": "build"
 		}
 	]
 }

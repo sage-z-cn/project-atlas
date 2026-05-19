@@ -4,6 +4,10 @@
   "description": "Auto-record projects, one-click switch. / 自动记录，一键即达。",
   "version": "1.0.0",
   "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sage-z-cn/project-explorer.git"
+  },
   "icon": "resources/icon.png",
   "engines": {
     "vscode": "^1.120.0"
@@ -341,6 +345,8 @@
     "vscode:prepublish": "npm run compile",
     "compile": "vite build",
     "watch": "vite build --watch",
+    "pack": "npx @vscode/vsce package",
+    "publish": "npx @vscode/vsce publish",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"

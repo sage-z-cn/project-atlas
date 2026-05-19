@@ -10,3 +10,13 @@ vsc-extension-quickstart.md
 **/*.ts
 vite.config.ts
 **/.vscode-test.*
+
+.docs/**
+.sisyphus/**
+screenshot/**
+AGENTS.md
+
+node_modules/**
+!node_modules/@vscode/codicons/dist/**
+!node_modules/devicon/devicon.min.css
+!node_modules/devicon/fonts/**
