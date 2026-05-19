@@ -310,7 +310,7 @@ function renderNodes(nodes, depth) {
     const iconClass = isGroup ? "folder" : (useDevicon ? "project devicon" : "project");
     const iconContent = isGroup
       ? (isExpanded ? "codicon codicon-folder-opened" : "codicon codicon-folder")
-      : (useDevicon ? node.icon : "codicon codicon-" + (node.icon || "vscode"));
+      : (useDevicon ? node.icon + " colored" : "codicon codicon-" + (node.icon || "vscode"));
     const invalidClass = !isGroup && !node.isValid ? " invalid" : "";
     const isFocused = node.id === focusedId;
     const activeClass = isFocused ? " active" : "";

@@ -221,7 +221,7 @@ function render() {
     return;
   }
   list.innerHTML = items.map(p => {
-    const iconClass = p.iconSource === "devicon" ? p.icon : 'codicon codicon-' + p.icon;
+    const iconClass = p.iconSource === "devicon" ? p.icon + " colored" : 'codicon codicon-' + p.icon;
     const iconStyle = p.iconSource === "devicon" ? 'icon devicon' : 'icon vscode';
     const isFocused = p.id === focusedId;
     const isSelected = selectedIds.has(p.id) && !isFocused;

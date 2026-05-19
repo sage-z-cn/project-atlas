@@ -24,6 +24,22 @@ const PROJECT_TYPE_CONFIGS: Array<{
   detect: (projectPath: string) => boolean;
 }> = [
   {
+    type: "electron",
+    icon: "devicon-electron-original",
+    iconSource: "devicon",
+    detect: (projectPath: string) => {
+      try {
+        if (!fs.readdirSync(projectPath).includes("package.json")) {
+          return false;
+        }
+        const pkg = JSON.parse(fs.readFileSync(path.join(projectPath, "package.json"), "utf-8"));
+        return !!(pkg.dependencies?.electron || pkg.devDependencies?.electron);
+      } catch {
+        return false;
+      }
+    },
+  },
+  {
     type: "react",
     icon: "devicon-react-original",
     iconSource: "devicon",

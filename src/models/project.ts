@@ -5,6 +5,7 @@ export type ProjectType =
   | "typescript"
   | "react"
   | "vue"
+  | "electron"
   | "cpp"
   | "csharp"
   | "go"
