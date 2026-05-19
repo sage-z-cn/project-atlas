@@ -99,17 +99,17 @@ export class RecentViewProvider extends BaseViewProvider {
   .item.invalid { opacity: 0.5; }
   .icon {
     flex-shrink: 0;
-    width: 16px;
-    height: 16px;
-    margin-right: 4px;
+    width: 20px;
+    height: 20px;
+    margin-right: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: 18px;
     align-self: center;
   }
   .icon.vscode { color: var(--vscode-icon.foreground); }
-  .icon.devicon { font-size: 16px; }
+  .icon.devicon { font-size: 20px; }
   .content {
     flex: 1;
     display: flex;

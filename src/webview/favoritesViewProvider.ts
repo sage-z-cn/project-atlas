@@ -161,17 +161,17 @@ export class FavoritesViewProvider extends BaseViewProvider {
   }
   .icon {
     flex-shrink: 0;
-    width: 16px;
-    height: 16px;
-    margin-right: 4px;
+    width: 20px;
+    height: 20px;
+    margin-right: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     align-self: center;
   }
-  .icon.folder { color: var(--vscode-icon.foreground); }
-  .icon.project { color: var(--vscode-icon.foreground); }
-  .icon.devicon { font-size: 16px; }
+  .icon.folder { color: var(--vscode-icon.foreground); font-size: 18px; }
+  .icon.project { color: var(--vscode-icon.foreground); font-size: 18px; }
+  .icon.devicon { font-size: 20px; }
   .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-weight: 600; }
   .tree-content {
     flex: 1;
