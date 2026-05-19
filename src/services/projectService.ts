@@ -1,7 +1,7 @@
 import * as path from "path";
 import type { ProjectItem } from "../models/project";
 import { StorageService } from "./storageService";
-import { generateId, getWorkspaceName, getWorkspacePath, isPathValid } from "../utils/validator";
+import { generateId, getWorkspaceName, getWorkspacePath, isPathValid, normalizePath } from "../utils/validator";
 import { detectProjectType } from "../utils/projectTypeDetector";
 
 export class ProjectService {
@@ -65,6 +65,7 @@ export class ProjectService {
   }
 
   addProject(p: string, name?: string): Thenable<ProjectItem> {
+    p = normalizePath(p);
     const existing = this.getByPath(p);
     if (existing) {
       const projectType = detectProjectType(p);

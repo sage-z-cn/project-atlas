@@ -4,6 +4,7 @@ import * as cp from "child_process";
 import { ProjectService } from "../services/projectService";
 import { FavoriteService } from "../services/favoriteService";
 import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
+import { normalizePath } from "../utils/validator";
 import type { ProjectItem } from "../models/project";
 
 type TreeNode = { type: string; item: ProjectItem };
@@ -18,7 +19,7 @@ export function registerProjectCommands(
 ): void {
   const register = (cmd: string, handler: (...args: any[]) => any) => {
     context.subscriptions.push(
-      vscode.commands.registerCommand(`project-explorer.${cmd}`, handler)
+      vscode.commands.registerCommand(`project-compass.${cmd}`, handler)
     );
   };
 
@@ -54,7 +55,7 @@ export function registerProjectCommands(
     });
     if (!folders || folders.length === 0) {return;}
     const uri = folders[0];
-    await projectService.addProject(uri.fsPath);
+    await projectService.addProject(normalizePath(uri.fsPath));
     refreshAll();
     await openFolder(uri, newWindow);
   }
@@ -79,7 +80,7 @@ export function registerProjectCommands(
     });
     if (!targetFolders || targetFolders.length === 0) {return;}
 
-    const targetDir = targetFolders[0].fsPath;
+    const targetDir = normalizePath(targetFolders[0].fsPath);
     let repoName = path.basename(url.replace(/\/$/, ""), ".git");
     if (!repoName) {
       repoName = "repo";
@@ -88,7 +89,7 @@ export function registerProjectCommands(
     if (!repoName) {
       repoName = "repo";
     }
-    const clonePath = path.join(targetDir, repoName);
+    const clonePath = normalizePath(path.join(targetDir, repoName));
     if (!clonePath.startsWith(path.resolve(targetDir))) {
       vscode.window.showErrorMessage(vscode.l10n.t("Invalid repository URL."));
       return;

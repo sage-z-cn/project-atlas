@@ -1,6 +1,6 @@
-<div align="center"><img src="resources/icon.png" width="128" height="128" alt="Project Explorer"></div>
+<div align="center"><img src="resources/icon.png" width="128" height="128" alt="Project Compass"></div>
 
-<h1 align="center">Project Explorer</h1>
+<h1 align="center">Project Compass</h1>
 
 <p align="center">自动记录，一键即达。</p>
 
@@ -10,13 +10,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/sage-z-cn/project-explorer/blob/master/README.md">English</a> | <a href="https://github.com/sage-z-cn/project-explorer/blob/master/README.zh-cn.md">中文文档</a>
+  <a href="https://github.com/sage-z-cn/project-compass/blob/master/README.md">English</a> | <a href="https://github.com/sage-z-cn/project-compass/blob/master/README.zh-cn.md">中文文档</a>
 </p>
 
 ---
 
 <p align="center">
-  <img src="screenshot/screenshot-zh.png" alt="Project Explorer 侧边栏">
+  <img src="screenshot/screenshot-zh.png" alt="Project Compass 侧边栏">
 </p>
 
 ## 功能特性
@@ -70,9 +70,9 @@
 | 快捷键 | 功能 |
 | --- | --- |
 | `Alt+O` | 打开项目选择器 |
-| `Ctrl+Alt+O` | 聚焦 Project Explorer 侧边栏 |
+| `Ctrl+Alt+O` | 聚焦 Project Compass 侧边栏 |
 
 ## 许可证
 
-本项目基于 [GNU 通用公共许可证 v3.0](https://github.com/sage-z-cn/project-explorer/blob/master/LICENSE) 开源，可自由使用、修改和分发。衍生作品必须同样以 GPL 3.0 许可证发布。
+本项目基于 [GNU 通用公共许可证 v3.0](https://github.com/sage-z-cn/project-compass/blob/master/LICENSE) 开源，可自由使用、修改和分发。衍生作品必须同样以 GPL 3.0 许可证发布。
 

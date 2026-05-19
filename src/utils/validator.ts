@@ -24,10 +24,14 @@ export function getWorkspaceName(): string {
   return path.basename(folders[0].uri.fsPath);
 }
 
+export function normalizePath(p: string): string {
+  return p.replace(/^([a-z]):/, (_, drive) => drive.toUpperCase() + ":");
+}
+
 export function getWorkspacePath(): string {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders || folders.length === 0) {
     return "";
   }
-  return folders[0].uri.fsPath;
+  return normalizePath(folders[0].uri.fsPath);
 }

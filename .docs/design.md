@@ -1,4 +1,4 @@
-# Project Explorer 功能设计
+# Project Compass 功能设计
 
 自动记录 VS Code 打开的项目，支持分组管理和一键切换。
 
@@ -89,7 +89,7 @@ Sidebar 中的主 TreeView，展示所有项目和分组。
 - **设置** (`gear`) — 打开扩展设置
 
 **快捷键 QuickOpen：**
-- 命令 `project-explorer.quickOpen`，默认绑定快捷键 `Alt+O`
+- 命令 `project-compass.quickOpen`，默认绑定快捷键 `Alt+O`
 - 弹出 QuickPick 列出所有项目（按 `lastOpenedAt` 降序），支持模糊搜索
 - 选中后按 `openProjectMode` 设置的方式打开项目
 - 列表项显示项目名称和路径
@@ -181,20 +181,20 @@ README.zh-cn.md    # 中文简体版，包含英文版链接
   "contributes": {
     "viewsContainers": {
       "activitybar": [{
-        "id": "project-explorer",
-        "title": "Project Explorer",
+        "id": "project-compass",
+        "title": "Project Compass",
         "icon": "resources/icon.svg"
       }]
     },
     "views": {
-      "project-explorer": [
+      "project-compass": [
         {
-          "id": "project-explorer.projects",
+          "id": "project-compass.projects",
           "name": "Projects",
           "icon": "resources/icon.svg"
         },
         {
-          "id": "project-explorer.favorites",
+          "id": "project-compass.favorites",
           "name": "Favorites"
         }
       ]

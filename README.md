@@ -1,11 +1,11 @@
-<div align="center"><img src="resources/icon.png" width="128" height="128" alt="Project Explorer"></div>
+<div align="center"><img src="resources/icon.png" width="128" height="128" alt="Project Compass"></div>
 
-<h1 align="center">Project Explorer</h1>
+<h1 align="center">Project Compass</h1>
 
 <p align="center">Auto-record projects, one-click switch.</p>
 
 <p align="center">
-  <a href="https://github.com/sage-z-cn/project-explorer"><img src="https://img.shields.io/github/stars/sage-z-cn/project-explorer" alt="GitHub Stars"></a>
+  <a href="https://github.com/sage-z-cn/project-compass"><img src="https://img.shields.io/github/stars/sage-z-cn/project-compass" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
@@ -14,13 +14,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/sage-z-cn/project-explorer/blob/master/README.md">English</a> | <a href="https://github.com/sage-z-cn/project-explorer/blob/master/README.zh-cn.md">中文文档</a>
+  <a href="https://github.com/sage-z-cn/project-compass/blob/master/README.md">English</a> | <a href="https://github.com/sage-z-cn/project-compass/blob/master/README.zh-cn.md">中文文档</a>
 </p>
 
 ---
 
 <p align="center">
-  <img src="screenshot/screenshot-en.png" alt="Project Explorer Sidebar">
+  <img src="screenshot/screenshot-en.png" alt="Project Compass Sidebar">
 </p>
 
 ## Features
@@ -53,7 +53,7 @@
 
 ## Usage
 
-The extension adds two views to the VS Code sidebar under the **Project Explorer** icon:
+The extension adds two views to the VS Code sidebar under the **Project Compass** icon:
 
 **Recent** — Shows recently opened projects, sorted by last access time. Use the toolbar to add a project manually or clone a Git repository. The overflow menu lets you clean up invalid entries and open settings.
 
@@ -74,8 +74,8 @@ Click any project to open it. Right-click for more options like renaming, toggli
 | Shortcut | Action |
 | --- | --- |
 | `Alt+O` | Open project picker |
-| `Ctrl+Alt+O` | Focus Project Explorer sidebar |
+| `Ctrl+Alt+O` | Focus Project Compass sidebar |
 
 ## License
 
-This project is licensed under the [GNU General Public License v3.0](https://github.com/sage-z-cn/project-explorer/blob/master/LICENSE) — free to use, modify, and distribute. Derivative works must also be licensed under GPL 3.0.
+This project is licensed under the [GNU General Public License v3.0](https://github.com/sage-z-cn/project-compass/blob/master/LICENSE) — free to use, modify, and distribute. Derivative works must also be licensed under GPL 3.0.

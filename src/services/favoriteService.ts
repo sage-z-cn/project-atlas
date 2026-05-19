@@ -1,7 +1,7 @@
 import * as path from "path";
 import type { ProjectItem } from "../models/project";
 import { StorageService } from "./storageService";
-import { generateId } from "../utils/validator";
+import { generateId, normalizePath } from "../utils/validator";
 import { detectProjectType } from "../utils/projectTypeDetector";
 
 export class FavoriteService {
@@ -37,16 +37,17 @@ export class FavoriteService {
   }
 
   add(project: { name: string; path: string }): Thenable<ProjectItem> {
-    const existing = this.getByPath(project.path);
+    const normalizedPath = normalizePath(project.path);
+    const existing = this.getByPath(normalizedPath);
     if (existing) {
       return Promise.resolve(existing);
     }
 
-    const projectType = detectProjectType(project.path);
+    const projectType = detectProjectType(normalizedPath);
     const item: ProjectItem = {
       id: generateId(),
       name: project.name,
-      path: project.path,
+      path: normalizedPath,
       lastOpenedAt: Date.now(),
       order: this.getNextOrder(undefined),
       isFavorite: true,

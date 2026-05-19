@@ -1,4 +1,4 @@
-# Project Explorer - VSCode Extension
+# Project Compass - VSCode Extension
 
 ## Quick Reference
 
@@ -78,7 +78,7 @@ vscode.postMessage({ type: "open", id });
 ```typescript
 // In commands/*.ts
 register("commandName", handlerFn);
-// Command ID becomes: project-explorer.commandName
+// Command ID becomes: project-compass.commandName
 ```
 
 ## Common Pitfalls

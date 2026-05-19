@@ -17,7 +17,7 @@ export function registerGroupCommands(
 ): void {
   const register = (cmd: string, handler: (...args: any[]) => any) => {
     context.subscriptions.push(
-      vscode.commands.registerCommand(`project-explorer.${cmd}`, handler)
+      vscode.commands.registerCommand(`project-compass.${cmd}`, handler)
     );
   };
 

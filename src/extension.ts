@@ -43,11 +43,11 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
-      "project-explorer.recent",
+      "project-compass.recent",
       recentView
     ),
     vscode.window.registerWebviewViewProvider(
-      "project-explorer.favorites",
+      "project-compass.favorites",
       favoritesView
     )
   );

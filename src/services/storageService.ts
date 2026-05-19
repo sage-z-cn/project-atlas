@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { ProjectData } from "../models/storage";
+import { normalizePath } from "../utils/validator";
 
 const STORAGE_KEY = "projectCompass.data";
 
@@ -30,7 +31,16 @@ export class StorageService {
       delete raw.projects;
       this.context.globalState.update(STORAGE_KEY, raw);
     }
-    return structuredClone(raw as ProjectData);
+    const data = structuredClone(raw as ProjectData);
+    data.recentProjects = data.recentProjects.map((p) => ({
+      ...p,
+      path: normalizePath(p.path),
+    }));
+    data.favoriteProjects = data.favoriteProjects.map((p) => ({
+      ...p,
+      path: normalizePath(p.path),
+    }));
+    return data;
   }
 
   saveData(data: ProjectData): Thenable<void> {
