@@ -1,11 +1,12 @@
 {
-  "name": "sagez-project-explorer",
-  "displayName": "Project Explorer @sagez",
+  "name": "project-compass",
+  "displayName": "Project Compass",
   "description": "%description%",
   "version": "1.0.1",
   "license": "GPL-3.0",
   "publisher": "sagez",
   "keywords": [
+    "project dock",
     "project explorer",
     "project",
     "explorer",

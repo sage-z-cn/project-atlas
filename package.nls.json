@@ -1,5 +1,5 @@
 {
-  "viewContainer.title": "Project Explorer",
+  "viewContainer.title": "Project Compass",
   "view.projects.name": "Projects",
   "view.recent.name": "Recent",
   "view.favorites.name": "Favorites",
@@ -23,7 +23,7 @@
   "command.removeProject": "Remove",
   "command.renameGroup": "Rename Group",
   "command.deleteGroup": "Delete Group",
-  "config.title": "Project Explorer",
+  "config.title": "Project Compass",
   "config.recentProjectsLimit": "Maximum number of recent projects to display.",
   "config.openProjectMode": "How to open projects: 'ask' (prompt each time), 'currentWindow', or 'newWindow'.",
   "config.openMode": "Click behavior for opening a project (single click, double click, or follow IDE).",
