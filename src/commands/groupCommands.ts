@@ -103,7 +103,7 @@ export function registerGroupCommands(
   function openSettingsCmd() {
     vscode.commands.executeCommand(
       "workbench.action.openSettings",
-      "projectExplorer"
+      "projectCompass"
     );
   }
 

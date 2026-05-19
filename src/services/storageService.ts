@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import type { ProjectData } from "../models/storage";
 
-const STORAGE_KEY = "projectExplorer.data";
+const STORAGE_KEY = "projectCompass.data";
 
 const DEFAULT_DATA: ProjectData = {
   version: 2,

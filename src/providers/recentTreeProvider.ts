@@ -55,7 +55,7 @@ export class RecentTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   }
 
   getChildren(): TreeNode[] {
-    const config = vscode.workspace.getConfiguration("projectExplorer");
+    const config = vscode.workspace.getConfiguration("projectCompass");
     const limit = config.get<number>("recentProjectsLimit", 50);
     return this.projectService
       .getRecent(limit)

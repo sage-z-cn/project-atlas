@@ -39,7 +39,7 @@ export class RecentViewProvider extends BaseViewProvider {
   }
 
   refresh() {
-    const config = vscode.workspace.getConfiguration("projectExplorer");
+    const config = vscode.workspace.getConfiguration("projectCompass");
     const limit = config.get<number>("recentProjectsLimit", 50);
     const clickMode = this.resolveClickMode();
     const items = this.projectService.getRecent(limit).map(
@@ -375,7 +375,7 @@ vscode.postMessage({ type: "ready" });
   private async openProject(id: string) {
     const project = this.projectService.getById(id);
     if (!project) {return;}
-    const config = vscode.workspace.getConfiguration("projectExplorer");
+    const config = vscode.workspace.getConfiguration("projectCompass");
     const mode = config.get<string>("openProjectMode", "ask");
 
     if (mode === "currentWindow") {

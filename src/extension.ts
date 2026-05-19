@@ -35,7 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("projectExplorer.openMode") || e.affectsConfiguration("workbench.list.openMode")) {
+      if (e.affectsConfiguration("projectCompass.openMode") || e.affectsConfiguration("workbench.list.openMode")) {
         refreshAll();
       }
     })

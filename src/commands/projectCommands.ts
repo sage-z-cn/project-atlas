@@ -139,7 +139,7 @@ export function registerProjectCommands(
 
   async function openProjectBySettingCmd(node: TreeNode) {
     if (node?.type !== "project" || !node.item) {return;}
-    const config = vscode.workspace.getConfiguration("projectExplorer");
+    const config = vscode.workspace.getConfiguration("projectCompass");
     const mode = config.get<string>("openProjectMode", "ask");
 
     if (mode === "currentWindow") {
