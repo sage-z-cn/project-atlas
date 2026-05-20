@@ -6,6 +6,7 @@ import { FavoriteService } from "../services/favoriteService";
 import { GroupService } from "../services/groupService";
 import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
 import { normalizePath } from "../utils/validator";
+import { confirmDelete } from "../utils/confirm";
 import type { ProjectItem } from "../models/project";
 
 type TreeNode = { type: string; item: ProjectItem };
@@ -190,6 +191,9 @@ export function registerProjectCommands(
 
   async function removeProjectCmd(node: TreeNode) {
     if (node?.type !== "project" || !node.item) {return;}
+    if (!await confirmDelete(vscode.l10n.t("Are you sure you want to remove '{0}'?", node.item.name))) {
+      return;
+    }
     await projectService.removeProject(node.item.id);
     refreshAll();
   }

@@ -28,4 +28,5 @@
   "config.recentProjectsLimit": "Maximum number of recent projects to display.",
   "config.openProjectMode": "How to open projects: 'ask' (prompt each time), 'currentWindow', or 'newWindow'.",
   "config.openMode": "Click behavior for opening a project (single click, double click, or follow IDE).",
+  "config.confirmDelete": "Whether to confirm before deleting a project or group. 'ask' shows a confirmation dialog, 'never' deletes immediately."
 }

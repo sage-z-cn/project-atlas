@@ -5,6 +5,7 @@ import { GroupService } from "../services/groupService";
 import { ProjectService } from "../services/projectService";
 import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
 import { getProjectTypeIcon } from "../utils/projectTypeDetector";
+import { confirmDelete } from "../utils/confirm";
 import type { ProjectType } from "../models/project";
 
 interface TreeNodeDto {
@@ -397,7 +398,7 @@ function renderNodes(nodes, depth) {
       html += '<div class="hover-actions">';
       html += '<button data-action="openInNewWindow" title="${vscode.l10n.t("Open in New Window")}"><i class="codicon codicon-link-external"></i></button>';
       html += '<button data-action="openInCurrentWindow" title="${vscode.l10n.t("Open in Current Window")}"><i class="codicon codicon-open-in-product"></i></button>';
-      html += '<button data-action="removeFavorite" title="${vscode.l10n.t("Remove from Favorites")}"><i class="codicon codicon-trash"></i></button>';
+      html += '<button data-action="removeFavorite" title="${vscode.l10n.t("Remove from Favorites")}"><i class="codicon codicon-close"></i></button>';
       html += '</div></div>';
     }
     html += '</div></div>';
@@ -424,7 +425,7 @@ document.getElementById("tree").addEventListener("click", (e) => {
     const node = actionBtn.closest(".tree-node");
     if (node) {
       const id = node.dataset.id;
-      const ids = selectedIds.size > 0 && selectedIds.has(id) ? [...selectedIds] : [id];
+      const ids = [id];
       vscode.postMessage({ type: "contextAction", id: id, ids: ids, itemType: node.dataset.type, action: actionBtn.dataset.action });
     }
     return;
@@ -719,6 +720,15 @@ vscode.postMessage({ type: "ready" });
         if (msg.action) {
           const ids = msg.ids?.length ? msg.ids : (msg.id ? [msg.id] : []);
           const isBatch = ids.length > 1;
+          // For batch destructive actions, confirm once before the loop
+          const destructiveActions = ["remove", "removeFavorite", "deleteGroup"];
+          if (isBatch && destructiveActions.includes(msg.action)) {
+            if (!await confirmDelete(
+              vscode.l10n.t("Are you sure you want to remove {0} selected items?", String(ids.length))
+            )) {
+              break;
+            }
+          }
           for (const id of ids) {
             const isGroup = this.groupService.getById(id);
             const itemType = isGroup ? "group" : "project";
@@ -865,11 +875,11 @@ vscode.postMessage({ type: "ready" });
     if (itemType === "group") {
       await this.handleGroupAction(id, action, skipConfirm);
     } else {
-      await this.handleProjectAction(id, action);
+      await this.handleProjectAction(id, action, skipConfirm);
     }
   }
 
-  private async handleProjectAction(id: string, action: string) {
+  private async handleProjectAction(id: string, action: string, skipConfirm = false) {
     const project = this.favoriteService.getById(id) || this.projectService.getById(id);
     if (!project) {return;}
 
@@ -883,9 +893,13 @@ vscode.postMessage({ type: "ready" });
       case "revealInExplorer":
         openInOS(vscode.Uri.file(project.path));
         break;
-      case "removeFavorite":
+      case "removeFavorite": {
+        if (!skipConfirm && !await confirmDelete(vscode.l10n.t("Are you sure you want to remove '{0}' from favorites?", project.name))) {
+          break;
+        }
         await this.favoriteService.remove(id);
         break;
+      }
       case "rename": {
         const newName = await vscode.window.showInputBox({
           prompt: vscode.l10n.t("Rename project"),
@@ -898,6 +912,9 @@ vscode.postMessage({ type: "ready" });
         break;
       }
       case "remove": {
+        if (!skipConfirm && !await confirmDelete(vscode.l10n.t("Are you sure you want to remove '{0}'?", project.name))) {
+          break;
+        }
         await this.favoriteService.remove(id);
         const recentProject = this.projectService.getByPath(project.path);
         if (recentProject) {
@@ -937,10 +954,13 @@ vscode.postMessage({ type: "ready" });
         if (!group) {return;}
         const projects = this.favoriteService.getByGroup(id);
         const children = this.groupService.getChildren(id);
+
         if (projects.length > 0 || children.length > 0) {
           if (skipConfirm) {
+            // Batch mode — user already confirmed, auto-remove items
             await this.groupService.deleteGroup(id, false);
           } else {
+            // Non-empty group: "contains items" dialog serves as confirmation
             const act = await vscode.window.showWarningMessage(
               vscode.l10n.t("Group '{0}' contains items. What would you like to do?", group.name),
               { modal: true },
@@ -951,6 +971,10 @@ vscode.postMessage({ type: "ready" });
             await this.groupService.deleteGroup(id, act === vscode.l10n.t("Move to parent"));
           }
         } else {
+          // Empty group: show confirmDelete (unless batch already confirmed)
+          if (!skipConfirm && !await confirmDelete(vscode.l10n.t("Are you sure you want to delete group '{0}'?", group.name))) {
+            break;
+          }
           await this.groupService.deleteGroup(id, true);
         }
         break;

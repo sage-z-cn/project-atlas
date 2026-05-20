@@ -47,5 +47,11 @@
   "Root": "根目录",
   "Single click to open": "单击打开",
   "Double click to open": "双击打开",
-  "Follow IDE setting (workbench.list.openMode)": "跟随 IDE 设置 (workbench.list.openMode)"
+  "Follow IDE setting (workbench.list.openMode)": "跟随 IDE 设置 (workbench.list.openMode)",
+  "Confirm": "确认",
+  "Don't Ask Again": "不再提醒",
+  "Are you sure you want to remove '{0}'?": "确定要移除 '{0}' 吗？",
+  "Are you sure you want to remove '{0}' from favorites?": "确定要取消收藏 '{0}' 吗？",
+  "Are you sure you want to delete group '{0}'?": "确定要删除分组 '{0}' 吗？",
+  "Are you sure you want to remove {0} selected items?": "确定要移除选中的 {0} 个项目吗？"
 }

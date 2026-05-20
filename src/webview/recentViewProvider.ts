@@ -5,6 +5,7 @@ import { FavoriteService } from "../services/favoriteService";
 import { GroupService } from "../services/groupService";
 import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
 import { getProjectTypeIcon } from "../utils/projectTypeDetector";
+import { confirmDelete } from "../utils/confirm";
 import type { ProjectType } from "../models/project";
 
 interface RecentItemDto {
@@ -296,6 +297,7 @@ function render() {
     '<div class="hover-actions">' +
     '<button data-action="openInNewWindow" title="${vscode.l10n.t("Open in New Window")}"><i class="codicon codicon-link-external"></i></button>' +
     '<button data-action="openInCurrentWindow" title="${vscode.l10n.t("Open in Current Window")}"><i class="codicon codicon-open-in-product"></i></button>' +
+    '<button data-action="addFavorite" title="${vscode.l10n.t("Add to Favorites")}"><i class="codicon codicon-star-empty"></i></button>' +
     '<button data-action="remove" title="${vscode.l10n.t("Remove")}"><i class="codicon codicon-trash"></i></button>' +
     '</div></div></div></div>';
   }).join("");
@@ -455,8 +457,17 @@ vscode.postMessage({ type: "ready" });
       await this.openProject(msg.id);
     } else if (msg.type === "contextAction" && msg.action) {
       const ids = msg.ids?.length ? msg.ids : (msg.id ? [msg.id] : []);
+      const isBatch = ids.length > 1;
+      // For batch destructive actions, confirm once before the loop
+      if (isBatch && msg.action === "remove") {
+        if (!await confirmDelete(
+          vscode.l10n.t("Are you sure you want to remove {0} selected items?", String(ids.length))
+        )) {
+          return;
+        }
+      }
       for (const id of ids) {
-        await this.handleContextAction(id, msg.action!);
+        await this.handleContextAction(id, msg.action!, isBatch);
       }
       this.postMessage({ type: "clearSelection" });
     }
@@ -480,7 +491,7 @@ vscode.postMessage({ type: "ready" });
     }
   }
 
-  private async handleContextAction(id: string, action: string) {
+  private async handleContextAction(id: string, action: string, skipConfirm = false) {
     const project = this.projectService.getById(id);
     if (!project) {return;}
 
@@ -515,6 +526,9 @@ vscode.postMessage({ type: "ready" });
         break;
       }
       case "remove": {
+        if (!skipConfirm && !await confirmDelete(vscode.l10n.t("Are you sure you want to remove '{0}'?", project.name))) {
+          break;
+        }
         await this.projectService.removeProject(id);
         const favProject = this.favoriteService.getByPath(project.path);
         if (favProject) {

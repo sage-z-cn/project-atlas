@@ -351,6 +351,19 @@
             "Follow IDE setting (workbench.list.openMode)"
           ],
           "description": "%config.openMode%"
+        },
+        "projectAtlas.confirmDelete": {
+          "type": "string",
+          "default": "ask",
+          "enum": [
+            "ask",
+            "never"
+          ],
+          "enumDescriptions": [
+            "Ask for confirmation before deleting",
+            "Delete without confirmation"
+          ],
+          "description": "%config.confirmDelete%"
         }
       }
     }

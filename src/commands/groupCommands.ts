@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { GroupService } from "../services/groupService";
 import { FavoriteService } from "../services/favoriteService";
 import { ProjectService } from "../services/projectService";
+import { confirmDelete } from "../utils/confirm";
 import type { GroupItem } from "../models/group";
 import type { FavoritesViewProvider } from "../webview/favoritesViewProvider";
 
@@ -57,6 +58,7 @@ export function registerGroupCommands(
     const children = groupService.getChildren(node.item.id);
 
     if (projects.length > 0 || children.length > 0) {
+      // Non-empty group: the "contains items" dialog serves as confirmation
       const action = await vscode.window.showWarningMessage(
         vscode.l10n.t(
           "Group '{0}' contains items. What would you like to do?",
@@ -69,6 +71,10 @@ export function registerGroupCommands(
       if (!action) {return;}
       await groupService.deleteGroup(node.item.id, action === vscode.l10n.t("Move to parent"));
     } else {
+      // Empty group: show confirmDelete
+      if (!await confirmDelete(vscode.l10n.t("Are you sure you want to delete group '{0}'?", node.item.name))) {
+        return;
+      }
       await groupService.deleteGroup(node.item.id, true);
     }
 
