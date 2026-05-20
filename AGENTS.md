@@ -86,5 +86,8 @@ register("commandName", handlerFn);
 - Webview HTML must include nonce for CSP compliance
 - `getProjectTypeIcon()` returns `{ icon, fileIcon? }` object, not string
 - TreeDataProvider unused in favor of webview-based views
-- L10n strings in `l10n/bundle.l10n.zh-cn.json`
+- **Localization: NLS vs L10n — 不同体系，不可混用**
+  - `package.json` 中的 `%key%` 占位符 → 使用 **NLS** 体系：`package.nls.json`（英文默认）、`package.nls.zh-cn.json`（中文翻译）。命令标题、视图名、配置描述等都属于此类。
+  - 代码中 `vscode.l10n.t("string")` 的运行时字符串 → 使用 **L10n** 体系：`l10n/bundle.l10n.zh-cn.json`。key 是英文原文，value 是中文翻译。
+  - **严禁**在 l10n bundle 中放入 `command.*` 这类 NLS key，同样也**严禁**在 NLS 文件中放入运行时字符串。
 - **No inline styles in webview** - CSP blocks `style=""` attributes. Use JS DOM manipulation: `el.style.property = value` or `el.classList.add()`

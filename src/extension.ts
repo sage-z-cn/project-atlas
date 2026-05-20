@@ -42,6 +42,13 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // Reveal active file in built-in explorer sidebar
+  context.subscriptions.push(
+    vscode.commands.registerCommand("project-atlas.revealActiveFile", () => {
+      vscode.commands.executeCommand("revealInExplorer");
+    })
+  );
+
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       "project-atlas.recent",

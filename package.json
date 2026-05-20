@@ -119,6 +119,11 @@
         "title": "%command.revealInExplorer%"
       },
       {
+        "command": "project-atlas.revealActiveFile",
+        "title": "%command.revealActiveFile%",
+        "icon": "$(go-to-file)"
+      },
+      {
         "command": "project-atlas.addFavorite",
         "title": "%command.addFavorite%"
       },
@@ -252,6 +257,11 @@
           "command": "project-atlas.openSettings",
           "when": "view == project-atlas.favorites",
           "group": "overflow@2"
+        },
+        {
+          "command": "project-atlas.revealActiveFile",
+          "when": "view == workbench.explorer.fileView && config.projectAtlas.showRevealActiveFile",
+          "group": "navigation@1"
         }
       ],
       "view/item/context": [
@@ -364,6 +374,11 @@
             "Delete without confirmation"
           ],
           "description": "%config.confirmDelete%"
+        },
+        "projectAtlas.showRevealActiveFile": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.showRevealActiveFile%"
         }
       }
     }

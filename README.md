@@ -2,7 +2,7 @@
 
 <h1 align="center">Project Atlas</h1>
 
-<p align="center">Auto-record projects, one-click switch.</p>
+<p align="center">Auto-record projects, quick access.</p>
 
 <p align="center">
   <a href="https://github.com/sage-z-cn/project-atlas.git"><img src="https://img.shields.io/github/stars/sage-z-cn/project-atlas" alt="GitHub Stars"></a>
@@ -49,6 +49,8 @@
 
 ✅ **Keyboard Shortcuts** — Press `Alt+O` to open the project picker, `Ctrl+Alt+O` to focus the sidebar.
 
+✅ **Reveal Active File** — Adds a button to the built-in file explorer's view title bar to locate the currently open file in the tree (can be toggled in settings).
+
 ✅ **i18n** — Full localization support for English and Chinese interfaces.
 
 ## Usage
@@ -68,6 +70,7 @@ Click any project to open it. Right-click for more options like renaming, toggli
 | `projectExplorer.recentProjectsLimit` | `number` | `50` | Maximum number of recent projects to keep |
 | `projectExplorer.openProjectMode` | `ask` / `currentWindow` / `newWindow` | `ask` | Default window behavior when opening a project |
 | `projectExplorer.openMode` | `singleClick` / `doubleClick` / `followIDE` | `followIDE` | How a click on a project item opens it |
+| `projectAtlas.showRevealActiveFile` | `boolean` | `true` | Show 'Reveal Active File' button in the built-in file explorer view title |
 
 ## Keyboard Shortcuts
 

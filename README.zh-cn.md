@@ -2,7 +2,7 @@
 
 <h1 align="center">Project Atlas</h1>
 
-<p align="center">自动记录，一键即达。</p>
+<p align="center">自动记录，快速即达。</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="GPL 3.0 License">
@@ -45,6 +45,8 @@
 
 ✅ **快捷键** — 按 `Alt+O` 快速打开项目选择器，按 `Ctrl+Alt+O` 聚焦侧边栏。
 
+✅ **定位当前文件** — 在内置资源管理器标题栏添加"定位当前文件"按钮，一键在文件树中定位当前编辑的文件（可在设置中开关）。
+
 ✅ **国际化** — 支持中文和英文界面，随 VS Code 语言自动切换。
 
 ## 使用说明
@@ -64,6 +66,7 @@
 | `projectExplorer.recentProjectsLimit` | 数字 | `50` | 最近项目视图显示的最大项目数 |
 | `projectExplorer.openProjectMode` | 枚举 | `ask` | 打开项目时使用新窗口还是当前窗口。可选值：`ask`（每次询问）、`currentWindow`（当前窗口）、`newWindow`（新窗口） |
 | `projectExplorer.openMode` | 枚举 | `followIDE` | 点击项目时的行为。可选值：`singleClick`（单击打开）、`doubleClick`（双击打开）、`followIDE`（跟随 IDE 设置） |
+| `projectAtlas.showRevealActiveFile` | 布尔 | `true` | 在内置资源管理器视图标题栏显示"定位当前文件"按钮 |
 
 ## 快捷键
 
