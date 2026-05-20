@@ -25,19 +25,26 @@
 
 ## Features
 
-✅ **Auto-tracking** — Every project you open is recorded automatically. No manual setup needed.
+**Auto-tracking**
+> Every project you open is recorded automatically. No manual setup needed.
 
-✅ **Quick Access** — Open any project from the sidebar with configurable click behavior (single/double click) and window preference. Keyboard shortcuts for instant access.
+**Quick Access**
+> Open any project from the sidebar with configurable click behavior (single/double click) and window preference. Keyboard shortcuts for instant access.
 
-✅ **Favorites & Groups** — Star projects for quick access and organize them into named groups with expand/collapse.
+**Favorites & Groups**
+> Star projects for quick access and organize them into named groups with expand/collapse.
 
-✅ **Git Clone** — Clone repositories directly into your workspace from the sidebar.
+**Git Clone**
+> Clone repositories directly into your workspace from the sidebar.
 
-✅ **Project Type Detection** — Automatically identifies 16+ project types and displays matching devicon icons.
+**Project Type Detection**
+> Automatically identifies 16+ project types and displays matching devicon icons.
 
-✅ **Project Management** — Rename display names, clean up invalid entries, reveal in file explorer, and right-click for quick actions.
+**Project Management**
+> Rename display names, clean up invalid entries, reveal in file explorer, and right-click for quick actions.
 
-✅ **Reveal Active File** — Adds a button to the built-in file explorer's view title bar to locate the currently open file in the tree (can be toggled in settings).
+**Reveal Active File**
+> Adds a button to the built-in file explorer's view title bar to locate the currently open file in the tree (can be toggled in settings).
 
 ## Usage
 
