@@ -61,6 +61,10 @@
 | `Alt+O` | 打开项目选择器 |
 | `Ctrl+Alt+O` | 聚焦 Project Atlas 侧边栏 |
 
+## 更新日志
+
+版本历史请参见 [CHANGELOG.md](https://github.com/sage-z-cn/project-atlas/blob/master/CHANGELOG.md)。
+
 ## 许可证
 
 本项目基于 [GNU 通用公共许可证 v3.0](https://github.com/sage-z-cn/project-atlas/blob/master/LICENSE) 开源，可自由使用、修改和分发。衍生作品必须同样以 GPL 3.0 许可证发布。

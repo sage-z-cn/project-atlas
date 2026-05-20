@@ -65,6 +65,10 @@ Click any project to open it. Right-click for more options like renaming, toggli
 | `Alt+O` | Open project picker |
 | `Ctrl+Alt+O` | Focus Project Atlas sidebar |
 
+## Changelog
+
+See [CHANGELOG.md](https://github.com/sage-z-cn/project-atlas/blob/master/CHANGELOG.md) for release history.
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](https://github.com/sage-z-cn/project-atlas/blob/master/LICENSE) — free to use, modify, and distribute. Derivative works must also be licensed under GPL 3.0.
