@@ -3,7 +3,7 @@ import { BaseViewProvider } from "./baseViewProvider";
 import { ProjectService } from "../services/projectService";
 import { FavoriteService } from "../services/favoriteService";
 import { GroupService } from "../services/groupService";
-import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
+import { openFolder, openInOS } from "../utils/opener";
 import { getProjectTypeIcon } from "../utils/projectTypeDetector";
 import { confirmDelete } from "../utils/confirm";
 import { isPathValid } from "../utils/validator";
@@ -35,11 +35,11 @@ function formatRelativeTime(timestamp: number): string {
 export class RecentViewProvider extends BaseViewProvider {
   constructor(
     extensionUri: vscode.Uri,
-    private projectService: ProjectService,
-    private favoriteService: FavoriteService,
-    private groupService: GroupService
+    projectService: ProjectService,
+    favoriteService: FavoriteService,
+    groupService: GroupService
   ) {
-    super(extensionUri);
+    super(extensionUri, projectService, favoriteService, groupService);
   }
 
   refresh() {
@@ -80,7 +80,6 @@ export class RecentViewProvider extends BaseViewProvider {
 <link href="${deviconCss}" rel="stylesheet" nonce="${nonce}">
 <style nonce="${nonce}">
   :root { --item-height: 22px; --indent: 8px; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: var(--vscode-font-family);
     font-size: var(--vscode-font-size);
@@ -114,8 +113,7 @@ export class RecentViewProvider extends BaseViewProvider {
     font-size: 18px;
     align-self: center;
   }
-  .icon.vscode { color: var(--vscode-icon.foreground); }
-  .icon.devicon { font-size: 20px; }
+  .icon.vscode { color: var(--vscode-icon-foreground); }
   .content {
     flex: 1;
     display: flex;
@@ -146,88 +144,14 @@ export class RecentViewProvider extends BaseViewProvider {
     margin-left: auto;
     text-align: right;
   }
-  .path-row {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-  }
   .path-row .path {
     flex: 1;
     min-width: 0;
   }
-  .hover-actions {
-    visibility: hidden;
-    flex-shrink: 0;
-    display: flex;
-    gap: 2px;
-    margin-left: auto;
-  }
   .item:hover .hover-actions {
     visibility: visible;
   }
-  .hover-actions button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0 2px;
-    color: var(--vscode-descriptionForeground);
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 18px;
-    width: 20px;
-  }
-  .hover-actions button:hover {
-    color: var(--vscode-foreground);
-    background: var(--vscode-toolbar-hoverBackground);
-  }
-  .hover-actions .codicon {
-    font-size: 13px;
-  }
-  .empty {
-    padding: 8px 16px;
-    color: var(--vscode-descriptionForeground);
-    font-style: italic;
-  }
-  .context-menu {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    background: var(--vscode-menu-background);
-    border: 1px solid var(--vscode-menu-border);
-    border-radius: 4px;
-    padding: 2px 0;
-    min-width: 140px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  }
-  .context-menu .menu-item {
-    padding: 2px 16px;
-    cursor: pointer;
-    white-space: nowrap;
-    font-size: 0.9em;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .context-menu .menu-item .codicon { font-size: 14px; }
-  .context-menu .menu-item:hover { background: var(--vscode-menu-selectionBackground); color: var(--vscode-menu-selectionForeground); }
-  .context-menu .menu-item.disabled { opacity: 0.4; pointer-events: none; }
-  .context-menu .separator { height: 1px; background: var(--vscode-menu-separatorBackground); margin: 2px 0; }
-  .selection-box {
-    display: none;
-    position: fixed;
-    border: 1px solid var(--vscode-focusBorder);
-    pointer-events: none;
-    z-index: 999;
-  }
-  .selection-box::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--vscode-focusBorder);
-    opacity: 0.1;
-  }
+  ${BaseViewProvider.sharedCss()}
 </style>
 </head>
 <body>
@@ -237,16 +161,8 @@ export class RecentViewProvider extends BaseViewProvider {
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
 let items = [];
-let focusedId = null;
-let selectedIds = new Set();
-let lastClickedId = null;
-let ctxTargetId = null;
-let clickMode = "singleClick";
-let clickTimer = null;
-let pendingClickId = null;
-let selecting = false;
-let selStartX = 0, selStartY = 0;
-let selectionJustMade = false;
+${BaseViewProvider.sharedStateVars()}
+let ctxTarget = null;
 
 const MENU = {
   project: [
@@ -254,22 +170,16 @@ const MENU = {
     { action: "openInCurrentWindow", label: ${JSON.stringify(vscode.l10n.t("Open in Current Window"))}, icon: "open-in-product" },
     { action: "revealInExplorer", label: ${JSON.stringify(vscode.l10n.t("Reveal in File Explorer"))}, icon: "file-directory" },
     { sep: true },
-    { action: "addFavorite", label: ${JSON.stringify(vscode.l10n.t("Add to Favorites"))}, icon: "star-empty" },
+    { action: "addFavorite", label: ${JSON.stringify(vscode.l10n.t("Add to Favorites"))}, icon: "star-empty", multi: true },
     { action: "rename", label: ${JSON.stringify(vscode.l10n.t("Rename"))}, icon: "edit" },
-    { action: "remove", label: ${JSON.stringify(vscode.l10n.t("Remove"))}, icon: "trash" },
+    { action: "remove", label: ${JSON.stringify(vscode.l10n.t("Remove"))}, icon: "trash", multi: true },
   ],
 };
 
 window.addEventListener("message", (e) => {
   const msg = e.data;
-  if (msg.type === "data") {
-    items = msg.items;
-    if (msg.clickMode) { clickMode = msg.clickMode; }
-    selectedIds.clear();
-    focusedId = null;
-    lastClickedId = null;
-    render();
-  } else if (msg.type === "clearSelection") {
+  ${BaseViewProvider.messageDataHandler("items")}
+  else if (msg.type === "clearSelection") {
     selectedIds.clear();
     focusedId = null;
     lastClickedId = null;
@@ -304,7 +214,7 @@ function render() {
   }).join("");
 }
 
-function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+${BaseViewProvider.escFunction()}
 
 document.getElementById("list").addEventListener("click", (e) => {
   const actionBtn = e.target.closest(".hover-actions button");
@@ -368,80 +278,9 @@ document.getElementById("list").addEventListener("click", (e) => {
   }
 });
 
-document.addEventListener("contextmenu", (e) => {
-  const el = e.target.closest(".item");
-  if (!el) { e.preventDefault(); return; }
-  e.preventDefault();
-  const id = el.dataset.id;
-  if (!selectedIds.has(id)) {
-    selectedIds.clear();
-    selectedIds.add(id);
-    focusedId = id;
-    lastClickedId = id;
-    render();
-  }
-  ctxTargetId = id;
-  showMenu(e.clientX, e.clientY, "project");
-});
-
-document.addEventListener("click", (e) => {
-  hideMenu();
-  if (selectionJustMade) {
-    selectionJustMade = false;
-    return;
-  }
-  if (!e.target.closest(".item") && !e.target.closest(".context-menu")) {
-    selectedIds.clear();
-    focusedId = null;
-    lastClickedId = null;
-    render();
-  }
-});
-window.addEventListener("blur", () => {
-  hideMenu();
-  if (selecting) {
-    selecting = false;
-    selBox.style.display = "none";
-  }
-  selectedIds.clear();
-  focusedId = null;
-  lastClickedId = null;
-  render();
-});
+${BaseViewProvider.contextMenuScript(".item")}
 
 ${BaseViewProvider.rubberBandScript("list", ".item")}
-
-function showMenu(x, y, type) {
-  const menu = document.getElementById("ctx");
-  const menuItems = MENU[type] || [];
-  const multiSelect = selectedIds.size > 1;
-  menu.innerHTML = menuItems.map(i =>
-    i.sep ? '<div class="separator"></div>'
-    : '<div class="menu-item' + (multiSelect && i.action !== "addFavorite" && i.action !== "remove" ? ' disabled' : '') + '" data-action="' + i.action + '"><i class="codicon codicon-' + i.icon + '"></i>' + esc(i.label) + '</div>'
-  ).join("");
-  menu.style.display = "block";
-  const menuW = menu.offsetWidth;
-  const menuH = menu.offsetHeight;
-  const pad = 4;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  if (x + menuW > vw - pad) { x = vw - menuW - pad; }
-  if (y + menuH > vh - pad) { y = vh - menuH - pad; }
-  if (x < pad) { x = pad; }
-  if (y < pad) { y = pad; }
-  menu.style.left = x + "px";
-  menu.style.top = y + "px";
-}
-
-function hideMenu() { document.getElementById("ctx").style.display = "none"; }
-
-document.getElementById("ctx").addEventListener("click", (e) => {
-  const el = e.target.closest(".menu-item");
-  if (!el || el.classList.contains("disabled")) {return;}
-  const ids = selectedIds.size > 0 ? [...selectedIds] : (ctxTargetId ? [ctxTargetId] : []);
-  vscode.postMessage({ type: "contextAction", id: ctxTargetId, ids: ids, action: el.dataset.action });
-  hideMenu();
-});
 vscode.postMessage({ type: "ready" });
 </script>
 </body>
@@ -477,41 +316,7 @@ vscode.postMessage({ type: "ready" });
   private async openProject(id: string) {
     const project = this.projectService.getById(id);
     if (!project) {return;}
-
-    if (!isPathValid(project.path)) {
-      await this.handleMissingPath(project);
-      return;
-    }
-
-    const config = vscode.workspace.getConfiguration("projectAtlas");
-    const mode = config.get<string>("openProjectMode", "ask");
-
-    if (mode === "currentWindow") {
-      await openFolder(vscode.Uri.file(project.path), false);
-    } else if (mode === "newWindow") {
-      await openFolder(vscode.Uri.file(project.path), true);
-    } else {
-      try {
-        const newWindow = await resolveOpenMode();
-        await openFolder(vscode.Uri.file(project.path), newWindow);
-      } catch { /* cancelled */ }
-    }
-  }
-
-  private async handleMissingPath(project: { id: string; name: string; path: string }) {
-    const remove = vscode.l10n.t("Remove");
-    const result = await vscode.window.showWarningMessage(
-      vscode.l10n.t("Directory '{0}' does not exist.", project.name),
-      { modal: true },
-      remove,
-    );
-    if (result === remove) {
-      await this.projectService.removeProject(project.id);
-      const favProject = this.favoriteService.getByPath(project.path);
-      if (favProject) {
-        await this.favoriteService.remove(favProject.id);
-      }
-    }
+    await this.openProjectByPath(project.path, async () => { await this.handleMissingProject(project); });
   }
 
   private async handleContextAction(id: string, action: string, skipConfirm = false) {
@@ -521,14 +326,14 @@ vscode.postMessage({ type: "ready" });
     switch (action) {
       case "openInNewWindow":
         if (!isPathValid(project.path)) {
-          await this.handleMissingPath(project);
+          await this.handleMissingProject(project);
           return;
         }
         await openFolder(vscode.Uri.file(project.path), true);
         break;
       case "openInCurrentWindow":
         if (!isPathValid(project.path)) {
-          await this.handleMissingPath(project);
+          await this.handleMissingProject(project);
           return;
         }
         await openFolder(vscode.Uri.file(project.path), false);
@@ -545,26 +350,14 @@ vscode.postMessage({ type: "ready" });
         }, groupId);
         break;
       }
-      case "rename": {
-        const newName = await vscode.window.showInputBox({
-          prompt: vscode.l10n.t("Rename project"),
-          value: project.name,
-        });
-        if (newName) {
-          await this.projectService.renameProject(id, newName);
-          await this.favoriteService.rename(id, newName);
-        }
+      case "rename":
+        await this.renameProject(id);
         break;
-      }
       case "remove": {
         if (!skipConfirm && !await confirmDelete(vscode.l10n.t("Are you sure you want to remove '{0}'?", project.name))) {
           break;
         }
-        await this.projectService.removeProject(id);
-        const favProject = this.favoriteService.getByPath(project.path);
-        if (favProject) {
-          await this.favoriteService.remove(favProject.id);
-        }
+        await this.removeProjectFromBoth(project.path);
         break;
       }
     }
