@@ -6,6 +6,7 @@ import { ProjectService } from "../services/projectService";
 import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
 import { getProjectTypeIcon } from "../utils/projectTypeDetector";
 import { confirmDelete } from "../utils/confirm";
+import { isPathValid } from "../utils/validator";
 import type { ProjectType } from "../models/project";
 
 interface TreeNodeDto {
@@ -749,6 +750,12 @@ vscode.postMessage({ type: "ready" });
   private async openProject(id: string) {
     const project = this.favoriteService.getById(id);
     if (!project) {return;}
+
+    if (!isPathValid(project.path)) {
+      await this.handleMissingFavorite(project);
+      return;
+    }
+
     const config = vscode.workspace.getConfiguration("projectAtlas");
     const mode = config.get<string>("openProjectMode", "ask");
 
@@ -761,6 +768,22 @@ vscode.postMessage({ type: "ready" });
         const newWindow = await resolveOpenMode();
         await openFolder(vscode.Uri.file(project.path), newWindow);
       } catch { /* cancelled */ }
+    }
+  }
+
+  private async handleMissingFavorite(project: { id: string; name: string; path: string }) {
+    const remove = vscode.l10n.t("Remove");
+    const result = await vscode.window.showWarningMessage(
+      vscode.l10n.t("Directory '{0}' does not exist.", project.name),
+      { modal: true },
+      remove,
+    );
+    if (result === remove) {
+      await this.favoriteService.remove(project.id);
+      const recentProject = this.projectService.getByPath(project.path);
+      if (recentProject) {
+        await this.projectService.removeProject(recentProject.id);
+      }
     }
   }
 
@@ -885,9 +908,17 @@ vscode.postMessage({ type: "ready" });
 
     switch (action) {
       case "openInNewWindow":
+        if (!isPathValid(project.path)) {
+          await this.handleMissingFavorite(project);
+          return;
+        }
         await openFolder(vscode.Uri.file(project.path), true);
         break;
       case "openInCurrentWindow":
+        if (!isPathValid(project.path)) {
+          await this.handleMissingFavorite(project);
+          return;
+        }
         await openFolder(vscode.Uri.file(project.path), false);
         break;
       case "revealInExplorer":

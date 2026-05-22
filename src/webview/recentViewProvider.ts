@@ -6,6 +6,7 @@ import { GroupService } from "../services/groupService";
 import { resolveOpenMode, openFolder, openInOS } from "../utils/opener";
 import { getProjectTypeIcon } from "../utils/projectTypeDetector";
 import { confirmDelete } from "../utils/confirm";
+import { isPathValid } from "../utils/validator";
 import type { ProjectType } from "../models/project";
 
 interface RecentItemDto {
@@ -476,6 +477,12 @@ vscode.postMessage({ type: "ready" });
   private async openProject(id: string) {
     const project = this.projectService.getById(id);
     if (!project) {return;}
+
+    if (!isPathValid(project.path)) {
+      await this.handleMissingPath(project);
+      return;
+    }
+
     const config = vscode.workspace.getConfiguration("projectAtlas");
     const mode = config.get<string>("openProjectMode", "ask");
 
@@ -491,15 +498,39 @@ vscode.postMessage({ type: "ready" });
     }
   }
 
+  private async handleMissingPath(project: { id: string; name: string; path: string }) {
+    const remove = vscode.l10n.t("Remove");
+    const result = await vscode.window.showWarningMessage(
+      vscode.l10n.t("Directory '{0}' does not exist.", project.name),
+      { modal: true },
+      remove,
+    );
+    if (result === remove) {
+      await this.projectService.removeProject(project.id);
+      const favProject = this.favoriteService.getByPath(project.path);
+      if (favProject) {
+        await this.favoriteService.remove(favProject.id);
+      }
+    }
+  }
+
   private async handleContextAction(id: string, action: string, skipConfirm = false) {
     const project = this.projectService.getById(id);
     if (!project) {return;}
 
     switch (action) {
       case "openInNewWindow":
+        if (!isPathValid(project.path)) {
+          await this.handleMissingPath(project);
+          return;
+        }
         await openFolder(vscode.Uri.file(project.path), true);
         break;
       case "openInCurrentWindow":
+        if (!isPathValid(project.path)) {
+          await this.handleMissingPath(project);
+          return;
+        }
         await openFolder(vscode.Uri.file(project.path), false);
         break;
       case "revealInExplorer":

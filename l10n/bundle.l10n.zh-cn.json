@@ -54,5 +54,6 @@
   "Are you sure you want to remove '{0}' from favorites?": "确定要取消收藏 '{0}' 吗？",
   "Are you sure you want to delete group '{0}'?": "确定要删除分组 '{0}' 吗？",
   "Are you sure you want to remove {0} selected items?": "确定要移除选中的 {0} 个项目吗？",
-  "Open New Project...": "打开新项目..."
+  "Open New Project...": "打开新项目...",
+  "Directory '{0}' does not exist.": "目录 '{0}' 不存在。"
 }
