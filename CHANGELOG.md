@@ -4,6 +4,11 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.3.0
+- **缺失项目清理**: 打开项目时检测路径是否存在，不存在时提示是否移除
+- **自定义路径添加**: 添加项目时支持输入自定义路径
+- 重构代码提取公共逻辑，减少冗余
+
 #### 1.2.1
 - 修复打包配置，重新发布
 
