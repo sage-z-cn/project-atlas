@@ -16,7 +16,7 @@ interface QuickPickItem extends vscode.QuickPickItem {
 }
 
 const PROJECT_TYPE_ICON: Record<ProjectType, string> = {
-  electron: "electron",
+  electron: "symbol-method",
   react: "symbol-method",
   vue: "symbol-method",
   typescript: "symbol-method",
@@ -69,7 +69,8 @@ export function registerProjectCommands(
     for (const p of favoriteService.getAll()) {
       if (p.isValid) recentMap.set(p.path, p);
     }
-    await pickAndOpenProject([...recentMap.values()]);
+    const projects = [...recentMap.values()].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt);
+    await pickAndOpenProject(projects);
   }
 
   async function addProjectCmd() {
