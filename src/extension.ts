@@ -35,6 +35,12 @@ export function activate(context: vscode.ExtensionContext) {
   storage.onDidChange(() => refreshAll());
 
   context.subscriptions.push(
+    vscode.window.onDidChangeWindowState((e) => {
+      if (e.focused) { refreshAll(); }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("projectAtlas.openMode") || e.affectsConfiguration("workbench.list.openMode")) {
         refreshAll();
