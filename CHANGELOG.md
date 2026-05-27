@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.4.0
+- **多窗口同步**: 窗口获焦时自动刷新最近项目和收藏列表，多 VS Code 客户端间保持同步
+- **QuickPick 排序**: 项目选择列表改为按最近打开时间降序排列
+
 #### 1.3.0
 - **缺失项目清理**: 打开项目时检测路径是否存在，不存在时提示是否移除
 - **自定义路径添加**: 添加项目时支持输入自定义路径
