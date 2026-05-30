@@ -32,6 +32,15 @@
 				"reveal": "always"
 			},
 			"group": "build"
+		},
+		{
+			"type": "npm",
+			"script": "build-and-install",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always"
+			},
+			"group": "build"
 		}
 	]
 }
