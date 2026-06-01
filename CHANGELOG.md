@@ -4,6 +4,9 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.4.1
+- 修正中文翻译中的引号使用
+
 #### 1.4.0
 - **多窗口同步**: 窗口获焦时自动刷新最近项目和收藏列表，多 VS Code 客户端间保持同步
 - **QuickPick 排序**: 项目选择列表改为按最近打开时间降序排列
