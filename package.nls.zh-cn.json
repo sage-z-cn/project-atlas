@@ -30,5 +30,5 @@
   "config.openProjectMode": "打开项目方式：'ask'（每次询问）、'currentWindow'（当前窗口）或 'newWindow'（新窗口）。",
   "config.openMode": "点击项目时的打开行为（单击、双击或跟随 IDE 设置）。",
   "config.confirmDelete": "删除项目或分组前是否确认。'ask' 显示确认对话框，'never' 直接删除。",
-  "config.showRevealActiveFile": "在内置资源管理器视图标题栏显示"定位当前文件"按钮。"
+  "config.showRevealActiveFile": "在内置资源管理器视图标题栏显示'定位当前文件'按钮。"
 }
