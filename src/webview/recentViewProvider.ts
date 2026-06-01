@@ -169,6 +169,7 @@ const MENU = {
     { action: "openInNewWindow", label: ${JSON.stringify(vscode.l10n.t("Open in New Window"))}, icon: "link-external" },
     { action: "openInCurrentWindow", label: ${JSON.stringify(vscode.l10n.t("Open in Current Window"))}, icon: "open-in-product" },
     { action: "revealInExplorer", label: ${JSON.stringify(vscode.l10n.t("Reveal in File Explorer"))}, icon: "file-directory" },
+    { action: "copyPath", label: ${JSON.stringify(vscode.l10n.t("Copy Path"))}, icon: "copy" },
     { sep: true },
     { action: "addFavorite", label: ${JSON.stringify(vscode.l10n.t("Add to Favorites"))}, icon: "star-empty", multi: true },
     { action: "rename", label: ${JSON.stringify(vscode.l10n.t("Rename"))}, icon: "edit" },
@@ -340,6 +341,9 @@ vscode.postMessage({ type: "ready" });
         break;
       case "revealInExplorer":
         openInOS(vscode.Uri.file(project.path));
+        break;
+      case "copyPath":
+        await vscode.env.clipboard.writeText(project.path);
         break;
       case "addFavorite": {
         const groupId = await this.groupService.pickGroup();
