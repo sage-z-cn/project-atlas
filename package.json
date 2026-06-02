@@ -387,7 +387,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "vite build",
     "watch": "vite build --watch",
-    "pack": "npx @vscode/vsce package",
+    "pack": "npm run compile && npx @vscode/vsce package",
     "build-and-install": "node scripts/build-and-install.js",
     "publish": "npx @vscode/vsce publish",
     "pretest": "npm run compile && npm run lint",

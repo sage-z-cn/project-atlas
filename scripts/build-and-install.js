@@ -8,6 +8,9 @@ const outDir = path.join(root, "build");
 const vsixName = `${pkg.name}-${pkg.version}.vsix`;
 const vsixPath = path.join(outDir, vsixName);
 
+console.log("Compiling ...");
+execSync("npm run compile", { cwd: root, stdio: "inherit" });
+
 fs.mkdirSync(outDir, { recursive: true });
 
 console.log(`Packaging ${vsixName} ...`);
