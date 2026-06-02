@@ -34,6 +34,16 @@
 			"group": "build"
 		},
 		{
+		  "label": "publish",
+		  "type": "npm",
+		  "script": "publish",
+		  "problemMatcher": ["$tsc"],
+		  "group": "build",
+		  "presentation": {
+			"reveal": "always"
+		  }
+		},
+		{
 			"type": "npm",
 			"script": "build-and-install",
 			"problemMatcher": [],
