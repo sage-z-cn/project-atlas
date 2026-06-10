@@ -46,15 +46,24 @@
 **Reveal Active File**
 > Adds a button to the built-in file explorer's view title bar to locate the currently open file in the tree (can be toggled in settings).
 
+**Task Runner**
+> A dedicated sidebar for running tasks defined in `.vscode/tasks.json` and npm scripts from `package.json`. Start, stop, and drag to reorder tasks with real-time status.
+
 ## Usage
 
-The extension adds two views to the VS Code sidebar under the **Project Atlas** icon:
+The extension adds two sidebars to VS Code:
+
+**Project Atlas** — Project management sidebar with two views:
 
 **Recent** — Shows recently opened projects, sorted by last access time. Use the toolbar to add a project manually or clone a Git repository. The overflow menu lets you clean up invalid entries and open settings.
 
 **Favorites** — Displays starred projects, optionally organized into groups. Use the toolbar to add the current workspace, create groups, and expand or collapse all groups. Drag to reorder items.
 
-Click any project to open it. Right-click for more options like renaming, toggling favorites, or opening in a new window.
+**Task Atlas** — Task runner sidebar with one view:
+
+**Tasks** — Lists all tasks from `.vscode/tasks.json` and npm scripts from `package.json` (deduplicated). Click to run, click again to stop. Drag to reorder. Tasks are grouped by type and auto-refreshed when config files change.
+
+Click any project to open it. Right-click for more options like renaming, toggling favorites, copying path, or opening in a new window.
 
 ## Configuration
 
