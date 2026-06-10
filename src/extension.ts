@@ -3,8 +3,10 @@ import { StorageService } from "./services/storageService";
 import { ProjectService } from "./services/projectService";
 import { FavoriteService } from "./services/favoriteService";
 import { GroupService } from "./services/groupService";
+import { TaskService } from "./services/taskService";
 import { RecentViewProvider } from "./webview/recentViewProvider";
 import { FavoritesViewProvider } from "./webview/favoritesViewProvider";
+import { TasksViewProvider } from "./webview/tasksViewProvider";
 import { registerProjectCommands } from "./commands/projectCommands";
 import { registerGroupCommands } from "./commands/groupCommands";
 
@@ -13,6 +15,8 @@ export function activate(context: vscode.ExtensionContext) {
   const projectService = new ProjectService(storage);
   const favoriteService = new FavoriteService(storage);
   const groupService = new GroupService(storage);
+  const taskService = new TaskService();
+  taskService.initStorage(context.globalState);
 
   const recentView = new RecentViewProvider(
     context.extensionUri,
@@ -26,17 +30,34 @@ export function activate(context: vscode.ExtensionContext) {
     groupService,
     projectService
   );
+  const tasksView = new TasksViewProvider(
+    context.extensionUri,
+    taskService,
+    projectService,
+    favoriteService,
+    groupService
+  );
 
   const refreshAll = () => {
     recentView.refresh();
     favoritesView.refresh();
   };
 
+  const refreshTasks = () => {
+    tasksView.refresh();
+  };
+
   storage.onDidChange(() => refreshAll());
+
+  // Refresh tasks when task state changes (run/stop)
+  taskService.onDidChange(() => refreshTasks());
 
   context.subscriptions.push(
     vscode.window.onDidChangeWindowState((e) => {
-      if (e.focused) { refreshAll(); }
+      if (e.focused) {
+        refreshAll();
+        refreshTasks();
+      }
     })
   );
 
@@ -48,10 +69,30 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // Watch for changes to tasks.json and package.json
+  const tasksWatcher = vscode.workspace.createFileSystemWatcher("**/.vscode/tasks.json");
+  const pkgWatcher = vscode.workspace.createFileSystemWatcher("**/package.json");
+  context.subscriptions.push(tasksWatcher, pkgWatcher);
+  context.subscriptions.push(
+    tasksWatcher.onDidChange(() => refreshTasks()),
+    tasksWatcher.onDidCreate(() => refreshTasks()),
+    tasksWatcher.onDidDelete(() => refreshTasks()),
+    pkgWatcher.onDidChange(() => refreshTasks()),
+    pkgWatcher.onDidCreate(() => refreshTasks()),
+    pkgWatcher.onDidDelete(() => refreshTasks()),
+  );
+
   // Reveal active file in built-in explorer sidebar
   context.subscriptions.push(
     vscode.commands.registerCommand("project-atlas.revealActiveFile", () => {
       vscode.commands.executeCommand("revealInExplorer");
+    })
+  );
+
+  // Refresh tasks command
+  context.subscriptions.push(
+    vscode.commands.registerCommand("task-atlas.refreshTasks", () => {
+      refreshTasks();
     })
   );
 
@@ -63,6 +104,10 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider(
       "project-atlas.favorites",
       favoritesView
+    ),
+    vscode.window.registerWebviewViewProvider(
+      "task-atlas.tasks",
+      tasksView
     )
   );
 
@@ -70,6 +115,9 @@ export function activate(context: vscode.ExtensionContext) {
   registerGroupCommands(context, groupService, favoriteService, projectService, refreshAll, favoritesView);
 
   projectService.recordCurrentWorkspace();
+
+  // Cleanup task service on deactivation
+  context.subscriptions.push(taskService);
 }
 
 export function deactivate() {}

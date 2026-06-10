@@ -56,5 +56,10 @@
   "Are you sure you want to delete group '{0}'?": "确定要删除分组 '{0}' 吗？",
   "Are you sure you want to remove {0} selected items?": "确定要移除选中的 {0} 个项目吗？",
   "Open New Project...": "打开新项目...",
-  "Directory '{0}' does not exist.": "目录 '{0}' 不存在。"
+  "Directory '{0}' does not exist.": "目录 '{0}' 不存在。",
+  "No tasks found": "暂无任务",
+  "Run": "运行",
+  "Stop": "停止",
+  "npm Scripts": "npm 脚本",
+  "No open workspace": "未打开工作区"
 }

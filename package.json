@@ -40,7 +40,12 @@
         {
           "id": "project-atlas",
           "title": "%viewContainer.title%",
-          "icon": "resources/sidebar.svg"
+          "icon": "resources/project.svg"
+        },
+        {
+          "id": "task-atlas",
+          "title": "%viewContainer.taskAtlas%",
+          "icon": "resources/tasks.svg"
         }
       ]
     },
@@ -49,13 +54,21 @@
         {
           "id": "project-atlas.recent",
           "name": "%view.recent.name%",
-          "icon": "resources/sidebar.svg",
+          "icon": "resources/project.svg",
           "type": "webview"
         },
         {
           "id": "project-atlas.favorites",
           "name": "%view.favorites.name%",
-          "icon": "resources/sidebar.svg",
+          "icon": "resources/project.svg",
+          "type": "webview"
+        }
+      ],
+      "task-atlas": [
+        {
+          "id": "task-atlas.tasks",
+          "name": "%view.tasks.name%",
+          "icon": "resources/tasks.svg",
           "type": "webview"
         }
       ]
@@ -146,6 +159,11 @@
       {
         "command": "project-atlas.deleteGroup",
         "title": "%command.deleteGroup%"
+      },
+      {
+        "command": "task-atlas.refreshTasks",
+        "title": "%command.refreshTasks%",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -205,6 +223,10 @@
         {
           "command": "project-atlas.deleteGroup",
           "when": "false"
+        },
+        {
+          "command": "task-atlas.refreshTasks",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -261,6 +283,11 @@
         {
           "command": "project-atlas.revealActiveFile",
           "when": "view == workbench.explorer.fileView && config.projectAtlas.showRevealActiveFile",
+          "group": "navigation@1"
+        },
+        {
+          "command": "task-atlas.refreshTasks",
+          "when": "view == task-atlas.tasks",
           "group": "navigation@1"
         }
       ],

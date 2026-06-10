@@ -5,6 +5,10 @@
   "view.recent.name": "Recent",
   "view.favorites.name": "Favorites",
 
+  "viewContainer.taskAtlas": "Task Atlas",
+  "view.tasks.name": "Tasks",
+  "command.refreshTasks": "Refresh Tasks",
+
   "description": "Auto-record projects, quick access.",
   "command.openProject": "Open Project",
   "command.addProject": "Add Project",
