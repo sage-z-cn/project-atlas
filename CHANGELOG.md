@@ -4,6 +4,11 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.5.0
+- **Task Atlas 任务管理**: 新增独立侧边栏视图，自动解析 .vscode/tasks.json 和 package.json scripts，支持运行/停止任务、拖拽排序、分组折叠
+- **拷贝项目路径**: 右键菜单新增拷贝项目路径功能
+- 图标资源重命名，区分项目图标与任务图标
+
 #### 1.4.1
 - 修正中文翻译中的引号使用
 
