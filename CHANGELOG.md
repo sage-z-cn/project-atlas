@@ -4,6 +4,15 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.6.0
+- **Monorepo 支持**: 递归扫描工作区中所有 .vscode/tasks.json 和 package.json，按子项目/分组自动归类展示
+- **任务置顶 (Pin)**: 右键或悬停按钮可将任务置顶，置顶任务独立分组始终显示在最上方
+- **最近运行 (Recent Runs)**: 自动记录最近执行的任务，独立分组展示，支持移除
+- **包管理器检测**: 自动识别 npm/pnpm/yarn/bun，终端名称和执行命令对应显示
+- **内联操作按钮**: 鼠标悬停任务项时显示置顶/取消置顶/移除最近运行按钮
+- 修复 monorepo 中同名任务误执行问题
+- 修复 bun.lock（Bun ≥1.2）锁文件未能识别的问题
+
 #### 1.5.0
 - **Task Atlas 任务管理**: 新增独立侧边栏视图，自动解析 .vscode/tasks.json 和 package.json scripts，支持运行/停止任务、拖拽排序、分组折叠
 - **拷贝项目路径**: 右键菜单新增拷贝项目路径功能
