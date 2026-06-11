@@ -8,6 +8,7 @@
   "viewContainer.taskAtlas": "Task Atlas",
   "view.tasks.name": "Tasks",
   "command.refreshTasks": "Refresh Tasks",
+  "command.taskAtlas.openSettings": "Task Atlas Settings",
 
   "description": "Auto-record projects, quick access.",
   "command.openProject": "Open Project",
@@ -34,5 +35,8 @@
   "config.openProjectMode": "How to open projects: 'ask' (prompt each time), 'currentWindow', or 'newWindow'.",
   "config.openMode": "Click behavior for opening a project (single click, double click, or follow IDE).",
   "config.confirmDelete": "Whether to confirm before deleting a project or group. 'ask' shows a confirmation dialog, 'never' deletes immediately.",
-  "config.showRevealActiveFile": "Show 'Reveal Active File' button in the built-in file explorer view title."
+  "config.showRevealActiveFile": "Show 'Reveal Active File' button in the built-in file explorer view title.",
+  "config.taskAtlas.showRecentRuns": "Show the 'Recent Runs' group at the top of the task list.",
+  "config.taskAtlas.maxRecentRuns": "Maximum number of recently run tasks to display.",
+  "config.taskAtlas.showPinned": "Show the 'Pinned' group at the top of the task list."
 }

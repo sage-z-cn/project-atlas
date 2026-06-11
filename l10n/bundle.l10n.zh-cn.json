@@ -61,5 +61,11 @@
   "Run": "运行",
   "Stop": "停止",
   "npm Scripts": "npm 脚本",
-  "No open workspace": "未打开工作区"
+  "No open workspace": "未打开工作区",
+  "Loading tasks...": "加载任务中...",
+  "Recent Runs": "最近运行",
+  "Pinned": "置顶",
+  "Pin": "置顶",
+  "Unpin": "取消置顶",
+  "Remove from recent": "从最近运行中移除"
 }

@@ -66,6 +66,9 @@ export function activate(context: vscode.ExtensionContext) {
       if (e.affectsConfiguration("projectAtlas.openMode") || e.affectsConfiguration("workbench.list.openMode")) {
         refreshAll();
       }
+      if (e.affectsConfiguration("taskAtlas")) {
+        refreshTasks();
+      }
     })
   );
 
@@ -73,13 +76,17 @@ export function activate(context: vscode.ExtensionContext) {
   const tasksWatcher = vscode.workspace.createFileSystemWatcher("**/.vscode/tasks.json");
   const pkgWatcher = vscode.workspace.createFileSystemWatcher("**/package.json");
   context.subscriptions.push(tasksWatcher, pkgWatcher);
+  const refreshTasksWithCache = () => {
+    taskService.invalidateCache();
+    refreshTasks();
+  };
   context.subscriptions.push(
-    tasksWatcher.onDidChange(() => refreshTasks()),
-    tasksWatcher.onDidCreate(() => refreshTasks()),
-    tasksWatcher.onDidDelete(() => refreshTasks()),
-    pkgWatcher.onDidChange(() => refreshTasks()),
-    pkgWatcher.onDidCreate(() => refreshTasks()),
-    pkgWatcher.onDidDelete(() => refreshTasks()),
+    tasksWatcher.onDidChange(() => refreshTasksWithCache()),
+    tasksWatcher.onDidCreate(() => refreshTasksWithCache()),
+    tasksWatcher.onDidDelete(() => refreshTasksWithCache()),
+    pkgWatcher.onDidChange(() => refreshTasksWithCache()),
+    pkgWatcher.onDidCreate(() => refreshTasksWithCache()),
+    pkgWatcher.onDidDelete(() => refreshTasksWithCache()),
   );
 
   // Reveal active file in built-in explorer sidebar
@@ -93,6 +100,13 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("task-atlas.refreshTasks", () => {
       refreshTasks();
+    })
+  );
+
+  // Open Task Atlas settings
+  context.subscriptions.push(
+    vscode.commands.registerCommand("task-atlas.openSettings", () => {
+      vscode.commands.executeCommand("workbench.action.openSettings", "taskAtlas");
     })
   );
 

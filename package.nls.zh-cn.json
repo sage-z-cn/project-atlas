@@ -8,6 +8,7 @@
   "viewContainer.taskAtlas": "Task Atlas",
   "view.tasks.name": "任务",
   "command.refreshTasks": "刷新任务",
+  "command.taskAtlas.openSettings": "Task Atlas 设置",
 
   "description": "自动记录项目，快速即达",
   "command.openProject": "打开项目",
@@ -34,5 +35,8 @@
   "config.openProjectMode": "打开项目方式：'ask'（每次询问）、'currentWindow'（当前窗口）或 'newWindow'（新窗口）。",
   "config.openMode": "点击项目时的打开行为（单击、双击或跟随 IDE 设置）。",
   "config.confirmDelete": "删除项目或分组前是否确认。'ask' 显示确认对话框，'never' 直接删除。",
-  "config.showRevealActiveFile": "在内置资源管理器视图标题栏显示'定位当前文件'按钮。"
+  "config.showRevealActiveFile": "在内置资源管理器视图标题栏显示'定位当前文件'按钮。",
+  "config.taskAtlas.showRecentRuns": "在任务列表顶部显示'最近运行'分组。",
+  "config.taskAtlas.maxRecentRuns": "最近运行分组中显示的最大任务数量。",
+  "config.taskAtlas.showPinned": "在任务列表顶部显示'置顶'分组。"
 }

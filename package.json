@@ -164,6 +164,11 @@
         "command": "task-atlas.refreshTasks",
         "title": "%command.refreshTasks%",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "task-atlas.openSettings",
+        "title": "%command.taskAtlas.openSettings%",
+        "icon": "$(gear)"
       }
     ],
     "menus": {
@@ -289,6 +294,11 @@
           "command": "task-atlas.refreshTasks",
           "when": "view == task-atlas.tasks",
           "group": "navigation@1"
+        },
+        {
+          "command": "task-atlas.openSettings",
+          "when": "view == task-atlas.tasks",
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
@@ -349,6 +359,11 @@
         "command": "workbench.view.extension.project-atlas",
         "key": "ctrl+alt+o",
         "mac": "ctrl+alt+o"
+      },
+      {
+        "command": "workbench.view.extension.task-atlas",
+        "key": "ctrl+alt+t",
+        "mac": "ctrl+alt+t"
       }
     ],
     "configuration": {
@@ -406,6 +421,23 @@
           "type": "boolean",
           "default": true,
           "description": "%config.showRevealActiveFile%"
+        },
+        "taskAtlas.showRecentRuns": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.taskAtlas.showRecentRuns%"
+        },
+        "taskAtlas.maxRecentRuns": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "%config.taskAtlas.maxRecentRuns%"
+        },
+        "taskAtlas.showPinned": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.taskAtlas.showPinned%"
         }
       }
     }
