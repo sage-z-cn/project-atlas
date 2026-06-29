@@ -4,6 +4,16 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.7.0
+- **布局优化**: 移除任务的 group 分组，改为仅按项目分组展示，减少嵌套层级
+- **展开/折叠**: 工具栏新增全部展开、全部折叠按钮
+- **图标改进**: npm 脚本改用 devicon 图标，VSCode 任务改用 terminal 图标
+- **任务 Tooltip**: 悬停任务项显示执行命令与工作目录
+- **Root 标签**: 根级任务使用工作区名称作为分组标题
+- 移除任务项 inline 置顶/取消置顶按钮，仅保留右键菜单入口
+- 调整缩进至 14px 与分组图标对齐
+- 修复 refreshAsync 异常时面板卡在加载状态的问题
+
 #### 1.6.0
 - **Monorepo 支持**: 递归扫描工作区中所有 .vscode/tasks.json 和 package.json，按子项目/分组自动归类展示
 - **任务置顶 (Pin)**: 右键或悬停按钮可将任务置顶，置顶任务独立分组始终显示在最上方
