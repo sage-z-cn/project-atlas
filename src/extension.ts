@@ -110,6 +110,18 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // Task Atlas expand / collapse
+  context.subscriptions.push(
+    vscode.commands.registerCommand("task-atlas.expandAll", () => {
+      tasksView.expandAll();
+    })
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("task-atlas.collapseAll", () => {
+      tasksView.collapseAll();
+    })
+  );
+
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       "project-atlas.recent",

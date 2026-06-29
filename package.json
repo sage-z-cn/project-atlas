@@ -169,6 +169,16 @@
         "command": "task-atlas.openSettings",
         "title": "%command.taskAtlas.openSettings%",
         "icon": "$(gear)"
+      },
+      {
+        "command": "task-atlas.expandAll",
+        "title": "%command.taskAtlas.expandAll%",
+        "icon": "$(expand-all)"
+      },
+      {
+        "command": "task-atlas.collapseAll",
+        "title": "%command.taskAtlas.collapseAll%",
+        "icon": "$(collapse-all)"
       }
     ],
     "menus": {
@@ -296,9 +306,19 @@
           "group": "navigation@1"
         },
         {
-          "command": "task-atlas.openSettings",
+          "command": "task-atlas.expandAll",
           "when": "view == task-atlas.tasks",
           "group": "navigation@2"
+        },
+        {
+          "command": "task-atlas.collapseAll",
+          "when": "view == task-atlas.tasks",
+          "group": "navigation@3"
+        },
+        {
+          "command": "task-atlas.openSettings",
+          "when": "view == task-atlas.tasks",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [

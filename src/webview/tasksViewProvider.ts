@@ -10,20 +10,15 @@ interface TaskItemDto {
   id: string;
   name: string;
   source: "vscode" | "npm";
-  group?: string;
   isRunning: boolean;
   relativeDir: string;
-}
-
-interface TaskGroupDto {
-  name: string;
-  tasks: TaskItemDto[];
+  cwd: string;
+  packageManager: string;
 }
 
 interface TaskProjectDto {
   relativePath: string;
-  groups: TaskGroupDto[];
-  ungrouped: TaskItemDto[];
+  tasks: TaskItemDto[];
 }
 
 export class TasksViewProvider extends BaseViewProvider {
@@ -41,7 +36,16 @@ export class TasksViewProvider extends BaseViewProvider {
     this.refreshAsync();
   }
 
+  expandAll() {
+    this.postMessage({ type: "expandAll" });
+  }
+
+  collapseAll() {
+    this.postMessage({ type: "collapseAll" });
+  }
+
   private async refreshAsync() {
+    try {
     const tasks = await this.taskService.getTasks();
     const runningIds = new Set(this.taskService.getRunningTaskIds());
 
@@ -62,63 +66,29 @@ export class TasksViewProvider extends BaseViewProvider {
       }
     }
 
-    // Group root tasks by group field
-    const rootGroups: TaskGroupDto[] = [];
-    const rootUngrouped: TaskItemDto[] = [];
-    const rootGroupMap = new Map<string, TaskItemDto[]>();
-
-    for (const t of rootTasks) {
-      const dto = this.toDto(t, runningIds);
-      if (t.group) {
-        let list = rootGroupMap.get(t.group);
-        if (!list) {
-          list = [];
-          rootGroupMap.set(t.group, list);
-        }
-        list.push(dto);
-      } else {
-        rootUngrouped.push(dto);
-      }
-    }
-    for (const [name, taskList] of rootGroupMap) {
-      rootGroups.push({ name, tasks: taskList });
-    }
-
-    // Group sub-project tasks by relativeDir, then by group
+    // Build sub-project DTOs (flat task list per project, no group sub-grouping)
     const projects: TaskProjectDto[] = [];
     const sortedPaths = [...subProjectMap.keys()].sort();
     for (const relPath of sortedPaths) {
       const projTasks = subProjectMap.get(relPath)!;
-      const projGroups: TaskGroupDto[] = [];
-      const projUngrouped: TaskItemDto[] = [];
-      const projGroupMap = new Map<string, TaskItemDto[]>();
-
-      for (const t of projTasks) {
-        const dto = this.toDto(t, runningIds);
-        if (t.group) {
-          let list = projGroupMap.get(t.group);
-          if (!list) {
-            list = [];
-            projGroupMap.set(t.group, list);
-          }
-          list.push(dto);
-        } else {
-          projUngrouped.push(dto);
-        }
-      }
-      for (const [name, taskList] of projGroupMap) {
-        projGroups.push({ name, tasks: taskList });
-      }
-      projects.push({ relativePath: relPath, groups: projGroups, ungrouped: projUngrouped });
+      projects.push({
+        relativePath: relPath,
+        tasks: projTasks.map(t => this.toDto(t, runningIds)),
+      });
     }
 
+    // Root tasks as a pseudo-project (always visible)
+    const rootProject: TaskProjectDto = {
+      relativePath: "",
+      tasks: rootTasks.map(t => this.toDto(t, runningIds)),
+    };
+
     // Build pinned tasks list
-    const allTasks = [...rootTasks, ...tasks.filter(t => t.relativeDir !== "")];
     const pinnedIds = new Set(this.taskService.getPinnedIds());
     const showPinned = this.taskService.getShowPinned();
     let pinnedItems: TaskItemDto[] = [];
     if (showPinned && pinnedIds.size > 0) {
-      for (const t of allTasks) {
+      for (const t of tasks) {
         if (pinnedIds.has(t.id)) {
           pinnedItems.push(this.toDto(t, runningIds));
         }
@@ -131,14 +101,17 @@ export class TasksViewProvider extends BaseViewProvider {
     let recentItems: TaskItemDto[] = [];
     if (showRecent && recentIds.length > 0) {
       for (const id of recentIds) {
-        const task = allTasks.find(t => t.id === id);
+        const task = tasks.find(t => t.id === id);
         if (task) {
           recentItems.push(this.toDto(task, runningIds));
         }
       }
     }
 
-    this.postMessage({ type: "data", pinnedItems, recentItems, rootGroups, rootUngrouped, projects });
+    this.postMessage({ type: "data", pinnedItems, recentItems, rootProject, projects });
+    } catch {
+      this.postMessage({ type: "data", pinnedItems: [], recentItems: [], rootProject: { relativePath: "", tasks: [] }, projects: [] });
+    }
   }
 
   private toDto(t: TaskItem, runningIds: Set<string>): TaskItemDto {
@@ -146,9 +119,10 @@ export class TasksViewProvider extends BaseViewProvider {
       id: t.id,
       name: t.name,
       source: t.source,
-      group: t.group,
       isRunning: runningIds.has(t.id),
       relativeDir: t.relativeDir,
+      cwd: t.cwd,
+      packageManager: t.packageManager,
     };
   }
 
@@ -157,6 +131,10 @@ export class TasksViewProvider extends BaseViewProvider {
     const codiconCss = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, "node_modules", "@vscode/codicons", "dist", "codicon.css")
     );
+    const deviconCss = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, "node_modules", "devicon", "devicon.min.css")
+    );
+    const workspaceName = vscode.workspace.workspaceFolders?.[0]?.name || vscode.l10n.t("Root");
 
     return `<!DOCTYPE html>
 <html>
@@ -164,6 +142,7 @@ export class TasksViewProvider extends BaseViewProvider {
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <link href="${codiconCss}" rel="stylesheet" nonce="${nonce}">
+<link href="${deviconCss}" rel="stylesheet" nonce="${nonce}">
 <style nonce="${nonce}">
   :root { --item-height: 22px; --indent: 8px; }
   body {
@@ -205,10 +184,6 @@ export class TasksViewProvider extends BaseViewProvider {
   }
   .group-children { overflow: hidden; }
   .group-children.collapsed { display: none; }
-  .group-indent {
-    flex-shrink: 0;
-    width: 20px;
-  }
   .project-header {
     display: flex;
     align-items: center;
@@ -234,7 +209,7 @@ export class TasksViewProvider extends BaseViewProvider {
   .project-children.collapsed { display: none; }
   .project-indent {
     flex-shrink: 0;
-    width: 20px;
+    width: 14px;
   }
   .task-item {
     display: flex;
@@ -269,6 +244,7 @@ export class TasksViewProvider extends BaseViewProvider {
     justify-content: center;
     color: var(--vscode-icon-foreground);
   }
+  .task-item .icon.devicon { font-size: 14px; }
   .task-item .task-name {
     flex: 1;
     overflow: hidden;
@@ -319,34 +295,6 @@ export class TasksViewProvider extends BaseViewProvider {
   }
   .task-item.running .stop-btn {
     color: var(--vscode-notificationsErrorIcon-foreground, #f14c4c);
-  }
-  .task-item .task-actions {
-    display: none;
-    flex-shrink: 0;
-    gap: 2px;
-  }
-  .task-item:hover .task-actions {
-    display: flex;
-  }
-  .task-item .task-actions button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0 2px;
-    color: var(--vscode-descriptionForeground);
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 18px;
-    width: 20px;
-  }
-  .task-item .task-actions button:hover {
-    color: var(--vscode-foreground);
-    background: var(--vscode-toolbar-hoverBackground);
-  }
-  .task-item .task-actions button .codicon {
-    font-size: 13px;
   }
   .context-menu {
     position: fixed;
@@ -418,8 +366,7 @@ export class TasksViewProvider extends BaseViewProvider {
 <div id="ctx" class="context-menu" style="display:none"></div>
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
-let rootGroups = [];
-let rootUngrouped = [];
+let rootProject = { relativePath: "", tasks: [] };
 let projects = [];
 let pinnedItems = [];
 let recentItems = [];
@@ -431,41 +378,55 @@ const UNPIN_LABEL = ${JSON.stringify(vscode.l10n.t("Unpin"))};
 const REMOVE_RECENT_LABEL = ${JSON.stringify(vscode.l10n.t("Remove from recent"))};
 const PINNED_LABEL = ${JSON.stringify(vscode.l10n.t("Pinned"))};
 const RECENT_RUNS_LABEL = ${JSON.stringify(vscode.l10n.t("Recent Runs"))};
-let expandedGroups = new Set(vscode.getState()?.expandedGroups ?? undefined);
+const ROOT_LABEL = ${JSON.stringify(workspaceName)};
 let expandedProjects = new Set(vscode.getState()?.expandedProjects ?? undefined);
 let expandedPinned = vscode.getState()?.expandedPinned ?? true;
 let expandedRecent = vscode.getState()?.expandedRecent ?? true;
-let firstLoad = (vscode.getState()?.expandedGroups === undefined);
+let firstLoad = (vscode.getState()?.expandedProjects === undefined);
 
 function saveState() {
-  vscode.setState({ expandedGroups: [...expandedGroups], expandedProjects: [...expandedProjects], expandedPinned, expandedRecent });
+  vscode.setState({ expandedProjects: [...expandedProjects], expandedPinned, expandedRecent });
 }
 
 window.addEventListener("message", (e) => {
   const msg = e.data;
   if (msg.type === "data") {
-    rootGroups = msg.rootGroups || [];
-    rootUngrouped = msg.rootUngrouped || [];
+    rootProject = msg.rootProject || { relativePath: "", tasks: [] };
     projects = msg.projects || [];
     pinnedItems = msg.pinnedItems || [];
     recentItems = msg.recentItems || [];
     pinnedIds = new Set(pinnedItems.map(t => t.id));
     if (firstLoad) {
-      for (const g of rootGroups) { expandedGroups.add(g.name); }
-      for (const p of projects) { expandedProjects.add(p.relativePath); }
-      for (const p of projects) {
-        for (const g of p.groups) { expandedGroups.add(p.relativePath + "::" + g.name); }
+      if (rootProject.tasks.length > 0 && projects.length > 0) {
+        expandedProjects.add(rootProject.relativePath);
       }
+      for (const p of projects) { expandedProjects.add(p.relativePath); }
       firstLoad = false;
       saveState();
     }
     render();
+  } else if (msg.type === "expandAll") {
+    expandedPinned = true;
+    expandedRecent = true;
+    if (rootProject.tasks.length > 0 && projects.length > 0) {
+      expandedProjects.add(rootProject.relativePath);
+    }
+    for (const p of projects) { expandedProjects.add(p.relativePath); }
+    saveState();
+    render();
+  } else if (msg.type === "collapseAll") {
+    expandedPinned = false;
+    expandedRecent = false;
+    expandedProjects.clear();
+    saveState();
+    render();
   }
 });
+vscode.postMessage({ type: "ready" });
 
 function render() {
   const list = document.getElementById("list");
-  const hasContent = pinnedItems.length > 0 || recentItems.length > 0 || rootGroups.length > 0 || rootUngrouped.length > 0 || projects.length > 0;
+  const hasContent = pinnedItems.length > 0 || recentItems.length > 0 || rootProject.tasks.length > 0 || projects.length > 0;
   if (!hasContent) {
     list.innerHTML = '<div class="empty">' + esc(${JSON.stringify(vscode.l10n.t("No tasks found"))}) + '</div>';
     return;
@@ -484,10 +445,10 @@ function render() {
     html += '</div>';
     html += '<div class="group-children' + (isExpanded ? '' : ' collapsed') + '" data-group-children="__pinned__">';
     for (const task of pinnedItems) {
-      html += renderTask(task, true, false, true, false);
+      html += renderTask(task, true, true);
     }
     html += '</div>';
-    if (recentItems.length > 0 || projects.length > 0 || rootGroups.length > 0 || rootUngrouped.length > 0) {
+    if (recentItems.length > 0 || projects.length > 0 || rootProject.tasks.length > 0) {
       html += '<div class="section-separator"></div>';
     }
   }
@@ -503,11 +464,37 @@ function render() {
     html += '</div>';
     html += '<div class="group-children' + (isExpanded ? '' : ' collapsed') + '" data-group-children="__recent__">';
     for (const task of recentItems) {
-      html += renderTask(task, true, false, false, true);
+      html += renderTask(task, true, true);
     }
     html += '</div>';
-    if (projects.length > 0 || rootGroups.length > 0 || rootUngrouped.length > 0) {
+    if (projects.length > 0 || rootProject.tasks.length > 0) {
       html += '<div class="section-separator"></div>';
+    }
+  }
+
+  // Root project tasks (shown as project if sub-projects exist, flat otherwise)
+  if (rootProject.tasks.length > 0) {
+    if (projects.length > 0) {
+      const isExpanded = expandedProjects.has(rootProject.relativePath);
+      const chevronClass = isExpanded ? "codicon codicon-chevron-down" : "codicon codicon-chevron-right";
+      const folderIcon = isExpanded ? "codicon codicon-folder-opened" : "codicon codicon-folder";
+      html += '<div class="project-header" data-project="' + esc(rootProject.relativePath) + '">';
+      html += '<span class="chevron"><i class="' + chevronClass + '"></i></span>';
+      html += '<span class="icon"><i class="' + folderIcon + '"></i></span>';
+      html += esc(ROOT_LABEL);
+      html += '</div>';
+      html += '<div class="project-children' + (isExpanded ? '' : ' collapsed') + '" data-project-children="' + esc(rootProject.relativePath) + '">';
+      for (const task of rootProject.tasks) {
+        html += renderTask(task, true, false);
+      }
+      html += '</div>';
+      if (projects.length > 0) {
+        html += '<div class="section-separator"></div>';
+      }
+    } else {
+      for (const task of rootProject.tasks) {
+        html += renderTask(task, false, false);
+      }
     }
   }
 
@@ -522,95 +509,42 @@ function render() {
     html += esc(project.relativePath);
     html += '</div>';
     html += '<div class="project-children' + (isExpanded ? '' : ' collapsed') + '" data-project-children="' + esc(project.relativePath) + '">';
-
-    // Project groups
-    for (const group of project.groups) {
-      const groupKey = project.relativePath + "::" + group.name;
-      const isGroupExpanded = expandedGroups.has(groupKey);
-      const groupChevron = isGroupExpanded ? "codicon codicon-chevron-down" : "codicon codicon-chevron-right";
-      html += '<div class="group-header" data-group="' + esc(groupKey) + '">';
-      html += '<span class="project-indent"></span>';
-      html += '<span class="chevron"><i class="' + groupChevron + '"></i></span>';
-      html += '<span class="icon"><i class="codicon codicon-package"></i></span>';
-      html += esc(group.name);
-      html += '</div>';
-      html += '<div class="group-children' + (isGroupExpanded ? '' : ' collapsed') + '" data-group-children="' + esc(groupKey) + '">';
-      for (const task of group.tasks) {
-        html += renderTask(task, true, true, false, false);
-      }
-      html += '</div>';
-    }
-
-    // Project ungrouped
-    for (const task of project.ungrouped) {
-      html += renderTask(task, false, true, false, false);
-    }
-
-    html += '</div>';
-  }
-
-  // Root groups after sub-projects
-  for (const group of rootGroups) {
-    const isExpanded = expandedGroups.has(group.name);
-    const chevronClass = isExpanded ? "codicon codicon-chevron-down" : "codicon codicon-chevron-right";
-    html += '<div class="group-header" data-group="' + esc(group.name) + '">';
-    html += '<span class="chevron"><i class="' + chevronClass + '"></i></span>';
-    html += '<span class="icon"><i class="codicon codicon-package"></i></span>';
-    html += esc(group.name);
-    html += '</div>';
-    html += '<div class="group-children' + (isExpanded ? '' : ' collapsed') + '" data-group-children="' + esc(group.name) + '">';
-    for (const task of group.tasks) {
-      html += renderTask(task, true, false, false, false);
+    for (const task of project.tasks) {
+      html += renderTask(task, true, false);
     }
     html += '</div>';
-  }
-
-  // Root ungrouped
-  for (const task of rootUngrouped) {
-    html += renderTask(task, false, false, false, false);
   }
 
   list.innerHTML = html;
 }
 
-function renderTask(task, inGroup, inProject, inPinned, inRecent) {
+function renderTask(task, inProject, showPath) {
   const runningClass = task.isRunning ? " running" : "";
   const iconClass = task.source === "npm"
-    ? "codicon codicon-terminal"
-    : "codicon codicon-note";
+    ? "devicon devicon-npm-original-wordmark colored"
+    : "codicon codicon-terminal";
+  const iconHtml = task.source === "npm"
+    ? '<span class="icon ' + iconClass + '"></span>'
+    : '<span class="icon"><i class="' + iconClass + '"></i></span>';
   const actionBtn = task.isRunning
     ? '<button class="stop-btn" data-task-id="' + esc(task.id) + '" title="' + esc(STOP_LABEL) + '"><i class="codicon codicon-debug-stop"></i></button>'
     : '<button class="run-btn" data-task-id="' + esc(task.id) + '" title="' + esc(RUN_LABEL) + '"><i class="codicon codicon-play"></i></button>';
   const projectIndent = inProject ? '<span class="project-indent"></span>' : '';
-  const groupIndent = inGroup ? '<span class="group-indent"></span>' : '';
 
-  // Show relativeDir suffix for tasks in special groups (pinned/recent) to disambiguate
   let displayName = esc(task.name);
-  if ((inPinned || inRecent) && task.relativeDir) {
+  if (showPath && task.relativeDir) {
     displayName += '<span class="task-path">' + esc(task.relativeDir) + '</span>';
   }
 
-  // Inline action buttons (pin/unpin, remove recent) — visible on hover
-  const isPinned = pinnedIds.has(task.id);
-  let inlineActions = '';
-  // No pin/unpin button in Recent Runs section
-  if (!inRecent) {
-    if (!isPinned) {
-      inlineActions += '<button class="pin-btn" data-task-id="' + esc(task.id) + '" title="' + esc(PIN_LABEL) + '"><i class="codicon codicon-pin"></i></button>';
-    } else {
-      inlineActions += '<button class="unpin-btn" data-task-id="' + esc(task.id) + '" title="' + esc(UNPIN_LABEL) + '"><i class="codicon codicon-pinned"></i></button>';
-    }
-  }
-  if (inRecent) {
-    inlineActions += '<button class="remove-recent-btn" data-task-id="' + esc(task.id) + '" title="' + esc(REMOVE_RECENT_LABEL) + '"><i class="codicon codicon-close"></i></button>';
-  }
+  const cmd = task.source === "npm"
+    ? task.packageManager + " run " + task.name
+    : task.name;
+  const tooltip = esc(cmd + "\\n" + task.cwd);
 
-  return '<div class="task-item' + runningClass + '" data-id="' + esc(task.id) + '" draggable="true">' +
+  return '<div class="task-item' + runningClass + '" data-id="' + esc(task.id) + '" draggable="true" title="' + tooltip + '">' +
     projectIndent +
-    groupIndent +
-    '<span class="icon"><i class="' + iconClass + '"></i></span>' +
+    iconHtml +
     '<span class="task-name">' + displayName + '</span>' +
-    '<span class="task-actions">' + inlineActions + '</span>' +
     actionBtn +
     '</div>';
 }
@@ -619,28 +553,10 @@ ${BaseViewProvider.escFunction()}
 
 // Click handlers
 document.getElementById("list").addEventListener("click", (e) => {
-  // Inline action buttons (pin, unpin, remove recent)
-  const pinBtn = e.target.closest(".pin-btn");
-  if (pinBtn) {
-    vscode.postMessage({ type: "pin", id: pinBtn.dataset.taskId });
-    return;
-  }
-  const unpinBtn = e.target.closest(".unpin-btn");
-  if (unpinBtn) {
-    vscode.postMessage({ type: "unpin", id: unpinBtn.dataset.taskId });
-    return;
-  }
-  const removeRecentBtn = e.target.closest(".remove-recent-btn");
-  if (removeRecentBtn) {
-    vscode.postMessage({ type: "removeRecent", id: removeRecentBtn.dataset.taskId });
-    return;
-  }
-
   const actionBtn = e.target.closest(".run-btn, .stop-btn");
   if (actionBtn) {
     const taskId = actionBtn.dataset.taskId;
     if (actionBtn.classList.contains("run-btn")) {
-      // Immediately show loading spinner before server responds
       actionBtn.classList.remove("run-btn");
       actionBtn.classList.add("loading-btn");
       actionBtn.innerHTML = '<i class="codicon codicon-loading codicon-modifier-spin"></i>';
@@ -668,7 +584,6 @@ document.getElementById("list").addEventListener("click", (e) => {
   const groupHeader = e.target.closest(".group-header");
   if (groupHeader) {
     const groupName = groupHeader.dataset.group;
-    // Handle special groups (pinned/recent)
     if (groupName === "__pinned__") {
       expandedPinned = !expandedPinned;
       saveState();
@@ -681,23 +596,11 @@ document.getElementById("list").addEventListener("click", (e) => {
       render();
       return;
     }
-    if (expandedGroups.has(groupName)) {
-      expandedGroups.delete(groupName);
-    } else {
-      expandedGroups.add(groupName);
-    }
-    saveState();
-    render();
-    return;
-  }
-
-  const taskItem = e.target.closest(".task-item");
-  if (taskItem) {
     return;
   }
 });
 
-// Drag and drop (same pattern as favoritesView)
+// Drag and drop
 let dragTaskId = null;
 let currentIndicator = null;
 let currentOverNode = null;
@@ -726,16 +629,13 @@ document.getElementById("list").addEventListener("dragover", (e) => {
   const taskItem = e.target.closest(".task-item");
   if (!taskItem) { clearIndicator(); return; }
   if (taskItem.dataset.id === dragTaskId) { clearIndicator(); return; }
-
   const rect = taskItem.getBoundingClientRect();
   const y = e.clientY - rect.top;
   const h = rect.height;
   const position = y < h / 2 ? "before" : "after";
-
   clearIndicator();
   currentOverNode = taskItem;
   lastDropTarget = { id: taskItem.dataset.id, position };
-
   const ind = document.createElement("div");
   ind.className = "drop-indicator " + position;
   taskItem.appendChild(ind);
@@ -750,14 +650,12 @@ document.getElementById("list").addEventListener("dragleave", (e) => {
 document.getElementById("list").addEventListener("drop", (e) => {
   e.preventDefault();
   if (!dragTaskId || !lastDropTarget) { return; }
-
   vscode.postMessage({
     type: "reorder",
     dragId: dragTaskId,
     targetId: lastDropTarget.id,
     position: lastDropTarget.position,
   });
-
   clearIndicator();
   dragTaskId = null;
   lastDropTarget = null;
@@ -767,26 +665,19 @@ function clearIndicator() {
   if (currentIndicator) { currentIndicator.remove(); currentIndicator = null; }
   if (currentOverNode) { currentOverNode = null; }
 }
-
-// Context menu for task items
+// Context menu
 let ctxTargetId = null;
 
 document.getElementById("list").addEventListener("contextmenu", (e) => {
   const taskItem = e.target.closest(".task-item");
   if (!taskItem) { return; }
   e.preventDefault();
-
   const taskId = taskItem.dataset.id;
   ctxTargetId = taskId;
-
   const isRunning = taskItem.classList.contains("running");
   const isPinned = pinnedIds.has(taskId);
-
-  // Determine which context menu group the task is in
   const recentGroup = taskItem.closest("[data-group-children='__recent__']");
   const inRecent = !!recentGroup;
-
-  // Build menu items based on state
   const items = [];
   if (!isRunning) {
     items.push({ action: "run", icon: "play", label: RUN_LABEL });
@@ -802,7 +693,6 @@ document.getElementById("list").addEventListener("contextmenu", (e) => {
   if (inRecent) {
     items.push({ action: "removeRecent", icon: "close", label: REMOVE_RECENT_LABEL });
   }
-
   showCtxMenu(e.clientX, e.clientY, items);
 });
 

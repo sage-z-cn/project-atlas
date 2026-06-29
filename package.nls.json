@@ -9,6 +9,8 @@
   "view.tasks.name": "Tasks",
   "command.refreshTasks": "Refresh Tasks",
   "command.taskAtlas.openSettings": "Task Atlas Settings",
+  "command.taskAtlas.expandAll": "Expand All",
+  "command.taskAtlas.collapseAll": "Collapse All",
 
   "description": "Auto-record projects, quick access.",
   "command.openProject": "Open Project",

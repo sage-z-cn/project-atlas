@@ -9,6 +9,8 @@
   "view.tasks.name": "任务",
   "command.refreshTasks": "刷新任务",
   "command.taskAtlas.openSettings": "Task Atlas 设置",
+  "command.taskAtlas.expandAll": "全部展开",
+  "command.taskAtlas.collapseAll": "全部折叠",
 
   "description": "自动记录项目，快速即达",
   "command.openProject": "打开项目",
