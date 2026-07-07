@@ -1,6 +1,9 @@
 .vscode/**
 .vscode-test/**
 src/**
+webview/src/**
+webview/index.html
+webview/vite.config.ts
 .gitignore
 .yarnrc
 vsc-extension-quickstart.md
@@ -20,3 +23,6 @@ node_modules/**
 !node_modules/@vscode/codicons/dist/**
 !node_modules/devicon/devicon.min.css
 !node_modules/devicon/fonts/**
+
+# webview 构建产物保留（out/webview/** 默认随 out/ 包含，此处显式声明以防后续调整）
+!out/webview/**

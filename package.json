@@ -34,8 +34,18 @@
   ],
   "main": "./out/extension.js",
   "l10n": "./l10n",
+  "workspaces": [
+    "webview"
+  ],
   "contributes": {
     "viewsContainers": {
+      "panel": [
+        {
+          "id": "git-atlas",
+          "title": "%viewContainer.gitAtlas%",
+          "icon": "$(git-branch)"
+        }
+      ],
       "activitybar": [
         {
           "id": "project-atlas",
@@ -46,6 +56,11 @@
           "id": "task-atlas",
           "title": "%viewContainer.taskAtlas%",
           "icon": "resources/tasks.svg"
+        },
+        {
+          "id": "git-atlas-commit",
+          "title": "%viewContainer.gitAtlasCommit%",
+          "icon": "resources/git.svg"
         }
       ]
     },
@@ -69,6 +84,22 @@
           "id": "task-atlas.tasks",
           "name": "%view.tasks.name%",
           "icon": "resources/tasks.svg",
+          "type": "webview"
+        }
+      ],
+      "git-atlas": [
+        {
+          "id": "git-atlas.gitLog",
+          "name": "%view.gitAtlas.gitLog%",
+          "icon": "resources/git.svg",
+          "type": "webview"
+        }
+      ],
+      "git-atlas-commit": [
+        {
+          "id": "git-atlas.commitPanel",
+          "name": "%view.gitAtlas.commitPanel%",
+          "icon": "resources/git.svg",
           "type": "webview"
         }
       ]
@@ -179,6 +210,55 @@
         "command": "task-atlas.collapseAll",
         "title": "%command.taskAtlas.collapseAll%",
         "icon": "$(collapse-all)"
+      },
+      {
+        "command": "git-atlas.openPushPanel",
+        "title": "%command.git-atlas.openPushPanel%",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "git-atlas.openMergeEditor",
+        "title": "%command.git-atlas.openMergeEditor%",
+        "icon": "$(git-merge)"
+      },
+      {
+        "command": "git-atlas.openDiffEditor",
+        "title": "%command.git-atlas.openDiffEditor%"
+      },
+      {
+        "command": "git-atlas.refreshLog",
+        "title": "%command.git-atlas.refreshLog%",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "git-atlas.nextDiff",
+        "title": "%command.git-atlas.nextDiff%",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "git-atlas.prevDiff",
+        "title": "%command.git-atlas.prevDiff%",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "git-atlas.openConflicts",
+        "title": "%command.git-atlas.openConflicts%",
+        "icon": "$(git-merge)"
+      },
+      {
+        "command": "git-atlas.openMergeEditorFromSCM",
+        "title": "%command.git-atlas.openMergeEditorFromSCM%",
+        "icon": "$(git-merge)"
+      },
+      {
+        "command": "git-atlas.showFileHistory",
+        "title": "%command.git-atlas.showFileHistory%",
+        "icon": "$(history)"
+      },
+      {
+        "command": "git-atlas.editSource",
+        "title": "%command.git-atlas.editSource%",
+        "icon": "$(go-to-file)"
       }
     ],
     "menus": {
@@ -241,6 +321,46 @@
         },
         {
           "command": "task-atlas.refreshTasks",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.openPushPanel",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.openMergeEditor",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.openDiffEditor",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.refreshLog",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.nextDiff",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.prevDiff",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.openConflicts",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.openMergeEditorFromSCM",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.showFileHistory",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.editSource",
           "when": "false"
         }
       ],
@@ -319,6 +439,31 @@
           "command": "task-atlas.openSettings",
           "when": "view == task-atlas.tasks",
           "group": "navigation@4"
+        },
+        {
+          "command": "git-atlas.refreshLog",
+          "when": "view == git-atlas.gitLog",
+          "group": "navigation@1"
+        },
+        {
+          "command": "git-atlas.nextDiff",
+          "when": "view == git-atlas.gitLog",
+          "group": "navigation@2"
+        },
+        {
+          "command": "git-atlas.prevDiff",
+          "when": "view == git-atlas.gitLog",
+          "group": "navigation@3"
+        },
+        {
+          "command": "git-atlas.openConflicts",
+          "when": "view == git-atlas.gitLog",
+          "group": "navigation@4"
+        },
+        {
+          "command": "git-atlas.openPushPanel",
+          "when": "view == git-atlas.gitLog",
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [
@@ -367,6 +512,39 @@
           "when": "viewItem == group",
           "group": "1_manage@2"
         }
+      ],
+      "scm/title": [
+        {
+          "command": "git-atlas.openConflicts",
+          "when": "scmProvider == git",
+          "group": "navigation"
+        }
+      ],
+      "scm/resourceState/context": [
+        {
+          "command": "git-atlas.openMergeEditorFromSCM",
+          "when": "scmProvider == git && scmResourceGroup == merge",
+          "group": "inline@10"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "git-atlas.showFileHistory",
+          "when": "editorTextFocus",
+          "group": "git@1"
+        },
+        {
+          "command": "git-atlas.editSource",
+          "when": "isInDiffEditor && resourceScheme != file",
+          "group": "git@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "git-atlas.showFileHistory",
+          "when": "!explorerResourceIsFolder",
+          "group": "git@1"
+        }
       ]
     },
     "keybindings": [
@@ -384,6 +562,23 @@
         "command": "workbench.view.extension.task-atlas",
         "key": "ctrl+alt+t",
         "mac": "ctrl+alt+t"
+      },
+      {
+        "command": "git-atlas.openPushPanel",
+        "key": "ctrl+shift+k",
+        "mac": "cmd+shift+k"
+      },
+      {
+        "command": "git-atlas.nextDiff",
+        "key": "ctrl+f7",
+        "mac": "cmd+f7",
+        "when": "editorFocus"
+      },
+      {
+        "command": "git-atlas.prevDiff",
+        "key": "ctrl+shift+f7",
+        "mac": "cmd+shift+f7",
+        "when": "editorFocus"
       }
     ],
     "configuration": {
@@ -464,12 +659,16 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "vite build",
+    "compile": "npm run compile:extension && npm run compile:webview",
+    "compile:extension": "vite build",
+    "compile:webview": "cd webview && npm run build",
     "watch": "vite build --watch",
+    "watch:extension": "vite build --watch",
+    "watch:webview": "cd webview && npm run watch",
     "pack": "npm run compile && npx @vscode/vsce package",
     "build-and-install": "node scripts/build-and-install.js",
     "publish": "npm run compile && npx @vscode/vsce publish",
-    "pretest": "npm run compile && npm run lint",
+    "pretest": "npm run compile:extension && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
   },

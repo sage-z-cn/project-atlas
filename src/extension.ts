@@ -9,6 +9,7 @@ import { FavoritesViewProvider } from "./webview/favoritesViewProvider";
 import { TasksViewProvider } from "./webview/tasksViewProvider";
 import { registerProjectCommands } from "./commands/projectCommands";
 import { registerGroupCommands } from "./commands/groupCommands";
+import { setupGit } from "./git/setupGit";
 
 export function activate(context: vscode.ExtensionContext) {
   const storage = new StorageService(context);
@@ -144,6 +145,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Cleanup task service on deactivation
   context.subscriptions.push(taskService);
+
+  // Git Atlas 装配（模块化，独立于 atlas 部分）
+  setupGit(context);
 }
 
 export function deactivate() {}
