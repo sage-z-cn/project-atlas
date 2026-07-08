@@ -2,7 +2,7 @@
 
 <h1 align="center">Project Atlas</h1>
 
-<p align="center">Auto-record projects, quick access.</p>
+<p align="center">Auto-record projects, quick access, task runner, and JetBrains-style Git integration.</p>
 
 <p align="center">
   <a href="https://github.com/sage-z-cn/project-atlas.git"><img src="https://img.shields.io/github/stars/sage-z-cn/project-atlas" alt="GitHub Stars"></a>
@@ -25,6 +25,8 @@
 
 ## Features
 
+### Project Atlas
+
 **Auto-tracking**
 > Every project you open is recorded automatically. No manual setup needed.
 
@@ -46,12 +48,43 @@
 **Reveal Active File**
 > Adds a button to the built-in file explorer's view title bar to locate the currently open file in the tree (can be toggled in settings).
 
+### Task Atlas
+
 **Task Runner**
-> A dedicated sidebar for running tasks defined in `.vscode/tasks.json` and npm scripts from `package.json`. Start, stop, and drag to reorder tasks with real-time status.
+> A dedicated sidebar for running tasks defined in `.vscode/tasks.json` and npm scripts from `package.json`. Start, stop, pin, and drag to reorder tasks with real-time status. Tasks are grouped by project and auto-refreshed when config files change.
+
+### Git Atlas
+
+**Visual Git Log**
+> A bottom-panel commit graph with self-rendered SVG lane layout, branch tree (local/remote/tags), collapsible commit sequences, and a detail panel with changed-file tree. Filter by branch, author, date range, or file.
+
+**IDEA-style Commit Panel**
+> An activity-bar commit panel with Changes / Staged / Unversioned groups, directory tree, amend, recent commit messages, and commit-and-push split button. Includes git stash (Shelf) and IDEA-compatible shelf (`.idea/shelf/`) with patch import/export.
+
+**Multi-repo Support**
+> Workspaces with sub-directory git repos get a repo selector in both the Git Log and Commit views. Switch the active repo with one click; status badges (↑ahead / ↓behind / ●uncommitted) update in real time.
+
+**Branch Operations**
+> Checkout, create, rename, delete (with force-delete and merge checks), merge, rebase (including checkout-and-rebase), and compare with current — all from the branch tree context menu.
+
+**Commit Operations**
+> Cherry-pick, revert, reset (soft/mixed/hard), drop commit, create branch/tag from commit, and show file history.
+
+**3-way Merge Editor**
+> A webview-based 3-way merge editor (base / ours / theirs) using `node-diff3` with inline word-diff highlighting (Shiki). Accept left/right per conflict block, skip, undo, and apply with staging. Conflicts panel lists all conflicted files with Accept Yours/Theirs/Merge actions.
+
+**Push & Rollback**
+> Dedicated push dialog (with force-push and rebase/merge-on-reject options) and rollback dialog (selective file revert, delete untracked copies).
+
+**Diff Navigation**
+> Open diffs against any ref, navigate next/previous file diff across a commit range, and show working-tree file diff (HEAD ↔ Staged/Working).
+
+**Localization**
+> Full Chinese (zh-cn) localization via VSCode's l10n system — both the extension host and the React webview.
 
 ## Usage
 
-The extension adds two sidebars to VS Code:
+The extension adds sidebars and a bottom panel to VS Code:
 
 **Project Atlas** — Project management sidebar with two views:
 
@@ -59,9 +92,15 @@ The extension adds two sidebars to VS Code:
 
 **Favorites** — Displays starred projects, optionally organized into groups. Use the toolbar to add the current workspace, create groups, and expand or collapse all groups. Drag to reorder items.
 
-**Task Atlas** — Task runner sidebar with one view:
+**Task Atlas** — Task runner sidebar:
 
-**Tasks** — Lists all tasks from `.vscode/tasks.json` and npm scripts from `package.json` (deduplicated). Click to run, click again to stop. Drag to reorder. Tasks are grouped by type and auto-refreshed when config files change.
+**Tasks** — Lists all tasks from `.vscode/tasks.json` and npm scripts from `package.json` (deduplicated). Click to run, click again to stop. Drag to reorder. Tasks are grouped by project and auto-refreshed when config files change.
+
+**Git Atlas** — Git integration across two locations:
+
+**Git Log** (bottom panel) — Visual commit history graph with branch tree, lane layout, commit details, and diff navigation. Switch between sub-directory repos via the repo selector; status badges show ahead/behind/uncommitted counts.
+
+**Commit** (activity bar) — Stage, commit, push/pull, shelve (git stash) and IDEA-compatible shelf. Working tree changes grouped by directory. Repo selector with status badges.
 
 Click any project to open it. Right-click for more options like renaming, toggling favorites, copying path, or opening in a new window.
 
@@ -69,10 +108,14 @@ Click any project to open it. Right-click for more options like renaming, toggli
 
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |
-| `projectExplorer.recentProjectsLimit` | `number` | `50` | Maximum number of recent projects to keep |
-| `projectExplorer.openProjectMode` | `ask` / `currentWindow` / `newWindow` | `ask` | Default window behavior when opening a project |
-| `projectExplorer.openMode` | `singleClick` / `doubleClick` / `followIDE` | `followIDE` | How a click on a project item opens it |
+| `projectAtlas.recentProjectsLimit` | `number` | `50` | Maximum number of recent projects to keep |
+| `projectAtlas.openProjectMode` | `ask` / `currentWindow` / `newWindow` | `ask` | Default window behavior when opening a project |
+| `projectAtlas.openMode` | `singleClick` / `doubleClick` / `followIDE` | `followIDE` | How a click on a project item opens it |
+| `projectAtlas.confirmDelete` | `ask` / `never` | `ask` | Whether to confirm before deleting projects/groups |
 | `projectAtlas.showRevealActiveFile` | `boolean` | `true` | Show 'Reveal Active File' button in the built-in file explorer view title |
+| `taskAtlas.showRecentRuns` | `boolean` | `true` | Show the recent runs section in the Tasks view |
+| `taskAtlas.maxRecentRuns` | `number` | `5` | Maximum number of recent runs to keep (1–20) |
+| `taskAtlas.showPinned` | `boolean` | `true` | Show the pinned tasks section in the Tasks view |
 
 ## Keyboard Shortcuts
 
@@ -80,6 +123,10 @@ Click any project to open it. Right-click for more options like renaming, toggli
 | --- | --- |
 | `Alt+O` | Open project picker |
 | `Ctrl+Alt+O` | Focus Project Atlas sidebar |
+| `Ctrl+Alt+T` | Focus Task Atlas sidebar |
+| `Ctrl+Shift+K` | Push (Git Atlas) |
+| `Ctrl+F7` | Next file diff (Git Atlas) |
+| `Ctrl+Shift+F7` | Previous file diff (Git Atlas) |
 
 ## Changelog
 
