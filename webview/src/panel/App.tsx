@@ -1,6 +1,7 @@
 import { Allotment } from "allotment";
 import { useCallback, useEffect, useState } from "react";
 import "allotment/dist/style.css";
+import { RepoSelector } from "../shared/components/RepoSelector";
 import { Tooltip } from "../shared/components/Tooltip";
 import "../shared/components/Tooltip.css";
 import { usePreventSelect } from "../shared/hooks/usePreventSelect";
@@ -48,7 +49,6 @@ export function PanelApp() {
   const loading = usePanelStore((s) => s.loading);
   const commits = usePanelStore((s) => s.commits);
   const operationInProgress = usePanelStore((s) => s.operationInProgress);
-  const fetchInitialData = usePanelStore((s) => s.fetchInitialData);
 
   const [showLeft, setShowLeft] = useState(true);
   const [showRight, setShowRight] = useState(true);
@@ -82,9 +82,13 @@ export function PanelApp() {
 
   const middleRef = usePreventSelect();
 
+  // Ready handshake: query the host for the current repo + repo list, then
+  // fetch. Replaces the previous unconditional fetchInitialData() call — we
+  // can no longer assume a default repo now that multiple repos are possible
+  // (a repoless fetch would hit NOT_GIT_REPO or the wrong repo).
   useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
+    void usePanelStore.getState().initRepo();
+  }, []);
 
   if (loading && commits.length === 0) {
     return (
@@ -112,6 +116,7 @@ export function PanelApp() {
       }}
     >
       <ProgressBar visible={operationInProgress || loading} />
+      <RepoSelector store="panel" />
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* Left branch panel — outside Allotment to avoid flicker */}
         <div

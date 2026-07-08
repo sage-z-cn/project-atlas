@@ -1,0 +1,103 @@
+/* ─── RepoSelector (multi-repo chip strip, phase B') ────────────────────
+ * Horizontal single-row chip list. Overflow-x keeps every repo one click
+ * away rather than collapsing to a dropdown. Hidden entirely by the
+ * component when repos.length <= 1, so these styles never affect a
+ * single-repo workspace's layout.
+ */
+.repo-selector {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  scrollbar-width: thin;
+}
+
+/* chips sit on the panel background, not the generic button style */
+.repo-selector .repo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  height: 22px;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--app-fg);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: var(--font-size);
+  font-family: var(--font-family);
+  box-sizing: border-box;
+  opacity: 0.85;
+  transition:
+    background 0.12s,
+    opacity 0.12s;
+}
+
+.repo-selector .repo-chip:hover {
+  background: var(--hover-bg);
+  opacity: 1;
+}
+
+.repo-selector .repo-chip.active {
+  background: var(--button-bg);
+  color: var(--button-fg);
+  border-color: transparent;
+  opacity: 1;
+}
+
+.repo-selector .repo-chip .repo-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Vertical layout (sidebar / commit panel) ─────────────────────────
+ * The activitybar sidebar is narrow and tall, so chips stack vertically and
+ * each takes full width. A max-height keeps the list from crowding out the
+ * commit content when there are many repos; overflow-y scrolls within it.
+ */
+.repo-selector.vertical {
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: 35vh;
+}
+
+.repo-selector.vertical .repo-chip {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.repo-selector.vertical .repo-chip .repo-name {
+  max-width: none;
+}
+
+/* ─── Status badges (↑ ahead / ↓ behind / ● dirty) ─────────────────────
+ * margin-left:auto pushes the badge cluster to the right edge: a no-op in
+ * horizontal mode (chips are content-width) but in vertical mode chips are
+ * full-width, so this right-aligns the badges.
+ */
+.repo-selector .repo-chip .repo-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+}
+
+.repo-selector .repo-chip .badge {
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 8px;
+  line-height: 16px;
+  min-width: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Badges inherit the chip's text color (app-fg normally, button-fg when
+ * active) — no per-status colors, no background. Status is conveyed by the
+ * ↑/↓/● glyph itself, not by color. */

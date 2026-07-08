@@ -13,7 +13,7 @@
   "command.taskAtlas.collapseAll": "全部折叠",
 
   "viewContainer.gitAtlas": "Git Atlas",
-  "viewContainer.gitAtlasCommit": "Commit",
+  "viewContainer.gitAtlasCommit": "Git Commit",
   "view.gitAtlas.gitLog": "Git Log",
   "view.gitAtlas.commitPanel": "提交",
   "command.git-atlas.openPushPanel": "推送...",

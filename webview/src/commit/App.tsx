@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { bridge } from "../shared/bridge";
+import { RepoSelector } from "../shared/components/RepoSelector";
 import { Tooltip } from "../shared/components/Tooltip";
 import "../shared/components/Tooltip.css";
 import { useCommitStore } from "../shared/store/commit-store";
@@ -512,23 +513,19 @@ function MergeBanner() {
 }
 
 export function CommitApp() {
-  const {
-    activeTab,
-    setActiveTab,
-    loading,
-    fetchChanges,
-    fetchShelves,
-    fetchIdeaShelves,
-  } = useCommitStore();
+  const { activeTab, setActiveTab, loading } = useCommitStore();
 
+  // Ready handshake: query the host for the current repo + repo list, then
+  // fetch changes/shelves/ideaShelves against that repo. Replaces the previous
+  // unconditional fetch trio — we can no longer assume a default repo now that
+  // multiple repos are possible.
   useEffect(() => {
-    fetchChanges();
-    fetchShelves();
-    fetchIdeaShelves();
-  }, [fetchChanges, fetchShelves, fetchIdeaShelves]);
+    void useCommitStore.getState().initRepo();
+  }, []);
 
   return (
     <div className="commit-app">
+      <RepoSelector store="commit" />
       <div className="commit-tabs">
         <button
           type="button"

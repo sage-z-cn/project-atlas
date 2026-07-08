@@ -7,6 +7,8 @@ import type {
   DiffFile,
   LaneInfo,
   LaneSnapshot,
+  RepoInfo,
+  RepoStatus,
   TagInfo,
 } from "../types/git";
 
@@ -19,6 +21,28 @@ interface PanelFilter {
 }
 
 interface PanelStore {
+  // ── Multi-repo (phase B') ──────────────────────────────────────────
+  /** Active repo path. Null until the ready handshake (initRepo) resolves. */
+  currentRepoPath: string | null;
+  /** All known repos (drives RepoSelector rendering). */
+  repos: RepoInfo[];
+  /**
+   * Monotonic counter bumped on every switchRepo / repoChanged. Every fetch
+   * captures its own `mySeq` at issue time and, after the await, drops its
+   * result when `mySeq !== get().repoSeq` — the in-flight race guard
+   * (oracle hard constraint #3): bridge has no cancellation, so a slow
+   * getGraphData for repo A can resolve AFTER the user switched to repo B
+   * and would otherwise overwrite repo B's data with repo A's.
+   */
+  repoSeq: number;
+  /**
+   * Per-repo ahead/behind/dirty counts keyed by normalized repo path, backing
+   * the RepoSelector chip badges. Refreshed by fetchRepoStatuses on init,
+   * repoChanged, and every gitStateChanged (badges must reflect other repos'
+   * state too, so the refresh is NOT gated to the current repo).
+   */
+  repoStatuses: Record<string, RepoStatus>;
+
   commits: Commit[];
   /** Commits filtered by search/author (client-side). Graph layout uses full `commits`. */
   visibleCommits: Commit[];
@@ -54,6 +78,17 @@ interface PanelStore {
   loading: boolean;
   hasMore: boolean;
   operationInProgress: boolean;
+
+  // ── Multi-repo actions ─────────────────────────────────────────────
+  /** Switch the active repo. Only issues the host command; the repoChanged
+   *  event drives the actual state mutation + refetch (no optimistic update). */
+  switchRepo: (path: string) => Promise<void>;
+  /** Pull the latest repo list from the host. */
+  fetchRepos: () => Promise<void>;
+  /** Ready handshake: getCurrentRepo + getRepos + first fetch. Called once on mount. */
+  initRepo: () => Promise<void>;
+  /** Fetch ahead/behind/dirty counts for every repo (drives the chip badges). */
+  fetchRepoStatuses: () => Promise<void>;
 
   fetchInitialData: () => Promise<void>;
   loadMore: () => Promise<void>;
@@ -186,6 +221,12 @@ function deriveSelectionFromVisible(
 }
 
 export const usePanelStore = create<PanelStore>((set, get) => ({
+  // ── Multi-repo ─────────────────────────────────────────────────────
+  currentRepoPath: null,
+  repos: [],
+  repoSeq: 0,
+  repoStatuses: {},
+
   commits: [],
   visibleCommits: [],
   branches: [],
@@ -222,7 +263,90 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   hasMore: true,
   operationInProgress: false,
 
+  // ── Multi-repo actions ─────────────────────────────────────────────
+  async switchRepo(path: string) {
+    // Bump seq FIRST so every in-flight fetch for the old repo drops its
+    // (possibly still-incoming) response. We intentionally do NOT optimistically
+    // set currentRepoPath here — the host is the source of truth and will
+    // broadcast repoChanged, which the event listener handles.
+    set({ repoSeq: get().repoSeq + 1 });
+    try {
+      await bridge.request("switchRepo", { repoPath: path });
+    } catch (err) {
+      console.error("switchRepo failed:", err);
+    }
+    // host broadcasts repoChanged → listener mutates currentRepoPath + refetches.
+  },
+
+  async fetchRepos() {
+    try {
+      const result = (await bridge.request("getRepos")) as {
+        repos?: RepoInfo[];
+      };
+      if (Array.isArray(result?.repos)) {
+        set({ repos: result.repos });
+      }
+    } catch (err) {
+      console.error("fetchRepos failed:", err);
+    }
+  },
+
+  async initRepo() {
+    // Ready handshake: webview creation timing is not guaranteed, so we must
+    // NOT assume a default currentRepoPath. Query the host for the truth, then
+    // kick off the first fetch against that repo.
+    try {
+      const current = (await bridge.request("getCurrentRepo")) as {
+        repoPath: string | null;
+      };
+      const reposResult = (await bridge.request("getRepos")) as {
+        repos?: RepoInfo[];
+      };
+      set({
+        currentRepoPath: current?.repoPath ?? null,
+        repos: Array.isArray(reposResult?.repos) ? reposResult.repos : [],
+        // Bump seq so any stray fetch issued before this handshake resolves
+        // (none in practice, but defensive) is dropped.
+        repoSeq: get().repoSeq + 1,
+      });
+    } catch (err) {
+      console.error("initRepo failed:", err);
+    }
+    // Run the graph fetch and the badge fetch concurrently so the (fast) badge
+    // counts don't wait on the (slow, 1s+ min-display) getGraphData round-trip.
+    await Promise.all([
+      get().fetchInitialData(),
+      get().fetchRepoStatuses(),
+    ]);
+  },
+
+  async fetchRepoStatuses() {
+    // ★ Capture seq at issue time. Badges reflect every repo (not just the
+    // current one), so the response stays valid across a switch — but we still
+    // guard so a stale response can't clobber a fresher one (e.g. an in-flight
+    // full-status fetch landing after a newer one already settled).
+    const mySeq = get().repoSeq;
+    try {
+      const result = (await bridge.request("getRepoStatuses")) as {
+        statuses?: RepoStatus[];
+      };
+      if (mySeq !== get().repoSeq) return;
+      if (Array.isArray(result?.statuses)) {
+        const map: Record<string, RepoStatus> = {};
+        for (const s of result.statuses) map[s.repoPath] = s;
+        set({ repoStatuses: map });
+      }
+    } catch (err) {
+      console.error("fetchRepoStatuses failed:", err);
+    }
+  },
+
   async fetchInitialData() {
+    // ★ Capture seq + repoPath at issue time. A switch that happens during the
+    // await below bumps repoSeq, so `mySeq` becomes stale and we drop the
+    // response instead of overwriting the new repo's data.
+    const mySeq = get().repoSeq;
+    const repoPath = get().currentRepoPath;
     set({ loading: true });
     const start = Date.now();
     try {
@@ -232,13 +356,19 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
           maxCount: 200,
           branch: filter.branch || undefined,
           file: filter.file || undefined,
+          repoPath,
         }) as Promise<{
           graphData: { commits: Commit[]; lanes: Record<string, LaneInfo> };
           snapshot: LaneSnapshot;
         } | null>,
-        bridge.request("getBranches") as Promise<BranchInfo[] | null>,
-        bridge.request("getTags") as Promise<TagInfo[] | null>,
+        bridge.request("getBranches", { repoPath }) as Promise<
+          BranchInfo[] | null
+        >,
+        bridge.request("getTags", { repoPath }) as Promise<TagInfo[] | null>,
       ]);
+
+      // ★ Race guard: a switch happened during the fetch → drop stale response.
+      if (mySeq !== get().repoSeq) return;
 
       const commits = graphResult?.graphData?.commits ?? [];
       const lanes = graphResult?.graphData?.lanes ?? {};
@@ -279,7 +409,10 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
 
           const files = (await bridge.request("getCommitRangeFiles", {
             hashes: validHashes,
+            repoPath,
           })) as DiffFile[] | null;
+          // ★ Race guard before applying the late-arriving file list.
+          if (mySeq !== get().repoSeq) return;
           set({ commitFiles: files ?? [] });
           return;
         }
@@ -311,7 +444,10 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         const hash = firstVisible.hash;
         const files = (await bridge.request("getCommitRangeFiles", {
           hashes: [hash],
+          repoPath,
         })) as DiffFile[] | null;
+        // ★ Race guard: drop late file list if a switch/repoChanged occurred.
+        if (mySeq !== get().repoSeq) return;
         set({ commitFiles: files ?? [], rangeOldest: hash, rangeNewest: hash });
       }
     } catch (err) {
@@ -321,13 +457,19 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       if (elapsed < 1000) {
         await new Promise((r) => setTimeout(r, 1000 - elapsed));
       }
-      set({ loading: false });
+      // ★ Only clear loading if we're still the active seq — otherwise the
+      // newer fetch owns the loading indicator.
+      if (mySeq === get().repoSeq) set({ loading: false });
     }
   },
 
   async loadMore() {
     const { commits, laneSnapshot, hasMore, loading, filter } = get();
     if (!hasMore || loading) return;
+
+    // ★ Capture seq + repoPath for the in-flight guard.
+    const mySeq = get().repoSeq;
+    const repoPath = get().currentRepoPath;
 
     set({ loading: true });
     try {
@@ -336,10 +478,14 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         count: 200,
         snapshot: laneSnapshot,
         branch: filter.branch || undefined,
+        repoPath,
       })) as {
         graphData: { commits: Commit[]; lanes: Record<string, LaneInfo> };
         snapshot: LaneSnapshot;
       } | null;
+
+      // ★ Race guard: a switch happened during the load → drop stale page.
+      if (mySeq !== get().repoSeq) return;
 
       if (result?.graphData?.commits?.length) {
         const newCommits = result.graphData.commits;
@@ -361,7 +507,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       }
     } catch (err) {
       console.error("loadMore failed:", err);
-      set({ loading: false });
+      if (mySeq === get().repoSeq) set({ loading: false });
     }
   },
 
@@ -426,10 +572,16 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       rangeOldest: orderedHashes[orderedHashes.length - 1],
       rangeNewest: orderedHashes[0],
     });
+    // ★ Capture seq + repoPath so a late file-list resolution after a switch
+    // is dropped (UI was already cleared by the repoChanged handler).
+    const mySeq = get().repoSeq;
+    const repoPath = get().currentRepoPath;
     try {
       const files = (await bridge.request("getCommitRangeFiles", {
         hashes: orderedHashes,
+        repoPath,
       })) as DiffFile[] | null;
+      if (mySeq !== get().repoSeq) return;
       set({ commitFiles: files ?? [] });
     } catch (err) {
       console.error("selectCommit failed:", err);
@@ -443,6 +595,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   async openDiffEditor(commitHash: string, file: DiffFile) {
     try {
       const { selectedCommitHashes, commitFiles } = get();
+      const repoPath = get().currentRepoPath;
       const filePath = file.newPath || file.oldPath;
       const isMulti = selectedCommitHashes.length > 1;
 
@@ -453,6 +606,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
           file,
           cherryPickHashes: selectedCommitHashes,
           fileList: commitFiles,
+          repoPath,
         });
       } else {
         await bridge.request("openDiffEditor", {
@@ -460,6 +614,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
           filePath,
           file,
           fileList: commitFiles,
+          repoPath,
         });
       }
     } catch (err) {
@@ -616,11 +771,16 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
 
     const hashes = nextSelection.selectedCommitHashes;
     if (hashes.length > 0) {
+      // ★ Capture seq + repoPath so a late file fetch after a switch is dropped.
+      const mySeq = get().repoSeq;
+      const repoPath = get().currentRepoPath;
       void (async () => {
         try {
           const files = (await bridge.request("getCommitRangeFiles", {
             hashes,
+            repoPath,
           })) as DiffFile[] | null;
+          if (mySeq !== get().repoSeq) return;
           set({ commitFiles: files ?? [] });
         } catch (err) {
           console.error("toggleSequenceCollapse failed to load files:", err);
@@ -635,10 +795,59 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   },
 }));
 
-// Listen for git state changes
+// Listen for git state changes + multi-repo events.
+//
+// repoChanged (oracle hard constraint #3): the host is the single source of
+// truth for the active repo. On switch it broadcasts repoChanged; we bump seq
+// (dropping every in-flight fetch for the old repo), clear ALL per-repo derived
+// state (commits/selection/lane snapshot/collapse state — none of it is valid
+// for the new repo), then refetch.
+//
+// gitStateChanged: the watcher tags each event with the owning repoPath. We
+// only refresh when the event is for the current repo (or carries no repoPath,
+// e.g. the global { scope: "all" } broadcasts from command handlers).
 bridge.onEvent((event, data) => {
+  if (event === "repoChanged") {
+    const { repoPath } = (data ?? {}) as { repoPath?: string | null };
+    const state = usePanelStore.getState();
+    usePanelStore.setState({
+      repoSeq: state.repoSeq + 1,
+      currentRepoPath: repoPath ?? state.currentRepoPath,
+      // Keep commits/visibleCommits/laneSnapshot/graphLayout until the new
+      // repo's data lands. Clearing them here blanks the whole Git Log during
+      // the slow getGraphData fetch, causing a visible flash. fetchInitialData
+      // below replaces them atomically (see its set() call).
+      loading: true,
+      selectedCommitHash: null,
+      selectedCommitHashes: [],
+      lastSelectedCommitHash: null,
+      collapsedSequenceIds: new Set(),
+      collapsedIntermediates: new Map(),
+      commitFiles: [],
+      selectedFilePath: null,
+      rangeOldest: null,
+      rangeNewest: null,
+      hasMore: true,
+    });
+    usePanelStore.getState().fetchInitialData();
+    // Refresh badges for the new active repo (and the rest, in one round-trip).
+    usePanelStore.getState().fetchRepoStatuses();
+    return;
+  }
   if (event === "gitStateChanged") {
+    // Badges show EVERY repo's status, so refresh them on any repo's change
+    // (the watcher already debounces 300ms, so a full round-trip is acceptable).
+    // This runs before the current-repo filter below so a background repo's
+    // ahead/dirty count updates even while viewing a different repo.
+    usePanelStore.getState().fetchRepoStatuses();
+    const { repoPath } = (data ?? {}) as { repoPath?: string };
+    // Multi-repo filter: only refresh the LOG for the current repo. Events
+    // without repoPath (global command-handler broadcasts) are always honored.
+    if (repoPath && repoPath !== usePanelStore.getState().currentRepoPath) {
+      return;
+    }
     usePanelStore.getState().refresh();
+    return;
   }
   if (event === "showFileHistory") {
     const { file } = data as { file: string };

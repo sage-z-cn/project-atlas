@@ -1,18 +1,18 @@
 import { NOT_GIT_REPO, requireGit } from "../gitContext";
 import type { GitHandlerContext } from "../gitContext";
-import type { LaneSnapshot, WorkingTreeFile } from "../../git/types";
+import type { LaneSnapshot } from "../../git/types";
 import { extToLanguage } from "../../utils/ideaPatch";
 
 /**
  * Read-only / query handlers (log, graph, branches, tags, diff, status, etc.).
  *
- * Extracted from reference project extension.ts. Every handler that operated
- * on the single active gitService is wrapped in requireGit so the
- * `if (!gitService) return NOT_GIT_REPO;` guard is centralised.
+ * Every handler that operates on the active repo is wrapped in requireGit so
+ * the `if (!svc) return NOT_GIT_REPO;` guard is centralised.
  *
  * Handlers with non-standard fallbacks (getCherryPickState / getRebaseState)
- * or that aggregate across allGitServices (getWorkingTreeChanges) are written
- * by hand to preserve their original behaviour exactly.
+ * or that need explicit repo routing without the requireGit shape
+ * (getWorkingTreeChanges) are written by hand to preserve their exact
+ * fallback behaviour.
  */
 export function registerQueryHandlers(ctx: GitHandlerContext): void {
   const { messageRouter } = ctx;
@@ -173,20 +173,18 @@ export function registerQueryHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
-  // Aggregates changes from all workspace folders — cannot use requireGit.
-  messageRouter.handle("getWorkingTreeChanges", async () => {
-    if (ctx.allGitServices.length === 0) return NOT_GIT_REPO;
-
-    const allChanges: WorkingTreeFile[] = [];
-    for (const svc of ctx.allGitServices) {
-      try {
-        const changes = await svc.getWorkingTreeChanges();
-        allChanges.push(...changes);
-      } catch {
-        // Skip folders that aren't git repos
-      }
-    }
-    return allChanges;
+  // Multi-repo (phase A): returns working-tree changes for the currently
+  // selected repo only (or the repo named by params.repoPath). Previously
+  // this aggregated across all workspace folders; the oracle review flagged
+  // the aggregation as cross-contaminating unrelated repos and it has been
+  // scoped down. Written by hand (not via requireGit) to preserve the
+  // NOT_GIT_REPO fallback shape exactly.
+  messageRouter.handle("getWorkingTreeChanges", async (params) => {
+    const svc = params?.repoPath
+      ? ctx.registry.getService(params.repoPath as string)
+      : ctx.registry.getCurrent();
+    if (!svc) return NOT_GIT_REPO;
+    return svc.getWorkingTreeChanges();
   });
 
   messageRouter.handle(

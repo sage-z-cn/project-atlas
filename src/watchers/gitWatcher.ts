@@ -109,9 +109,18 @@ export class GitWatcher implements vscode.Disposable {
   }
 
   private setupEditorWatchers(): void {
-    // Save → status refresh
+    // Save → status refresh.
+    //
+    // Multi-repo hard constraint: filter by workspaceRoot prefix. Without
+    // this, N watchers (one per repo) would each fire on every save anywhere
+    // in the workspace, amplifying notifications N-fold and causing every
+    // repo's status cache to be invalidated on unrelated saves.
     this.disposables.push(
-      vscode.workspace.onDidSaveTextDocument(() => this.notify("status")),
+      vscode.workspace.onDidSaveTextDocument((doc) => {
+        if (doc.uri.fsPath.startsWith(this.workspaceRoot)) {
+          this.notify("status");
+        }
+      }),
     );
   }
 
@@ -127,7 +136,12 @@ export class GitWatcher implements vscode.Disposable {
       setTimeout(() => {
         this.debounceTimers.delete(scope);
         this.cache.invalidate();
-        this.messageRouter.broadcastEvent("gitStateChanged", { scope });
+        // Multi-repo: tag the event with the owning repo so the webview can
+        // decide whether to refetch (current repo) or ignore (other repo).
+        this.messageRouter.broadcastEvent("gitStateChanged", {
+          scope,
+          repoPath: this.workspaceRoot,
+        });
       }, 300),
     );
   }

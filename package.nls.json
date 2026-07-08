@@ -13,7 +13,7 @@
   "command.taskAtlas.collapseAll": "Collapse All",
 
   "viewContainer.gitAtlas": "Git Atlas",
-  "viewContainer.gitAtlasCommit": "Commit",
+  "viewContainer.gitAtlasCommit": "Git Commit",
   "view.gitAtlas.gitLog": "Git Log",
   "view.gitAtlas.commitPanel": "Commit",
   "command.git-atlas.openPushPanel": "Push...",

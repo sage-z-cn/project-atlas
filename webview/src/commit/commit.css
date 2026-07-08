@@ -61,27 +61,29 @@
   box-shadow: none;
 }
 
-/* ─── Tabs ─────────────────────────────────────────────────────── */
+/* ─── Tabs ───────────────────────────────────────────────────────
+ * Editor-style tabs: flat, no button-like border/rounded corners. The active
+ * tab is marked by a bottom highlight border that sits on top of the
+ * container's bottom border (margin-bottom:-1px), matching VSCode's native
+ * tab chrome. */
 .commit-tabs {
   display: flex;
-  border-bottom: 1px solid
-    var(--vscode-panel-border, var(--vscode-widget-border));
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  background: var(--vscode-sideBar-background);
-  padding: 4px 8px 8px;
-  gap: 4px;
 }
 
 .commit-tab {
-  padding: 6px 16px;
-  border: 1px solid transparent;
+  padding: 6px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   background: transparent;
-  color: var(--vscode-foreground);
+  color: var(--app-fg);
   cursor: pointer;
   font-size: 12px;
   font-weight: 500;
-  opacity: 0.7;
-  border-radius: 6px;
+  opacity: 0.6;
+  border-radius: 0;
   transition:
     opacity 0.15s,
     background 0.15s;
@@ -89,13 +91,12 @@
 
 .commit-tab:hover:not(:disabled) {
   opacity: 1;
-  background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+  background: var(--hover-bg);
 }
 
 .commit-tab.active {
   opacity: 1;
-  background: var(--vscode-tab-activeBackground, rgba(255, 255, 255, 0.1));
-  border: 1px solid var(--vscode-focusBorder, #007fd4);
+  border-bottom-color: var(--button-bg);
 }
 
 /* ─── Content ──────────────────────────────────────────────────── */

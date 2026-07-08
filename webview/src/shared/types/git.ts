@@ -118,3 +118,35 @@ export interface ConflictRegion {
   mergedStart: number;
   mergedEnd: number;
 }
+
+/**
+ * Minimal description of a discovered git repository (mirrors the host-side
+ * RepoInfo in src/git/repoScanner.ts). The webview only needs identity fields
+ * to render the RepoSelector; no scan/normalization logic is duplicated here.
+ */
+export interface RepoInfo {
+  /** Normalized absolute path to the repository working directory. */
+  path: string;
+  /** Repository directory basename (shown in the selector chip). */
+  name: string;
+  /**
+   * Path relative to the owning workspace root — `"."` when the repo sits at
+   * the workspace root, otherwise the direct child directory name.
+   */
+  relativePath: string;
+}
+
+/**
+ * Per-repo status counts backing the RepoSelector chip badges. Mirrors the
+ * shape returned by the host `getRepoStatuses` handler.
+ */
+export interface RepoStatus {
+  repoPath: string;
+  /** Commits ahead of upstream. `null` when the branch has no upstream
+   *  (or is detached) — the chip hides the ↑ badge in that case. */
+  ahead: number | null;
+  /** Commits behind upstream. `null` when no upstream — chip hides ↓. */
+  behind: number | null;
+  /** Uncommitted file count (modified + staged + untracked). Chip hides ● when 0. */
+  dirty: number;
+}

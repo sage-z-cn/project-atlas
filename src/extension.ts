@@ -147,7 +147,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(taskService);
 
   // Git Atlas 装配（模块化，独立于 atlas 部分）
-  setupGit(context);
+  void setupGit(context);
 }
 
 export function deactivate() {}
