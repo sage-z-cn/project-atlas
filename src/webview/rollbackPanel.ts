@@ -40,7 +40,7 @@ export class RollbackPanel {
       vscode.ViewColumn.One,
       {
         enableScripts: true,
-        localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "dist")],
+        localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "out")],
         retainContextWhenHidden: false,
       },
     );

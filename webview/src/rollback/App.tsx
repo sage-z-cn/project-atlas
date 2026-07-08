@@ -3,6 +3,7 @@ import CodiconListFlat from "~icons/codicon/list-flat";
 import CodiconListTree from "~icons/codicon/list-tree";
 import { bridge } from "../shared/bridge";
 import { FileTree, type FileTreeNode } from "../shared/components/FileTree";
+import { t } from "../shared/i18n";
 import type { DiffFile } from "../shared/types/git";
 import "./rollback.css";
 
@@ -119,14 +120,14 @@ export function RollbackApp() {
       {/* Header with view mode toggle */}
       <div className="rollback-header">
         <span className="rollback-title">
-          {files.length} file{files.length !== 1 ? "s" : ""}
+          {t("{0} file(s)", files.length)}
         </span>
         <span className="rollback-view-toggle">
           <button
             type="button"
             className={viewMode === "tree" ? "active" : ""}
             onClick={() => setViewMode("tree")}
-            title="Tree View"
+            title={t("Tree View")}
           >
             <CodiconListTree />
           </button>
@@ -134,7 +135,7 @@ export function RollbackApp() {
             type="button"
             className={viewMode === "flat" ? "active" : ""}
             onClick={() => setViewMode("flat")}
-            title="Flat List"
+            title={t("Flat List")}
           >
             <CodiconListFlat />
           </button>
@@ -197,7 +198,7 @@ export function RollbackApp() {
             checked={deleteLocalCopies}
             onChange={() => setDeleteLocalCopies((prev) => !prev)}
           />
-          Delete local copies of added files
+          {t("Delete local copies of added files")}
         </label>
         {error && <span className="rollback-error">{error}</span>}
         <div className="rollback-actions">
@@ -207,7 +208,7 @@ export function RollbackApp() {
             onClick={handleCancel}
             disabled={rolling}
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="button"
@@ -215,7 +216,7 @@ export function RollbackApp() {
             onClick={handleRollback}
             disabled={rolling || checkedFiles.size === 0}
           >
-            {rolling ? "Rolling back..." : "Rollback"}
+            {rolling ? t("Rolling back...") : t("Rollback")}
           </button>
         </div>
       </div>
