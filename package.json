@@ -60,7 +60,7 @@
         {
           "id": "git-atlas-commit",
           "title": "%viewContainer.gitAtlasCommit%",
-          "icon": "resources/git.svg"
+          "icon": "$(git-commit)"
         }
       ]
     },
@@ -91,7 +91,7 @@
         {
           "id": "git-atlas.gitLog",
           "name": "%view.gitAtlas.gitLog%",
-          "icon": "resources/git.svg",
+          "icon": "$(history)",
           "type": "webview"
         }
       ],
@@ -99,7 +99,7 @@
         {
           "id": "git-atlas.commitPanel",
           "name": "%view.gitAtlas.commitPanel%",
-          "icon": "resources/git.svg",
+          "icon": "$(git-commit)",
           "type": "webview"
         }
       ]

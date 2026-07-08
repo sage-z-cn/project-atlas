@@ -22,6 +22,7 @@
   gap: 4px;
   padding: 2px 8px;
   height: 22px;
+  line-height: 18px;
   border-radius: 3px;
   background: transparent;
   color: var(--app-fg);
@@ -53,6 +54,14 @@
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* unplugin-icons renders <svg> inline by default, whose baseline adds a gap
+ * below the glyph and breaks vertical centering inside the flex chip. Force
+ * block layout so align-items:center centers it cleanly. */
+.repo-selector .repo-chip svg {
+  display: block;
+  flex-shrink: 0;
 }
 
 /* ─── Vertical layout (sidebar / commit panel) ─────────────────────────

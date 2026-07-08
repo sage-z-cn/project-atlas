@@ -1,6 +1,7 @@
 import { useCommitStore } from "../store/commit-store";
 import { usePanelStore } from "../store/panel-store";
 import type { RepoInfo, RepoStatus } from "../types/git";
+import RepoIcon from "~icons/codicon/repo";
 import "./RepoSelector.css";
 
 interface Props {
@@ -88,7 +89,7 @@ function RepoSelectorBody({
           title={repo.path}
           onClick={() => void switchRepo(repo.path)}
         >
-          <RepoIcon />
+          <RepoIcon width={14} height={14} />
           <span className="repo-name">{repo.name}</span>
           <RepoBadges status={repoStatuses[repo.path]} />
         </button>
@@ -126,21 +127,5 @@ function RepoBadges({ status }: { status?: RepoStatus }) {
         </span>
       ) : null}
     </span>
-  );
-}
-
-function RepoIcon() {
-  // Inline SVG (the webview uses inline SVG glyphs throughout — no codicon font
-  // is loaded in the webview bundle).
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M3 1.5a1.5 1.5 0 0 0-1.5 1.5v10A1.5 1.5 0 0 0 3 14.5h10a1.5 1.5 0 0 0 1.5-1.5V3A1.5 1.5 0 0 0 13 1.5H3z"
-        stroke="currentColor"
-        strokeLinejoin="round"
-      />
-      <path d="M5.5 1.5v13" stroke="currentColor" />
-      <circle cx="5.5" cy="5" r="0.9" fill="currentColor" />
-    </svg>
   );
 }
