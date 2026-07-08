@@ -3,6 +3,8 @@ import { bridge } from "../../shared/bridge";
 import { Tooltip } from "../../shared/components/Tooltip";
 import "../../shared/components/Tooltip.css";
 import { t } from "../../shared/i18n";
+import IconExpandAll from "~icons/codicon/expand-all";
+import IconCollapseAll from "~icons/codicon/collapse-all";
 import { usePanelStore } from "../../shared/store/panel-store";
 
 export function BranchSidebar({
@@ -471,41 +473,6 @@ function IconListFiles() {
   );
 }
 
-/** Based on expui/general/chevronUp.svg (doubled for expand all) */
-function IconExpandAll() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path
-        d="M4.5 9L8 5.5L11.5 9"
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-      <path
-        d="M4.5 13L8 9.5L11.5 13"
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-/** Based on expui/general/chevronDown.svg (doubled for collapse all) */
-function IconCollapseAll() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path
-        d="M11.5 7L8 10.5L4.5 7"
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-      <path
-        d="M11.5 3L8 6.5L4.5 3"
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 /** Collapse panel – left-pointing chevron */
 function IconCollapsePanel() {

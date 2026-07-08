@@ -114,6 +114,7 @@ export function PanelApp() {
         display: "flex",
         flexDirection: "column",
         position: "relative",
+        background: "var(--vscode-sideBar-background)",
       }}
     >
       <ProgressBar visible={operationInProgress || loading} />

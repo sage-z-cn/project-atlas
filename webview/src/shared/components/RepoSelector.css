@@ -24,7 +24,7 @@
   height: 22px;
   line-height: 18px;
   border-radius: 3px;
-  background: transparent;
+  background: var(--vscode-list-inactiveSelectionBackground, rgba(128, 128, 128, 0.1));
   color: var(--app-fg);
   border: 1px solid var(--border);
   cursor: pointer;
@@ -36,6 +36,12 @@
   transition:
     background 0.12s,
     opacity 0.12s;
+}
+
+/* The bottom panel (horizontal) sits on a lighter background than the sidebar,
+ * so the default inactiveSelection tint barely shows. Use a deeper tint there. */
+.repo-selector.horizontal .repo-chip {
+  background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.15));
 }
 
 .repo-selector .repo-chip:hover {
