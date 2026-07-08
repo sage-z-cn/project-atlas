@@ -24,5 +24,8 @@ node_modules/**
 !node_modules/devicon/devicon.min.css
 !node_modules/devicon/fonts/**
 
+# webview 子包的 node_modules 不打包（依赖已由 vite 打包进 out/webview/assets/main.js）
+webview/node_modules/**
+
 # webview 构建产物保留（out/webview/** 默认随 out/ 包含，此处显式声明以防后续调整）
 !out/webview/**

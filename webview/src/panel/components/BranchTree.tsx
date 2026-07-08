@@ -308,6 +308,7 @@ export function BranchTree({
   const selectedBranches = usePanelStore((s) => s.selectedBranches);
   const selectBranch = usePanelStore((s) => s.selectBranch);
   const branchGroupByDirectory = usePanelStore((s) => s.branchGroupByDirectory);
+  const showTags = usePanelStore((s) => s.showTags);
 
   const containerRef = usePreventSelect();
 
@@ -426,6 +427,17 @@ export function BranchTree({
   const handleClick = useModifierClickSelection<string>(
     (branchName, mode) => {
       selectBranch(branchName, mode, allVisibleBranches);
+      // Plain single-click also performs the configured action (toggle/range
+      // modifier-clicks only select). Read via getState() so the handler always
+      // uses the freshest preference without a stale closure.
+      if (mode === "single") {
+        const action = usePanelStore.getState().singleClickAction;
+        if (action === "navigateToHead") {
+          bridge.request("navigateToHead", { branchName });
+        } else {
+          setFilter({ branch: branchName });
+        }
+      }
     },
     () => setCurrentBranchRowSelected(false),
   );
@@ -635,22 +647,24 @@ export function BranchTree({
         </GroupSection>
 
         {/* Tags */}
-        <GroupSection
-          title={t("Tags")}
-          collapsed={collapsed.tags}
-          onToggle={() => toggle("tags")}
-        >
-          {tagTree.map((node) => (
-            <TagTreeNodeView
-              key={node.fullPath}
-              node={node}
-              depth={0}
-              groupPrefix="tags"
-              collapsed={collapsed}
-              onToggle={toggle}
-            />
-          ))}
-        </GroupSection>
+        {showTags && (
+          <GroupSection
+            title={t("Tags")}
+            collapsed={collapsed.tags}
+            onToggle={() => toggle("tags")}
+          >
+            {tagTree.map((node) => (
+              <TagTreeNodeView
+                key={node.fullPath}
+                node={node}
+                depth={0}
+                groupPrefix="tags"
+                collapsed={collapsed}
+                onToggle={toggle}
+              />
+            ))}
+          </GroupSection>
+        )}
 
         {/* Context Menu */}
         {contextMenu &&

@@ -58,6 +58,14 @@ interface PanelStore {
   hoveredColumn: number | null;
   commitFiles: DiffFile[];
   selectedFilePath: string | null;
+  /**
+   * One-shot scroll trigger for CommitList. When set, CommitList's useEffect
+   * scrolls the row into view then clears it back to null. Backs the
+   * "Navigate Log to Branch Head" single-click action — the host broadcasts a
+   * gitStateChanged with scope:"navigateToHead" and the listener here resolves
+   * the branch's head hash into this field.
+   */
+  scrollTargetHash: string | null;
   /** Column visibility for the commit list */
   visibleColumns: { author: boolean; date: boolean; hash: boolean };
   /** When multiple commits are selected, stores the oldest/newest for range diff */
@@ -66,6 +74,10 @@ interface PanelStore {
   selectedBranches: string[];
   lastSelectedBranch: string | null;
   branchGroupByDirectory: boolean;
+  /** Whether the Tags group is shown in the branch tree (Settings menu toggle). */
+  showTags: boolean;
+  /** What a plain single-click on a branch row does (Settings menu). */
+  singleClickAction: "updateBranchFilter" | "navigateToHead";
 
   filter: PanelFilter;
   /** Hashes to restore after clearing a filter */
@@ -109,6 +121,8 @@ interface PanelStore {
   toggleColumnVisibility: (column: "author" | "date" | "hash") => void;
   toggleSequenceCollapse: (sequenceId: string, intermediates: string[]) => void;
   toggleBranchGroupByDirectory: () => void;
+  toggleShowTags: () => void;
+  setSingleClickAction: (action: "updateBranchFilter" | "navigateToHead") => void;
   refresh: () => Promise<void>;
 }
 
@@ -241,6 +255,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   hoveredColumn: null,
   commitFiles: [],
   selectedFilePath: null,
+  scrollTargetHash: null,
   visibleColumns: { author: true, date: true, hash: true },
   rangeOldest: null,
   rangeNewest: null,
@@ -251,6 +266,23 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       return localStorage.getItem("branchGroupByDirectory") === "true";
     } catch {
       return false;
+    }
+  })(),
+  showTags: (() => {
+    try {
+      const v = localStorage.getItem("showTags");
+      // Default: show tags (null/unset → true).
+      return v === null ? true : v === "true";
+    } catch {
+      return true;
+    }
+  })(),
+  singleClickAction: (() => {
+    try {
+      const v = localStorage.getItem("singleClickAction");
+      return v === "navigateToHead" ? "navigateToHead" : "updateBranchFilter";
+    } catch {
+      return "updateBranchFilter";
     }
   })(),
 
@@ -727,6 +759,25 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     });
   },
 
+  toggleShowTags() {
+    const next = !get().showTags;
+    try {
+      localStorage.setItem("showTags", String(next));
+    } catch {
+      // ignore
+    }
+    set({ showTags: next });
+  },
+
+  setSingleClickAction(action) {
+    try {
+      localStorage.setItem("singleClickAction", action);
+    } catch {
+      // ignore
+    }
+    set({ singleClickAction: action });
+  },
+
   toggleSequenceCollapse(sequenceId: string, intermediates: string[]) {
     const {
       commits,
@@ -840,7 +891,32 @@ bridge.onEvent((event, data) => {
     // This runs before the current-repo filter below so a background repo's
     // ahead/dirty count updates even while viewing a different repo.
     usePanelStore.getState().fetchRepoStatuses();
-    const { repoPath } = (data ?? {}) as { repoPath?: string };
+    const { repoPath, scope, branch } = (data ?? {}) as {
+      repoPath?: string;
+      scope?: string;
+      branch?: string;
+    };
+
+    // "Navigate Log to Branch Head": the host fans this out from the
+    // navigateToHead command (single-click action in BranchTree). Resolve the
+    // branch's head commit hash, select it, and set scrollTargetHash so
+    // CommitList scrolls it into view. This is a scroll-only op — do NOT
+    // refresh the graph (the commits are already loaded).
+    if (scope === "navigateToHead" && branch) {
+      const state = usePanelStore.getState();
+      const branchInfo = state.branches.find((b) => b.name === branch);
+      if (branchInfo?.lastCommitHash) {
+        const headHash = branchInfo.lastCommitHash;
+        usePanelStore.setState({
+          selectedCommitHash: headHash,
+          selectedCommitHashes: [headHash],
+          lastSelectedCommitHash: headHash,
+          scrollTargetHash: headHash,
+        });
+      }
+      return;
+    }
+
     // Multi-repo filter: only refresh the LOG for the current repo. Events
     // without repoPath (global command-handler broadcasts) are always honored.
     if (repoPath && repoPath !== usePanelStore.getState().currentRepoPath) {

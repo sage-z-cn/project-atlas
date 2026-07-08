@@ -235,6 +235,27 @@ export function CommitList({
     virtualizer,
   ]);
 
+  // "Navigate Log to Branch Head" support: when scrollTargetHash is set (by the
+  // gitStateChanged navigateToHead listener in panel-store), scroll the row
+  // into view. The trigger is then cleared so the same hash can fire again later.
+  const scrollTargetHash = usePanelStore((s) => s.scrollTargetHash);
+
+  useEffect(() => {
+    if (!scrollTargetHash) return;
+    const idx = visibleCommits.findIndex(
+      (c) =>
+        c.hash === scrollTargetHash ||
+        c.hash.startsWith(scrollTargetHash) ||
+        scrollTargetHash.startsWith(c.hash),
+    );
+    if (idx >= 0) {
+      virtualizer.scrollToIndex(idx, { align: "start" });
+    }
+    // Clear the one-shot trigger regardless of whether the row was found, so a
+    // stale target never blocks a future navigation.
+    usePanelStore.setState({ scrollTargetHash: null });
+  }, [scrollTargetHash, visibleCommits, virtualizer]);
+
   const handleScroll = useCallback(() => {
     const el = parentRef.current;
     if (!el) return;

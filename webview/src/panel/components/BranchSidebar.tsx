@@ -227,6 +227,11 @@ function SettingsButton() {
 }
 
 function SettingsMenu({ onClose }: { onClose: () => void }) {
+  const showTags = usePanelStore((s) => s.showTags);
+  const singleClickAction = usePanelStore((s) => s.singleClickAction);
+  const toggleShowTags = usePanelStore((s) => s.toggleShowTags);
+  const setSingleClickAction = usePanelStore((s) => s.setSingleClickAction);
+
   const menuRef = useCallback(
     (node: HTMLDivElement | null) => {
       if (!node) return;
@@ -262,36 +267,41 @@ function SettingsMenu({ onClose }: { onClose: () => void }) {
         type="button"
         className="commit-context-menu-item"
         onClick={() => {
-          bridge.request("setSingleClickAction", {
-            action: "updateBranchFilter",
-          });
+          setSingleClickAction("updateBranchFilter");
           onClose();
         }}
       >
-        <span>{t("Update Branch Filter")}</span>
+        <span>
+          {singleClickAction === "updateBranchFilter" ? "✓ " : ""}
+          {t("Update Branch Filter")}
+        </span>
       </button>
       <button
         type="button"
         className="commit-context-menu-item"
         onClick={() => {
-          bridge.request("setSingleClickAction", {
-            action: "navigateToHead",
-          });
+          setSingleClickAction("navigateToHead");
           onClose();
         }}
       >
-        <span>{t("Navigate Log to Branch Head")}</span>
+        <span>
+          {singleClickAction === "navigateToHead" ? "✓ " : ""}
+          {t("Navigate Log to Branch Head")}
+        </span>
       </button>
       <div className="commit-context-menu-separator" />
       <button
         type="button"
         className="commit-context-menu-item"
         onClick={() => {
-          bridge.request("toggleShowTags");
+          toggleShowTags();
           onClose();
         }}
       >
-        <span>✓ {t("Show Tags")}</span>
+        <span>
+          {showTags ? "✓ " : ""}
+          {t("Show Tags")}
+        </span>
       </button>
     </div>
   );
