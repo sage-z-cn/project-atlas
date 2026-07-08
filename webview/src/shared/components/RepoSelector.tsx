@@ -1,6 +1,7 @@
 import { useCommitStore } from "../store/commit-store";
 import { usePanelStore } from "../store/panel-store";
 import type { RepoInfo, RepoStatus } from "../types/git";
+import { t } from "../i18n";
 import RepoIcon from "~icons/codicon/repo";
 import "./RepoSelector.css";
 
@@ -112,17 +113,17 @@ function RepoBadges({ status }: { status?: RepoStatus }) {
   return (
     <span className="repo-badges">
       {ahead ? (
-        <span className="badge ahead" title={`待推送 ${ahead} 个提交`}>
+        <span className="badge ahead" title={t("Push {0} commits ahead", ahead)}>
           ↑{ahead}
         </span>
       ) : null}
       {behind ? (
-        <span className="badge behind" title={`待拉取 ${behind} 个提交`}>
+        <span className="badge behind" title={t("Pull {0} commits behind", behind)}>
           ↓{behind}
         </span>
       ) : null}
       {dirty ? (
-        <span className="badge dirty" title={`${dirty} 个未提交文件`}>
+        <span className="badge dirty" title={t("{0} uncommitted files", dirty)}>
           ●{dirty}
         </span>
       ) : null}

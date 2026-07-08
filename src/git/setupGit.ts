@@ -133,6 +133,7 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   //    切换 repo 后所有读取 ctx.gitService 的 handler 自动跟随。
   const ctx: GitHandlerContext = {
     messageRouter,
+    context,
     registry,
     get gitService() {
       return registry.getCurrent();

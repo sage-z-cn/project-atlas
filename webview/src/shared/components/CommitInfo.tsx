@@ -1,4 +1,5 @@
 import type { Commit } from "../types/git";
+import { t } from "../i18n";
 
 /** Renders text with URLs highlighted as clickable links */
 function Linkify({ text }: { text: string }) {
@@ -107,7 +108,7 @@ export function CommitInfo({ commit }: { commit: Commit }) {
             </a>{" "}
           </>
         )}
-        on {formatDateTime(commit.authorDate)}
+        {t("on {0}", formatDateTime(commit.authorDate))}
       </div>
 
       {/* Ref icons + text */}

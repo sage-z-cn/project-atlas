@@ -6,6 +6,7 @@ import { MergeStandaloneApp } from "./conflicts/MergeStandaloneApp";
 import { PanelApp } from "./panel/App";
 import { PushApp } from "./push/App";
 import { RollbackApp } from "./rollback/App";
+import { initI18n } from "./shared/i18n";
 import "./shared/theme/variables.css";
 
 // Fix Cmd+A/Ctrl+A not working in webview inputs (VS Code intercepts it)
@@ -19,31 +20,37 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-const root = document.getElementById("root");
-if (!root) throw new Error("Root element not found");
-const mode = root.dataset.mode as
-  | "panel"
-  | "merge"
-  | "conflicts"
-  | "commit"
-  | "push"
-  | "rollback"
-  | undefined;
+// Load the i18n bundle BEFORE first render so components see translated
+// strings on their initial paint (no English flash under a non-English locale).
+// .finally() ensures the webview still renders if the bridge round-trip fails
+// — initI18n swallows errors internally and falls back to English keys.
+initI18n().finally(() => {
+  const root = document.getElementById("root");
+  if (!root) throw new Error("Root element not found");
+  const mode = root.dataset.mode as
+    | "panel"
+    | "merge"
+    | "conflicts"
+    | "commit"
+    | "push"
+    | "rollback"
+    | undefined;
 
-createRoot(root).render(
-  <StrictMode>
-    {mode === "merge" ? (
-      <MergeStandaloneApp />
-    ) : mode === "conflicts" ? (
-      <ConflictsApp />
-    ) : mode === "commit" ? (
-      <CommitApp />
-    ) : mode === "push" ? (
-      <PushApp />
-    ) : mode === "rollback" ? (
-      <RollbackApp />
-    ) : (
-      <PanelApp />
-    )}
-  </StrictMode>,
-);
+  createRoot(root).render(
+    <StrictMode>
+      {mode === "merge" ? (
+        <MergeStandaloneApp />
+      ) : mode === "conflicts" ? (
+        <ConflictsApp />
+      ) : mode === "commit" ? (
+        <CommitApp />
+      ) : mode === "push" ? (
+        <PushApp />
+      ) : mode === "rollback" ? (
+        <RollbackApp />
+      ) : (
+        <PanelApp />
+      )}
+    </StrictMode>,
+  );
+});

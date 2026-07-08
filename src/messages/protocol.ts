@@ -115,7 +115,8 @@ export type CommandType =
   | "getRepos"
   | "getCurrentRepo"
   | "switchRepo"
-  | "getRepoStatuses";
+  | "getRepoStatuses"
+  | "getL10nBundle";
 
 export type EventType =
   | "gitStateChanged"

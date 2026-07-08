@@ -6,6 +6,7 @@ import { Tooltip } from "../shared/components/Tooltip";
 import "../shared/components/Tooltip.css";
 import { usePreventSelect } from "../shared/hooks/usePreventSelect";
 import { usePanelStore } from "../shared/store/panel-store";
+import { t } from "../shared/i18n";
 import { BranchTree } from "./components/BranchTree";
 import { DetailPanel } from "./components/DetailPanel";
 import { GitGraphPanel } from "./components/GitGraphPanel";
@@ -101,7 +102,7 @@ export function PanelApp() {
           opacity: 0.5,
         }}
       >
-        Loading...
+        {t("Loading...")}
       </div>
     );
   }
@@ -151,7 +152,7 @@ export function PanelApp() {
                 paddingTop: 4,
               }}
             >
-              <Tooltip text="Show Branches">
+              <Tooltip text={t("Show Branches")}>
                 <button
                   type="button"
                   className="panel-toggle-btn"
@@ -232,7 +233,7 @@ export function PanelApp() {
                       flexShrink: 0,
                     }}
                   >
-                    <Tooltip text="Hide Details">
+                    <Tooltip text={t("Hide Details")}>
                       <button
                         type="button"
                         className="panel-toggle-btn"
@@ -257,7 +258,7 @@ export function PanelApp() {
                     borderLeft: "1px solid var(--border)",
                   }}
                 >
-                  <Tooltip text="Show Details">
+                  <Tooltip text={t("Show Details")}>
                     <button
                       type="button"
                       className="panel-toggle-btn"

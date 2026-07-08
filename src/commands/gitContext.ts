@@ -1,3 +1,4 @@
+import type { ExtensionContext } from "vscode";
 import type { MessageRouter, CommandHandler } from "../messages/messageRouter";
 import type { GitService } from "../git/gitService";
 import type { RepoRegistry } from "../git/repoRegistry";
@@ -30,6 +31,13 @@ export const NOT_GIT_REPO = { status: "not_git_repo" as const, data: null };
  */
 export interface GitHandlerContext {
   messageRouter: MessageRouter;
+  /**
+   * Extension context. Exposed so handlers that need extension-root-relative
+   * resources (e.g. the l10n bundle under `l10n/bundle.l10n.{locale}.json`)
+   * can resolve them via `context.asAbsolutePath(...)` without re-deriving
+   * the extension root from `__dirname`.
+   */
+  context: ExtensionContext;
   /** Multi-repo registry — single source of truth for services + current repo. */
   registry: RepoRegistry;
   /**
