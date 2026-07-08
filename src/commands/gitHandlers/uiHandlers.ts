@@ -18,8 +18,14 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
 
   messageRouter.handle("openFile", async (params) => {
     const filePath = params.filePath as string;
-    const absPath = ctx.workspaceRoot
-      ? vscode.Uri.joinPath(vscode.Uri.file(ctx.workspaceRoot), filePath)
+    // Multi-repo: resolve the owning repo root — the caller's params.repoPath
+    // wins, then the currently-selected repo, then the legacy workspace root.
+    const repoRoot =
+      (params?.repoPath as string) ||
+      ctx.registry.getCurrentRepoPath() ||
+      ctx.workspaceRoot;
+    const absPath = repoRoot
+      ? vscode.Uri.joinPath(vscode.Uri.file(repoRoot), filePath)
       : vscode.Uri.file(filePath);
     try {
       await vscode.commands.executeCommand("vscode.open", absPath);
@@ -74,8 +80,13 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
   messageRouter.handle("revealInSystemExplorer", async (params) => {
     const filePath = params.filePath as string;
     if (!filePath || !ctx.workspaceRoot) return { success: false };
+    // Multi-repo: resolve the owning repo root for the absolute path.
+    const repoRoot =
+      (params?.repoPath as string) ||
+      ctx.registry.getCurrentRepoPath() ||
+      ctx.workspaceRoot;
     const absPath = vscode.Uri.joinPath(
-      vscode.Uri.file(ctx.workspaceRoot),
+      vscode.Uri.file(repoRoot),
       filePath,
     );
     await vscode.commands.executeCommand("revealFileInOS", absPath);

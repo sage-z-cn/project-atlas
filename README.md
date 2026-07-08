@@ -132,6 +132,14 @@ Click any project to open it. Right-click for more options like renaming, toggli
 
 See [CHANGELOG.md](https://github.com/sage-z-cn/project-atlas/blob/master/CHANGELOG.md) for release history.
 
+## Credits
+
+The Git Atlas feature builds on code from these open-source projects:
+- [jet-git](https://github.com/zhyc9de/jet-git)
+- [jetbrains-git-graph](https://github.com/aotemj/jetbrains-git-graph)
+
+With additional multi-repo support (sub-directory git repo detection, repo switching, and status badges).
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](https://github.com/sage-z-cn/project-atlas/blob/master/LICENSE) — free to use, modify, and distribute. Derivative works must also be licensed under GPL 3.0.

@@ -110,6 +110,11 @@ export function registerGitCommands(
       const line = editor.selection.active.line;
       const character = editor.selection.active.character;
 
+      // Multi-repo: resolve the owning repo root — editSource is a plain
+      // registerCommand (no bridge params), so use the currently-selected repo
+      // and fall back to the legacy workspace root.
+      const repoRoot = ctx.registry.getCurrentRepoPath() ?? ctx.workspaceRoot;
+
       // Resolve the actual workspace file path from diff URI
       // Format: git-atlas:/<relativePath>?ref=<commitHash>
       let filePath: string | undefined;
@@ -121,9 +126,9 @@ export function registerGitCommands(
         const relativePath = uri.path.startsWith("/")
           ? uri.path.slice(1)
           : uri.path;
-        if (relativePath && ctx.workspaceRoot) {
+        if (relativePath && repoRoot) {
           filePath = vscode.Uri.joinPath(
-            vscode.Uri.file(ctx.workspaceRoot),
+            vscode.Uri.file(repoRoot),
             relativePath,
           ).fsPath;
         }
@@ -132,9 +137,9 @@ export function registerGitCommands(
         const relativePath = uri.path.startsWith("/")
           ? uri.path.slice(1)
           : uri.path;
-        if (relativePath && ctx.workspaceRoot) {
+        if (relativePath && repoRoot) {
           filePath = vscode.Uri.joinPath(
-            vscode.Uri.file(ctx.workspaceRoot),
+            vscode.Uri.file(repoRoot),
             relativePath,
           ).fsPath;
         }

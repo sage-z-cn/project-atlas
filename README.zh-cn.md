@@ -128,6 +128,14 @@
 
 版本历史请参见 [CHANGELOG.md](https://github.com/sage-z-cn/project-atlas/blob/master/CHANGELOG.md)。
 
+## 致谢
+
+Git Atlas 功能引用了以下开源仓库的代码：
+- [jet-git](https://github.com/zhyc9de/jet-git)
+- [jetbrains-git-graph](https://github.com/aotemj/jetbrains-git-graph)
+
+并在此基础上增加了多仓库支持（子目录 git 仓库检测、仓库切换、状态徽标）。
+
 ## 许可证
 
 本项目基于 [GNU 通用公共许可证 v3.0](https://github.com/sage-z-cn/project-atlas/blob/master/LICENSE) 开源，可自由使用、修改和分发。衍生作品必须同样以 GPL 3.0 许可证发布。

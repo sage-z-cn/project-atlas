@@ -60,6 +60,12 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
     const filePaths = params.filePaths as string[];
     if (!filePaths || filePaths.length === 0) return { success: false };
 
+    // Multi-repo: resolve the owning repo root for the absolute paths.
+    const repoRoot =
+      (params?.repoPath as string) ||
+      ctx.registry.getCurrentRepoPath() ||
+      ctx.workspaceRoot;
+
     const fileCount = filePaths.length;
     const message =
       fileCount === 1
@@ -75,7 +81,7 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
 
     for (const filePath of filePaths) {
       const fullPath = vscode.Uri.joinPath(
-        vscode.Uri.file(ctx.workspaceRoot),
+        vscode.Uri.file(repoRoot),
         filePath,
       );
       try {
@@ -100,6 +106,12 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
       const filePaths = params.filePaths as string[];
       const deleteLocalCopies = params.deleteLocalCopies as boolean;
 
+      // Multi-repo: resolve the owning repo root for filesystem deletes.
+      const repoRoot =
+        (params?.repoPath as string) ||
+        ctx.registry.getCurrentRepoPath() ||
+        ctx.workspaceRoot;
+
       try {
         // Get current working tree status to determine each file's state
         const workingTreeChanges = await gitService.getWorkingTreeChanges();
@@ -114,7 +126,7 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
             if (deleteLocalCopies) {
               // Delete untracked/added file from filesystem
               const absPath = vscode.Uri.joinPath(
-                vscode.Uri.file(ctx.workspaceRoot!),
+                vscode.Uri.file(repoRoot!),
                 filePath,
               );
               await vscode.workspace.fs.delete(absPath);
@@ -149,8 +161,14 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
       const filePath = params.filePath as string;
       const staged = params.staged as boolean | undefined;
 
+      // Multi-repo: resolve the owning repo root for the working-tree file URI.
+      const repoRoot =
+        (params?.repoPath as string) ||
+        ctx.registry.getCurrentRepoPath() ||
+        ctx.workspaceRoot;
+
       const rightUri = vscode.Uri.joinPath(
-        vscode.Uri.file(ctx.workspaceRoot),
+        vscode.Uri.file(repoRoot),
         filePath,
       );
 

@@ -150,7 +150,12 @@ export function registerShelfHandlers(ctx: GitHandlerContext): void {
       const shelfName = params.shelfName as string;
       const filePath = params.filePath as string;
 
-      const patchFile = `${ctx.workspaceRoot}/.idea/shelf/${shelfName}/shelved.patch`;
+      // Multi-repo: the .idea/shelf dir lives under the owning repo root.
+      const repoRoot =
+        (params?.repoPath as string) ||
+        ctx.registry.getCurrentRepoPath() ||
+        ctx.workspaceRoot;
+      const patchFile = `${repoRoot}/.idea/shelf/${shelfName}/shelved.patch`;
       try {
         const patchContent = await nodefs.readFile(patchFile, "utf-8");
 
@@ -194,11 +199,16 @@ export function registerShelfHandlers(ctx: GitHandlerContext): void {
     requireGit(ctx, async (_gitService, params) => {
       if (!ctx.workspaceRoot) return NOT_GIT_REPO;
       const shelfName = params.shelfName as string;
-      const patchFile = `${ctx.workspaceRoot}/.idea/shelf/${shelfName}/shelved.patch`;
+      // Multi-repo: resolve the owning repo root for .idea/shelf + save dialog.
+      const repoRoot =
+        (params?.repoPath as string) ||
+        ctx.registry.getCurrentRepoPath() ||
+        ctx.workspaceRoot;
+      const patchFile = `${repoRoot}/.idea/shelf/${shelfName}/shelved.patch`;
 
       // Ask user where to save the patch
       const saveUri = await vscode.window.showSaveDialog({
-        defaultUri: vscode.Uri.file(`${ctx.workspaceRoot}/${shelfName}.patch`),
+        defaultUri: vscode.Uri.file(`${repoRoot}/${shelfName}.patch`),
         filters: { "Patch files": ["patch", "diff"], "All files": ["*"] },
         title: "Save Patch File",
       });
@@ -225,7 +235,12 @@ export function registerShelfHandlers(ctx: GitHandlerContext): void {
     requireGit(ctx, async (_gitService, params) => {
       if (!ctx.workspaceRoot) return NOT_GIT_REPO;
       const shelfName = params.shelfName as string;
-      const patchFile = `${ctx.workspaceRoot}/.idea/shelf/${shelfName}/shelved.patch`;
+      // Multi-repo: the .idea/shelf dir lives under the owning repo root.
+      const repoRoot =
+        (params?.repoPath as string) ||
+        ctx.registry.getCurrentRepoPath() ||
+        ctx.workspaceRoot;
+      const patchFile = `${repoRoot}/.idea/shelf/${shelfName}/shelved.patch`;
 
       try {
         const patchContent = await nodefs.readFile(patchFile, "utf-8");
