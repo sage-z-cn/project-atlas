@@ -7,10 +7,65 @@ import "../shared/components/Tooltip.css";
 import { usePreventSelect } from "../shared/hooks/usePreventSelect";
 import { usePanelStore } from "../shared/store/panel-store";
 import { t } from "../shared/i18n";
+import { bridge } from "../shared/bridge";
 import { BranchTree } from "./components/BranchTree";
 import { DetailPanel } from "./components/DetailPanel";
 import { GitGraphPanel } from "./components/GitGraphPanel";
 import { Toolbar } from "./components/Toolbar";
+
+// ── Panel layout persistence ────────────────────────────────────────
+// The Git Log panel's layout (sidebar visibility + pane widths) is persisted
+// via the webview's vscode.getState/setState, which VSCode serializes and
+// restores automatically when the panel is reopened or VSCode restarts.
+// Everything here is best-effort: a read/write failure is swallowed so a
+// corrupted state never breaks the UI (it just falls back to defaults).
+interface PanelLayout {
+  /** Left branch sidebar visible. */
+  showLeft: boolean;
+  /** Right detail pane visible. */
+  showRight: boolean;
+  /** Left branch sidebar pixel width (when shown). */
+  leftWidth: number;
+  /** Middle history-list pane pixel width (from Allotment sash position). */
+  middleWidth: number;
+  /** Right detail pane pixel width (from Allotment sash position). */
+  rightWidth: number;
+}
+
+const LAYOUT_DEFAULTS: PanelLayout = {
+  showLeft: true,
+  showRight: true,
+  leftWidth: 330,
+  middleWidth: 0,
+  rightWidth: 350,
+};
+const LAYOUT_KEY = "panelLayout";
+
+function loadPanelLayout(): PanelLayout {
+  try {
+    const root = (bridge.getState() ?? {}) as Record<string, unknown>;
+    return {
+      ...LAYOUT_DEFAULTS,
+      ...(root[LAYOUT_KEY] as Partial<PanelLayout>),
+    };
+  } catch {
+    return { ...LAYOUT_DEFAULTS };
+  }
+}
+
+function savePanelLayout(partial: Partial<PanelLayout>): void {
+  try {
+    const root = (bridge.getState() ?? {}) as Record<string, unknown>;
+    const merged = {
+      ...LAYOUT_DEFAULTS,
+      ...(root[LAYOUT_KEY] as Partial<PanelLayout>),
+      ...partial,
+    };
+    bridge.setState({ ...root, [LAYOUT_KEY]: merged });
+  } catch {
+    // best-effort: never let persistence break the UI
+  }
+}
 
 function ProgressBar({ visible }: { visible: boolean }) {
   if (!visible) return null;
@@ -51,12 +106,22 @@ export function PanelApp() {
   const commits = usePanelStore((s) => s.commits);
   const operationInProgress = usePanelStore((s) => s.operationInProgress);
 
-  const [showLeft, setShowLeft] = useState(true);
-  const [showRight, setShowRight] = useState(true);
-  const [leftWidth, setLeftWidth] = useState(330);
+  const [initialLayout] = useState(loadPanelLayout);
+  const [showLeft, setShowLeft] = useState(initialLayout.showLeft);
+  const [showRight, setShowRight] = useState(initialLayout.showRight);
+  const [leftWidth, setLeftWidth] = useState(initialLayout.leftWidth);
 
   const toggleLeft = useCallback(() => setShowLeft((v) => !v), []);
   const toggleRight = useCallback(() => setShowRight((v) => !v), []);
+
+  // Persist visibility so the layout survives panel reopen / VSCode restart.
+  // (Mount writes the loaded value back — harmless, it's an idempotent merge.)
+  useEffect(() => {
+    savePanelLayout({ showLeft });
+  }, [showLeft]);
+  useEffect(() => {
+    savePanelLayout({ showRight });
+  }, [showRight]);
 
   // Drag handle for left panel resize
   const startLeftResize = useCallback(
@@ -64,14 +129,17 @@ export function PanelApp() {
       e.preventDefault();
       const startX = e.clientX;
       const startWidth = leftWidth;
+      let lastWidth = leftWidth;
       const onMove = (ev: MouseEvent) => {
         const newWidth = Math.max(
           140,
           Math.min(500, startWidth + ev.clientX - startX),
         );
+        lastWidth = newWidth;
         setLeftWidth(newWidth);
       };
       const onUp = () => {
+        savePanelLayout({ leftWidth: lastWidth });
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup", onUp);
       };
@@ -198,7 +266,22 @@ export function PanelApp() {
 
         {/* Middle + Right in Allotment */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <Allotment proportionalLayout={false}>
+          <Allotment
+            proportionalLayout={false}
+            defaultSizes={
+              initialLayout.middleWidth > 0 && initialLayout.rightWidth > 0
+                ? [initialLayout.middleWidth, initialLayout.rightWidth]
+                : undefined
+            }
+            onDragEnd={(sizes) => {
+              if (sizes.length >= 2) {
+                savePanelLayout({
+                  middleWidth: sizes[0],
+                  rightWidth: sizes[1],
+                });
+              }
+            }}
+          >
             <Allotment.Pane minSize={400} priority={LayoutPriority.High}>
               <div
                 ref={middleRef}

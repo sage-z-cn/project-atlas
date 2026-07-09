@@ -70,5 +70,7 @@ export function createVSCodeBridge(): Bridge {
         eventHandlers.delete(handler);
       };
     },
+    getState: () => vscode.getState(),
+    setState: (state: unknown) => vscode.setState(state),
   };
 }

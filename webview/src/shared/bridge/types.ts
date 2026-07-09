@@ -119,4 +119,11 @@ export interface Bridge {
     params?: Record<string, unknown>,
   ): Promise<unknown>;
   onEvent(handler: (event: string, data: unknown) => void): () => void;
+  /**
+   * Webview persisted state. VSCode serializes this and restores it via
+   * getState() when the webview is recreated (panel reopened / VSCode
+   * restarted). Used for UI layout that should survive across sessions.
+   */
+  getState(): unknown;
+  setState(state: unknown): void;
 }
