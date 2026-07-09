@@ -107,6 +107,7 @@ export type CommandType =
   | "getAheadCommits"
   | "getCommitRangeFiles"
   | "executePush"
+  | "openGitLogPanel"
   | "openPushPanel"
   | "getRemoteBranches"
   | "dropCommit"

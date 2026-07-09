@@ -8,6 +8,17 @@ export class GitWatcher implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
   private debounceTimers = new Map<Scope, ReturnType<typeof setTimeout>>();
 
+  private readonly _onChanged = new vscode.EventEmitter<void>();
+  /**
+   * Extension-side signal that this repo's git state changed.
+   *
+   * Fired alongside (not instead of) the webview `gitStateChanged` broadcast,
+   * after the same 300ms debounce and cache invalidation. Lets extension-host
+   * listeners (e.g. the status bar) refresh without going through the webview
+   * MessageRouter. Disposed when the watcher is disposed.
+   */
+  readonly onChanged = this._onChanged.event;
+
   constructor(
     private readonly workspaceRoot: string,
     private readonly messageRouter: MessageRouter,
@@ -142,6 +153,8 @@ export class GitWatcher implements vscode.Disposable {
           scope,
           repoPath: this.workspaceRoot,
         });
+        // Notify extension-host listeners (status bar, etc.).
+        this._onChanged.fire();
       }, 300),
     );
   }
@@ -155,5 +168,6 @@ export class GitWatcher implements vscode.Disposable {
       d.dispose();
     }
     this.disposables = [];
+    this._onChanged.dispose();
   }
 }

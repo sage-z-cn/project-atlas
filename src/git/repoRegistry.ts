@@ -41,6 +41,16 @@ export class RepoRegistry implements vscode.Disposable {
   private currentRepoPath: string | null = null;
   private repoInfos: RepoInfo[] = [];
 
+  private readonly _onGitStateChanged = new vscode.EventEmitter<void>();
+  /**
+   * Extension-side signal that either the current repo selection changed
+   * (via {@link setCurrent}) or git state changed in any watched repo.
+   *
+   * Unlike {@link MessageRouter.broadcastEvent} (webview-only), this is the
+   * signal extension-host listeners such as the status bar subscribe to.
+   */
+  readonly onGitStateChanged = this._onGitStateChanged.event;
+
   constructor(
     private readonly messageRouter: MessageRouter,
     private readonly context: vscode.ExtensionContext,
@@ -89,6 +99,10 @@ export class RepoRegistry implements vscode.Disposable {
       if (!this.services.has(info.path)) {
         const svc = new GitService(info.path);
         const watcher = new GitWatcher(info.path, this.messageRouter, svc.cache);
+        // Bridge per-repo watcher changes into the registry-wide signal.
+        // Subscription lifetime follows the watcher: watcher.dispose() disposes
+        // its internal emitter and severs this listener automatically.
+        watcher.onChanged(() => this._onGitStateChanged.fire());
         this.services.set(info.path, svc);
         this.watchers.set(info.path, watcher);
       }
@@ -173,11 +187,15 @@ export class RepoRegistry implements vscode.Disposable {
     this.currentRepoPath = normalized;
     await this.context.workspaceState.update(CURRENT_REPO_KEY, normalized);
     this.messageRouter.broadcastEvent("repoChanged", { repoPath: normalized });
+    // Notify extension-host listeners (status bar, etc.) that the active repo
+    // changed — they need to re-render against the new repo's state.
+    this._onGitStateChanged.fire();
   }
 
   dispose(): void {
     for (const w of this.watchers.values()) w.dispose();
     this.watchers.clear();
     this.services.clear();
+    this._onGitStateChanged.dispose();
   }
 }

@@ -554,6 +554,14 @@ export function CommitApp() {
         >
           {t("Stash")}
         </button>
+        <button
+          type="button"
+          className="commit-tab"
+          title={t("Show in Git Log")}
+          onClick={() => void bridge.request("openGitLogPanel")}
+        >
+          {t("History")}
+        </button>
       </div>
       <RebaseBanner />
       <CherryPickBanner />

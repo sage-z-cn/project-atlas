@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { MessageRouter } from "../messages/messageRouter";
 import { GitService } from "./gitService";
 import { RepoRegistry } from "./repoRegistry";
+import { normalizePath } from "./repoPaths";
 import { ReactViewProvider } from "../webview/reactViewProvider";
 import {
   GIT_ATLAS_SCHEME,
@@ -187,14 +188,231 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
     ),
   );
 
-  // i. 状态栏项（快速打开 Git Log panel）
+  // i. 状态栏项
+  //
+  //    对齐 VSCode 原生 git 状态栏：显示分支名 / ahead↑（未推送 commit）/
+  //    behind↓（落后 commit）/ 工作树改动数 ●N。多 repo 工作区时前缀显示
+  //    当前 repo 名。点击弹出 VSCode 原生 `git.checkout` quick pick，并尽
+  //    可能精确作用于当前 repo（通过 vscode.git 导出 API 的 Repository）。
+  context.subscriptions.push(
+    registerGitStatusBar(registry),
+  );
+}
+
+// ─── vscode.git 导出 API 最小类型（避免引入 @types/vscode-git） ──────────
+type VscodeGitApi = {
+  repositories: { rootUri: vscode.Uri }[];
+};
+type VscodeGitExports = { getAPI(version: 1): VscodeGitApi };
+
+/**
+ * Resolve the `vscode.git` built-in extension's API, activating it if needed.
+ * Returns undefined when the extension is unavailable (e.g. user disabled it).
+ */
+async function getVscodeGitApi(): Promise<VscodeGitApi | undefined> {
+  try {
+    const gitExt =
+      vscode.extensions.getExtension<VscodeGitExports>("vscode.git");
+    if (!gitExt) return undefined;
+    if (!gitExt.isActive) await gitExt.activate();
+    return gitExt.exports.getAPI(1);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Build and register the Git Atlas status bar item.
+ *
+ * Display mirrors VSCode's built-in git status bar (branch + ahead/behind +
+ * working-tree changes) aggregated into one item, prefixed with the repo name
+ * when the workspace has multiple repos. Clicking triggers the native
+ * `git.checkout` quick pick, scoped to the current repo via vscode.git's API
+ * (the extension's `getOpenRepository` accepts an ApiRepository / Uri and
+ * resolves the owning repository).
+ */
+function registerGitStatusBar(
+  registry: RepoRegistry,
+): vscode.Disposable {
   const statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     100,
   );
+
+  // Debounce consecutive git-state events into a single refresh, and avoid
+  // reentrant refreshes: while one is in flight, coalesce further events into
+  // a pending flag that triggers one more refresh after the current finishes.
+  let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  let refreshing = false;
+  let pendingRefresh = false;
+
+  const scheduleRefresh = (): void => {
+    if (refreshing) {
+      pendingRefresh = true;
+      return;
+    }
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null;
+      void refreshStatusBar();
+    }, 200);
+  };
+
+  async function refreshStatusBar(): Promise<void> {
+    refreshing = true;
+    try {
+      const svc = registry.getCurrent();
+      const repoPath = registry.getCurrentRepoPath();
+      const infos = registry.getRepoInfos();
+      const multiRepo = infos.length > 1;
+      const currentInfo = repoPath
+        ? infos.find((i) => i.path === repoPath)
+        : undefined;
+
+      if (!svc || !repoPath) {
+        statusBarItem.text = "$(git-branch) Git Atlas";
+        statusBarItem.tooltip = vscode.l10n.t("Git Atlas (no repository)");
+        statusBarItem.command = "git-atlas._statusBarCheckout";
+        return;
+      }
+
+      // Branch / upstream / ahead / behind — from getBranches() (cached 5s).
+      let branch = "";
+      let isDetached = false;
+      let hasUpstream = false;
+      let ahead = 0;
+      let behind = 0;
+      try {
+        const branches = await svc.getBranches();
+        const cur = branches.find((b) => b.isCurrent);
+        if (cur && cur.name && !cur.name.startsWith("(")) {
+          branch = cur.name;
+          hasUpstream = !!cur.upstream;
+          ahead = cur.ahead ?? 0;
+          behind = cur.behind ?? 0;
+        } else {
+          // Detached HEAD (git reports a "(HEAD detached at <hash>)" pseudo-branch).
+          isDetached = true;
+          branch = "detached";
+        }
+      } catch {
+        branch = "?";
+      }
+
+      // Working-tree changes count (modified + staged + untracked).
+      let dirty = 0;
+      try {
+        dirty = (await svc.getWorkingTreeChanges()).length;
+      } catch {
+        // ignore — leave dirty at 0
+      }
+
+      // Icon: changes → git-branch-changes, detached → git-commit, else git-branch.
+      // Matches VSCode built-in git's per-state branch icon selection.
+      const icon = isDetached
+        ? "$(git-commit)"
+        : dirty > 0
+          ? "$(git-branch-changes)"
+          : "$(git-branch)";
+
+      const parts: string[] = [];
+      if (multiRepo && currentInfo) {
+        parts.push(`$(repo) ${currentInfo.name}`);
+      }
+      parts.push(`${icon} ${branch}`);
+      // Only render ahead/behind when an upstream exists; 0 counts are omitted
+      // to keep the item compact (VSCode's sync item shows 0s, but aggregation
+      // here favours signal over completeness).
+      if (hasUpstream && behind > 0) parts.push(`↓${behind}`);
+      if (hasUpstream && ahead > 0) parts.push(`↑${ahead}`);
+      if (dirty > 0) parts.push(`●${dirty}`);
+
+      statusBarItem.text = parts.join(" ");
+
+      const tipLines: string[] = [];
+      if (currentInfo) {
+        tipLines.push(vscode.l10n.t("Repo: {0}", currentInfo.path));
+      }
+      tipLines.push(vscode.l10n.t("Branch: {0}", branch));
+      if (hasUpstream) {
+        tipLines.push(
+          vscode.l10n.t(
+            "↑ {0} ahead   ↓ {1} behind",
+            String(ahead),
+            String(behind),
+          ),
+        );
+      } else if (!isDetached) {
+        tipLines.push(vscode.l10n.t("Branch has no upstream"));
+      }
+      tipLines.push(
+        vscode.l10n.t("{0} working-tree change(s)", String(dirty)),
+      );
+      tipLines.push("");
+      tipLines.push(vscode.l10n.t("Click to checkout a branch/tag"));
+      statusBarItem.tooltip = tipLines.join("\n");
+
+      // Click handler is resolved at click time (repo may have switched), so a
+      // fixed command string is enough.
+      statusBarItem.command = "git-atlas._statusBarCheckout";
+    } finally {
+      refreshing = false;
+      if (pendingRefresh) {
+        pendingRefresh = false;
+        scheduleRefresh();
+      }
+    }
+  }
+
+  /**
+   * Status-bar click: open VSCode's native `git.checkout` quick pick, scoped to
+   * the current repo. Tries, in order: (1) the matching Repository from
+   * vscode.git's API — `git.checkout`'s repository resolver unpacks ApiRepository
+   * via rootUri; (2) fall back to a Uri argument (longest-prefix match); (3) a
+   * bare `git.checkout` that lets VSCode prompt for the repository.
+   */
+  async function onStatusBarClick(): Promise<void> {
+    const repoPath = registry.getCurrentRepoPath();
+    try {
+      const api = await getVscodeGitApi();
+      let target: unknown;
+      if (api && repoPath) {
+        target = api.repositories.find(
+          (r) => normalizePath(r.rootUri.fsPath) === repoPath,
+        );
+      }
+      if (!target && repoPath) {
+        target = vscode.Uri.file(repoPath);
+      }
+      if (target !== undefined) {
+        await vscode.commands.executeCommand("git.checkout", target);
+      } else {
+        await vscode.commands.executeCommand("git.checkout");
+      }
+    } catch {
+      // git extension unavailable or checkout failed — degrade to bare command.
+      try {
+        await vscode.commands.executeCommand("git.checkout");
+      } catch {
+        // truly unavailable; nothing more to do
+      }
+    }
+  }
+
   statusBarItem.text = "$(git-branch) Git Atlas";
-  statusBarItem.tooltip = "Open Git Atlas Panel";
-  statusBarItem.command = "git-atlas.gitLog.focus";
+  statusBarItem.tooltip = "Git Atlas";
   statusBarItem.show();
-  context.subscriptions.push(statusBarItem);
+
+  const subscriptions: vscode.Disposable[] = [
+    statusBarItem,
+    vscode.commands.registerCommand("git-atlas._statusBarCheckout", () =>
+      void onStatusBarClick(),
+    ),
+    registry.onGitStateChanged(() => scheduleRefresh()),
+  ];
+
+  // Initial render.
+  void refreshStatusBar();
+
+  return vscode.Disposable.from(...subscriptions);
 }
