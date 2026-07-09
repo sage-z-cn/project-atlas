@@ -15,6 +15,8 @@ export function CommitMessageArea() {
     commit,
     loading,
     selectedFiles,
+    commitListStyle,
+    changes,
   } = useCommitStore();
 
   const [showDropdown, setShowDropdown] = useState(false);
@@ -24,9 +26,17 @@ export function CommitMessageArea() {
   const historyBtnRef = useRef<HTMLSpanElement>(null);
   const historyDropdownRef = useRef<HTMLDivElement>(null);
 
-  const hasSelectedFiles = selectedFiles.size > 0;
-  const canCommit =
-    commitMessage.trim().length > 0 && hasSelectedFiles && !loading;
+  // Submit-button enablement follows the active list style:
+  //  - JetBrains: files are picked via checkboxes → require selectedFiles.
+  //  - VSCode: files are staged via +/- → require at least one staged file.
+  //  - amend (either style): rewrites the last commit → only needs a message,
+  //    no new files required.
+  const hasFiles = amend
+    ? true
+    : commitListStyle === "vscode"
+      ? changes.some((f) => f.staged)
+      : selectedFiles.size > 0;
+  const canCommit = commitMessage.trim().length > 0 && hasFiles && !loading;
 
   const handleCommit = useCallback(async () => {
     if (!canCommit) return;
