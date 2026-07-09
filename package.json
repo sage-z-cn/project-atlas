@@ -660,6 +660,19 @@
           "type": "boolean",
           "default": true,
           "description": "%config.taskAtlas.showPinned%"
+        },
+        "gitAtlas.commitListStyle": {
+          "type": "string",
+          "default": "vscode",
+          "enum": [
+            "vscode",
+            "jetbrains"
+          ],
+          "enumDescriptions": [
+            "%config.gitAtlas.commitListStyle.vscode%",
+            "%config.gitAtlas.commitListStyle.jetbrains%"
+          ],
+          "description": "%config.gitAtlas.commitListStyle%"
         }
       }
     }

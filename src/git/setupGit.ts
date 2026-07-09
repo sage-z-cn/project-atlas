@@ -149,6 +149,16 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
 
   // g. 注册 handler（MessageRouter）和 command（VSCode commands）
   registerGitHandlers(ctx);
+
+  // 配置变更监听：gitAtlas.* 配置变化时通知 webview 热刷新
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("gitAtlas")) {
+        messageRouter.broadcastEvent("gitConfigChanged", {});
+      }
+    }),
+  );
+
   registerGitCommands(context, ctx);
 
   // h. 临时调试命令（不进 package.json contributes，仅内部 registerCommand

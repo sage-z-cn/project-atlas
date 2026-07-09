@@ -942,6 +942,28 @@ export class GitService {
     const output = await this.execGit(["status", "--porcelain=v1", "-uall"]);
     const files: import("./types").WorkingTreeFile[] = [];
 
+    // Map a single porcelain status code (X or Y) to a WorkingTreeFile status.
+    // Each side (index / worktree) is resolved independently so a file's status
+    // reflects the real state of that side — not a blend of both.
+    const codeToStatus = (
+      code: string,
+    ): import("./types").WorkingTreeFile["status"] => {
+      switch (code) {
+        case "A":
+          return "added";
+        case "D":
+          return "deleted";
+        case "R":
+          return "renamed";
+        case "M":
+        case "T": // type change
+        case "C": // copied — no dedicated type, fold into modified
+          return "modified";
+        default:
+          return "modified";
+      }
+    };
+
     for (const line of output.split("\n")) {
       if (line.length < 4) continue;
       const indexStatus = line[0];
@@ -951,55 +973,55 @@ export class GitService {
       if (indexStatus === "!" && workTreeStatus === "!") continue;
 
       const rest = line.substring(3);
-
-      // Handle renames
       const arrowIdx = rest.indexOf(" -> ");
       const filePath = arrowIdx !== -1 ? rest.substring(arrowIdx + 4) : rest;
       const oldPath = arrowIdx !== -1 ? rest.substring(0, arrowIdx) : undefined;
 
-      // Determine if file is staged
-      const staged =
-        indexStatus !== " " && indexStatus !== "?" && indexStatus !== "!";
-
-      // Determine status
-      let status: import("./types").WorkingTreeFile["status"];
+      // Untracked file (??) — single untracked entry, never staged
       if (indexStatus === "?" && workTreeStatus === "?") {
-        status = "untracked";
-      } else if (
+        files.push({ path: filePath, oldPath, status: "untracked", staged: false });
+        continue;
+      }
+
+      // Conflict markers (U, AA, DD, AU, UA, DU, UD, UU) — single conflicted
+      // entry. Previously these emitted two records (conflicted + a bogus
+      // "modified" unstaged twin); now they appear once in the conflicts group.
+      if (
         indexStatus === "U" ||
         workTreeStatus === "U" ||
         (indexStatus === "A" && workTreeStatus === "A") ||
         (indexStatus === "D" && workTreeStatus === "D")
       ) {
-        status = "conflicted";
-      } else if (indexStatus === "A" || workTreeStatus === "A") {
-        status = "added";
-      } else if (indexStatus === "D" || workTreeStatus === "D") {
-        status = "deleted";
-      } else if (indexStatus === "R" || workTreeStatus === "R") {
-        status = "renamed";
-      } else {
-        status = "modified";
+        files.push({ path: filePath, oldPath, status: "conflicted", staged: false });
+        continue;
       }
 
-      // For files that have both staged and unstaged changes, emit two entries
-      if (
-        staged &&
+      // Emit one entry per side that actually has a change. Each entry's status
+      // is derived from its own code, so a staged-add-then-edited file shows
+      // A in Staged and M in Changes (correct), instead of both being forced
+      // to a single blended/modified value.
+      const isStaged =
+        indexStatus !== " " && indexStatus !== "?" && indexStatus !== "!";
+      const hasUnstaged =
         workTreeStatus !== " " &&
         workTreeStatus !== "?" &&
-        workTreeStatus !== "!"
-      ) {
-        // Staged version
-        files.push({ path: filePath, oldPath, status, staged: true });
-        // Unstaged version
+        workTreeStatus !== "!";
+
+      if (isStaged) {
         files.push({
           path: filePath,
           oldPath,
-          status: "modified",
+          status: codeToStatus(indexStatus),
+          staged: true,
+        });
+      }
+      if (hasUnstaged) {
+        files.push({
+          path: filePath,
+          oldPath,
+          status: codeToStatus(workTreeStatus),
           staged: false,
         });
-      } else {
-        files.push({ path: filePath, oldPath, status, staged });
       }
     }
     return files;
@@ -1012,6 +1034,13 @@ export class GitService {
 
   async unstageFile(filePath: string): Promise<void> {
     await this.execGit(["reset", "HEAD", "--", filePath]);
+  }
+
+  async unstageFiles(filePaths: string[]): Promise<void> {
+    if (filePaths.length === 0) {
+      return;
+    }
+    await this.execGit(["reset", "HEAD", "--", ...filePaths]);
   }
 
   async unstageAll(): Promise<void> {

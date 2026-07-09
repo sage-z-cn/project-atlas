@@ -80,6 +80,13 @@ interface CommitStore {
   /** Collapsed directory paths in tree view */
   collapsedDirs: Set<string>;
 
+  // List style (VSCode / JetBrains)
+  commitListStyle: "vscode" | "jetbrains";
+  fetchGitConfig: () => Promise<void>;
+  setCommitListStyle: (style: "vscode" | "jetbrains") => Promise<void>;
+  /** Discard (rollback) multiple files; backend handler already confirms modally. */
+  rollbackFiles: (filePaths: string[]) => Promise<void>;
+
   // ── Multi-repo actions ─────────────────────────────────────────────
   /** Switch the active repo. Only issues the host command; the repoChanged
    *  event drives the actual state mutation + refetch (no optimistic update). */
@@ -105,6 +112,8 @@ interface CommitStore {
   unstageFile: (filePath: string) => Promise<void>;
   stageAll: () => Promise<void>;
   unstageAll: () => Promise<void>;
+  stageFiles: (filePaths: string[]) => Promise<void>;
+  unstageFiles: (filePaths: string[]) => Promise<void>;
   commit: () => Promise<boolean>;
   commitAndPush: () => Promise<boolean>;
   rollbackFile: (filePath: string) => Promise<void>;
@@ -146,6 +155,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   groupByDirectory: true,
   showUnversioned: true,
   collapsedDirs: new Set<string>(),
+  commitListStyle: "vscode",
 
   // ── Multi-repo actions ─────────────────────────────────────────────
   async switchRepo(path: string) {
@@ -198,6 +208,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     await Promise.all([
       get().refresh(),
       get().fetchRepoStatuses(),
+      get().fetchGitConfig(),
     ]);
   },
 
@@ -391,6 +402,32 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await get().fetchChanges();
     } catch (err) {
       console.error("unstageAll failed:", err);
+    }
+  },
+
+  async stageFiles(filePaths: string[]) {
+    if (filePaths.length === 0) return;
+    try {
+      await bridge.request("stageFiles", {
+        filePaths,
+        repoPath: get().currentRepoPath,
+      });
+      await get().fetchChanges();
+    } catch (err) {
+      console.error("stageFiles failed:", err);
+    }
+  },
+
+  async unstageFiles(filePaths: string[]) {
+    if (filePaths.length === 0) return;
+    try {
+      await bridge.request("unstageFiles", {
+        filePaths,
+        repoPath: get().currentRepoPath,
+      });
+      await get().fetchChanges();
+    } catch (err) {
+      console.error("unstageFiles failed:", err);
     }
   },
 
@@ -636,6 +673,42 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     set({ showUnversioned: !get().showUnversioned });
   },
 
+  async fetchGitConfig() {
+    try {
+      const result = (await bridge.request("getGitConfig")) as {
+        commitListStyle?: "vscode" | "jetbrains";
+      };
+      if (result?.commitListStyle) {
+        set({ commitListStyle: result.commitListStyle });
+      }
+    } catch (err) {
+      console.error("fetchGitConfig failed:", err);
+    }
+  },
+
+  async setCommitListStyle(style) {
+    // Optimistic local update + persist to settings; backend broadcasts
+    // gitConfigChanged which makes all webviews refetch.
+    set({ commitListStyle: style });
+    try {
+      await bridge.request("setGitConfig", { commitListStyle: style });
+    } catch (err) {
+      console.error("setCommitListStyle failed:", err);
+    }
+  },
+
+  async rollbackFiles(filePaths: string[]) {
+    try {
+      await bridge.request("rollbackFiles", {
+        filePaths,
+        repoPath: get().currentRepoPath,
+      });
+      await get().fetchChanges();
+    } catch (err) {
+      console.error("rollbackFiles failed:", err);
+    }
+  },
+
   async refresh() {
     await Promise.all([
       get().fetchChanges(),
@@ -658,6 +731,10 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 // (or carries no repoPath, e.g. the global { scope: "all" } broadcasts from
 // command handlers).
 bridge.onEvent((event, data) => {
+  if (event === "gitConfigChanged") {
+    useCommitStore.getState().fetchGitConfig();
+    return;
+  }
   if (event === "repoChanged") {
     const { repoPath } = (data ?? {}) as { repoPath?: string | null };
     const state = useCommitStore.getState();

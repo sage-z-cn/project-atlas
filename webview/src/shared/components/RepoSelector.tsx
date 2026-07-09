@@ -3,6 +3,7 @@ import { usePanelStore } from "../store/panel-store";
 import type { RepoInfo, RepoStatus } from "../types/git";
 import { t } from "../i18n";
 import RepoIcon from "~icons/codicon/repo";
+import RepoSelectedIcon from "~icons/codicon/repo-selected";
 import BranchIcon from "~icons/codicon/git-branch";
 import "./RepoSelector.css";
 
@@ -91,7 +92,11 @@ function RepoSelectorBody({
           title={repo.path}
           onClick={() => void switchRepo(repo.path)}
         >
-          <RepoIcon width={14} height={14} />
+          {repo.path === currentRepoPath ? (
+            <RepoSelectedIcon width={14} height={14} />
+          ) : (
+            <RepoIcon width={14} height={14} />
+          )}
           <span className="repo-name">{repo.name}</span>
           <RepoBranch status={repoStatuses[repo.path]} />
           <RepoBadges status={repoStatuses[repo.path]} />

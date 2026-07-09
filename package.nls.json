@@ -55,5 +55,8 @@
   "config.showRevealActiveFile": "Show 'Reveal Active File' button in the built-in file explorer view title.",
   "config.taskAtlas.showRecentRuns": "Show the 'Recent Runs' group at the top of the task list.",
   "config.taskAtlas.maxRecentRuns": "Maximum number of recently run tasks to display.",
-  "config.taskAtlas.showPinned": "Show the 'Pinned' group at the top of the task list."
+  "config.taskAtlas.showPinned": "Show the 'Pinned' group at the top of the task list.",
+  "config.gitAtlas.commitListStyle": "Commit list display style for Git Atlas.",
+  "config.gitAtlas.commitListStyle.vscode": "VSCode style: two groups (Staged Changes / Changes) with hover actions.",
+  "config.gitAtlas.commitListStyle.jetbrains": "JetBrains style: checkbox-based selection with separate groups."
 }

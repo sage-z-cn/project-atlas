@@ -51,6 +51,32 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
   );
 
   messageRouter.handle(
+    "stageFiles",
+    requireGit(ctx, async (gitService, params) => {
+      const filePaths = params.filePaths as string[];
+      if (!filePaths || filePaths.length === 0) {
+        return { success: false };
+      }
+      await gitService.stageFiles(filePaths);
+      messageRouter.broadcastEvent("commitStateChanged", {});
+      return { success: true };
+    }),
+  );
+
+  messageRouter.handle(
+    "unstageFiles",
+    requireGit(ctx, async (gitService, params) => {
+      const filePaths = params.filePaths as string[];
+      if (!filePaths || filePaths.length === 0) {
+        return { success: false };
+      }
+      await gitService.unstageFiles(filePaths);
+      messageRouter.broadcastEvent("commitStateChanged", {});
+      return { success: true };
+    }),
+  );
+
+  messageRouter.handle(
     "commitChanges",
     requireGit(ctx, async (gitService, params) => {
       const message = params.message as string;

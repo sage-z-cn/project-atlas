@@ -45,6 +45,8 @@ export type CommandType =
   | "unstageFile"
   | "stageAll"
   | "unstageAll"
+  | "stageFiles"
+  | "unstageFiles"
   | "acceptOurs"
   | "acceptTheirs"
   | "confirmCancelMerge"
@@ -116,7 +118,9 @@ export type CommandType =
   | "getCurrentRepo"
   | "switchRepo"
   | "getRepoStatuses"
-  | "getL10nBundle";
+  | "getL10nBundle"
+  | "getGitConfig"
+  | "setGitConfig";
 
 export type EventType =
   | "gitStateChanged"
@@ -128,7 +132,8 @@ export type EventType =
   | "commitStateChanged"
   | "rollbackPanelInit"
   | "repoChanged"
-  | "reposChanged";
+  | "reposChanged"
+  | "gitConfigChanged";
 
 export interface RemoteBranchGroup {
   remote: string;

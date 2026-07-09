@@ -42,6 +42,8 @@ export type CommandType =
   | "unstageFile"
   | "stageAll"
   | "unstageAll"
+  | "stageFiles"
+  | "unstageFiles"
   | "acceptOurs"
   | "acceptTheirs"
   | "confirmCancelMerge"
@@ -111,7 +113,9 @@ export type CommandType =
   | "closePushPanel"
   | "openRollbackPanel"
   | "executeRollback"
-  | "closeRollbackPanel";
+  | "closeRollbackPanel"
+  | "getGitConfig"
+  | "setGitConfig";
 
 export interface Bridge {
   request(

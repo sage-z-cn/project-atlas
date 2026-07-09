@@ -9,6 +9,7 @@ import { CommitTab } from "./components/CommitTab";
 import { IdeaShelfTab } from "./components/IdeaShelfTab";
 import { ShelfTab } from "./components/ShelfTab";
 import "./commit.css";
+import "./commit-vscode.css";
 
 function ProgressBar({ visible }: { visible: boolean }) {
   return (

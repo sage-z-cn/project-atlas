@@ -55,5 +55,8 @@
   "config.showRevealActiveFile": "在内置资源管理器视图标题栏显示'定位当前文件'按钮。",
   "config.taskAtlas.showRecentRuns": "在任务列表顶部显示'最近运行'分组。",
   "config.taskAtlas.maxRecentRuns": "最近运行分组中显示的最大任务数量。",
-  "config.taskAtlas.showPinned": "在任务列表顶部显示'置顶'分组。"
+  "config.taskAtlas.showPinned": "在任务列表顶部显示'置顶'分组。",
+  "config.gitAtlas.commitListStyle": "Git Atlas 提交列表的显示风格。",
+  "config.gitAtlas.commitListStyle.vscode": "VSCode 风格：暂存的更改 / 更改两个分组，悬停操作。",
+  "config.gitAtlas.commitListStyle.jetbrains": "JetBrains 风格：基于复选框的选择，独立分组。"
 }

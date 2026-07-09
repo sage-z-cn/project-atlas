@@ -22,12 +22,16 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
     "rollbackFile",
     requireGit(ctx, async (gitService, params) => {
       const filePath = params.filePath as string;
+      const rollbackBtn = vscode.l10n.t("Rollback");
       const choice = await vscode.window.showWarningMessage(
-        `Rollback changes to "${filePath}"? This cannot be undone.`,
+        vscode.l10n.t(
+          'Rollback changes to "{0}"? This cannot be undone.',
+          filePath,
+        ),
         { modal: true },
-        "Rollback",
+        rollbackBtn,
       );
-      if (choice !== "Rollback") return { success: false };
+      if (choice !== rollbackBtn) return { success: false };
       await gitService.rollbackFile(filePath);
       messageRouter.broadcastEvent("commitStateChanged", {});
       return { success: true };
@@ -40,12 +44,16 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
     requireGit(ctx, async (gitService, params) => {
       const filePaths = params.filePaths as string[];
       if (!filePaths || filePaths.length === 0) return { success: false };
+      const rollbackBtn = vscode.l10n.t("Rollback");
       const choice = await vscode.window.showWarningMessage(
-        `Rollback changes to ${filePaths.length} file(s)? This cannot be undone.`,
+        vscode.l10n.t(
+          "Rollback changes to {0} file(s)? This cannot be undone.",
+          filePaths.length,
+        ),
         { modal: true },
-        "Rollback",
+        rollbackBtn,
       );
-      if (choice !== "Rollback") return { success: false };
+      if (choice !== rollbackBtn) return { success: false };
       for (const filePath of filePaths) {
         await gitService.rollbackFile(filePath);
       }
@@ -67,17 +75,21 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
       ctx.workspaceRoot;
 
     const fileCount = filePaths.length;
+    const deleteBtn = vscode.l10n.t("Delete");
     const message =
       fileCount === 1
-        ? `Delete "${filePaths[0]}"? This cannot be undone.`
-        : `Delete ${fileCount} files? This cannot be undone.`;
+        ? vscode.l10n.t('Delete "{0}"? This cannot be undone.', filePaths[0])
+        : vscode.l10n.t(
+            "Delete {0} files? This cannot be undone.",
+            fileCount,
+          );
 
     const choice = await vscode.window.showWarningMessage(
       message,
       { modal: true },
-      "Delete",
+      deleteBtn,
     );
-    if (choice !== "Delete") return { success: false };
+    if (choice !== deleteBtn) return { success: false };
 
     for (const filePath of filePaths) {
       const fullPath = vscode.Uri.joinPath(
@@ -167,24 +179,40 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
         ctx.registry.getCurrentRepoPath() ||
         ctx.workspaceRoot;
 
-      const rightUri = vscode.Uri.joinPath(
+      // Correct diff semantics (mirrors VSCode's native SCM):
+      //   staged=true  → diff HEAD ↔ index    (only the staged changes)
+      //   staged=false → diff index ↔ worktree (only the unstaged changes)
+      // git ref ":0" resolves to the staged (index) blob for a path, so a file
+      // that was staged then edited again shows just the unstaged edits when
+      // opened from Changes (index ↔ worktree), not the full HEAD ↔ worktree.
+      const worktreeUri = vscode.Uri.joinPath(
         vscode.Uri.file(repoRoot),
         filePath,
       );
-
-      // Both branches diff HEAD against the requested side (staged or working
-      // tree); the title is the only difference.
-      const leftUri = vscode.Uri.parse(
+      const indexUri = vscode.Uri.parse(
+        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=:0`,
+      );
+      const headUri = vscode.Uri.parse(
         `${GIT_ATLAS_SCHEME}:/${filePath}?ref=HEAD`,
       );
-      await vscode.commands.executeCommand(
-        "vscode.diff",
-        leftUri,
-        rightUri,
-        staged
-          ? `${filePath} (HEAD ↔ Staged)`
-          : `${filePath} (HEAD ↔ Working Tree)`,
-      );
+
+      if (staged) {
+        // HEAD ↔ Staged (index)
+        await vscode.commands.executeCommand(
+          "vscode.diff",
+          headUri,
+          indexUri,
+          `${filePath} (HEAD ↔ Staged)`,
+        );
+      } else {
+        // Staged (index) ↔ Working Tree
+        await vscode.commands.executeCommand(
+          "vscode.diff",
+          indexUri,
+          worktreeUri,
+          `${filePath} (Staged ↔ Working Tree)`,
+        );
+      }
       return { success: true };
     }),
   );

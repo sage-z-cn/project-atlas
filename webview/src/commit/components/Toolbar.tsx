@@ -152,6 +152,8 @@ function ViewOptionsMenu({ onClose }: { onClose: () => void }) {
     toggleGroupByDirectory,
     showUnversioned,
     toggleShowUnversioned,
+    commitListStyle,
+    setCommitListStyle,
   } = useCommitStore();
 
   return (
@@ -174,6 +176,34 @@ function ViewOptionsMenu({ onClose }: { onClose: () => void }) {
           zIndex: 1000,
         }}
       >
+        <div className="commit-context-menu-header">{t("List Style")}</div>
+        <button
+          type="button"
+          className="commit-context-menu-item"
+          onClick={() => {
+            void setCommitListStyle("vscode");
+            onClose();
+          }}
+        >
+          <span className="commit-context-menu-icon">
+            {commitListStyle === "vscode" && <CheckIcon />}
+          </span>
+          <span>{t("VSCode")}</span>
+        </button>
+        <button
+          type="button"
+          className="commit-context-menu-item"
+          onClick={() => {
+            void setCommitListStyle("jetbrains");
+            onClose();
+          }}
+        >
+          <span className="commit-context-menu-icon">
+            {commitListStyle === "jetbrains" && <CheckIcon />}
+          </span>
+          <span>{t("JetBrains")}</span>
+        </button>
+        <div className="commit-context-menu-separator" />
         <div className="commit-context-menu-header">{t("Group By")}</div>
         <button
           type="button"

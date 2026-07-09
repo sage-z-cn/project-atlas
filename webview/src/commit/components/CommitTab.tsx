@@ -9,6 +9,14 @@ import { CommitFileContextMenu } from "./CommitFileContextMenu";
 import { CommitMessageArea } from "./CommitMessageArea";
 import { FileItem } from "./FileItem";
 import { Toolbar } from "./Toolbar";
+import { VscodeCommitList } from "./VscodeCommitList";
+import {
+  buildDirTree,
+  collectDirFiles,
+  collectFileKeys,
+  countFiles,
+  type DirNode,
+} from "../utils/dirTree";
 
 export function CommitTab() {
   const {
@@ -18,6 +26,7 @@ export function CommitTab() {
     expandedGroups,
     groupByDirectory,
     showUnversioned,
+    commitListStyle,
     toggleGroup,
     toggleFileSelection,
     setFileKeys,
@@ -141,98 +150,104 @@ export function CommitTab() {
       />
 
       <div className="commit-file-list">
-        {/* Merge Conflicts */}
-        {conflictedFiles.length > 0 && (
-          <FileGroup
-            label={t("Merge Conflicts")}
-            files={conflictedFiles}
-            count={conflictedFiles.length}
-            expanded={expandedGroups.has("conflicts")}
-            groupByDirectory={groupByDirectory}
-            onToggle={() => toggleGroup("conflicts")}
-            selectedFiles={selectedFiles}
-            highlightedFiles={highlightedFiles}
-            onToggleFile={toggleFileSelection}
-            onSetFileKeys={setFileKeys}
-            onHighlightFile={highlightFile}
-            onShowDiff={showDiff}
-            onContextMenu={handleContextMenu}
-            onDirContextMenu={handleDirContextMenu}
-            action={
-              <span
-                className="commit-group-resolve-link"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  bridge.request("openConflictsPanel");
-                }}
-                onKeyDown={() => {}}
-                role="button"
-                tabIndex={0}
-              >
-                {t("Resolve")}
-              </span>
-            }
-          />
-        )}
+        {commitListStyle === "vscode" ? (
+          <VscodeCommitList />
+        ) : (
+          <>
+            {/* Merge Conflicts */}
+            {conflictedFiles.length > 0 && (
+              <FileGroup
+                label={t("Merge Conflicts")}
+                files={conflictedFiles}
+                count={conflictedFiles.length}
+                expanded={expandedGroups.has("conflicts")}
+                groupByDirectory={groupByDirectory}
+                onToggle={() => toggleGroup("conflicts")}
+                selectedFiles={selectedFiles}
+                highlightedFiles={highlightedFiles}
+                onToggleFile={toggleFileSelection}
+                onSetFileKeys={setFileKeys}
+                onHighlightFile={highlightFile}
+                onShowDiff={showDiff}
+                onContextMenu={handleContextMenu}
+                onDirContextMenu={handleDirContextMenu}
+                action={
+                  <span
+                    className="commit-group-resolve-link"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      bridge.request("openConflictsPanel");
+                    }}
+                    onKeyDown={() => {}}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    {t("Resolve")}
+                  </span>
+                }
+              />
+            )}
 
-        {/* Changes (tracked, modified) */}
-        {changedFiles.length > 0 && (
-          <FileGroup
-            label={t("Changes")}
-            files={changedFiles}
-            count={changedFiles.length}
-            expanded={expandedGroups.has("changes")}
-            groupByDirectory={groupByDirectory}
-            onToggle={() => toggleGroup("changes")}
-            selectedFiles={selectedFiles}
-            highlightedFiles={highlightedFiles}
-            onToggleFile={toggleFileSelection}
-            onSetFileKeys={setFileKeys}
-            onHighlightFile={highlightFile}
-            onShowDiff={showDiff}
-            onContextMenu={handleContextMenu}
-            onDirContextMenu={handleDirContextMenu}
-          />
-        )}
+            {/* Changes (tracked, modified) */}
+            {changedFiles.length > 0 && (
+              <FileGroup
+                label={t("Changes")}
+                files={changedFiles}
+                count={changedFiles.length}
+                expanded={expandedGroups.has("changes")}
+                groupByDirectory={groupByDirectory}
+                onToggle={() => toggleGroup("changes")}
+                selectedFiles={selectedFiles}
+                highlightedFiles={highlightedFiles}
+                onToggleFile={toggleFileSelection}
+                onSetFileKeys={setFileKeys}
+                onHighlightFile={highlightFile}
+                onShowDiff={showDiff}
+                onContextMenu={handleContextMenu}
+                onDirContextMenu={handleDirContextMenu}
+              />
+            )}
 
-        {/* Staged files */}
-        {stagedFiles.length > 0 && (
-          <FileGroup
-            label={t("Staged")}
-            files={stagedFiles}
-            count={stagedFiles.length}
-            expanded={expandedGroups.has("staged")}
-            groupByDirectory={groupByDirectory}
-            onToggle={() => toggleGroup("staged")}
-            selectedFiles={selectedFiles}
-            highlightedFiles={highlightedFiles}
-            onToggleFile={toggleFileSelection}
-            onSetFileKeys={setFileKeys}
-            onHighlightFile={highlightFile}
-            onShowDiff={showDiff}
-            onContextMenu={handleContextMenu}
-            onDirContextMenu={handleDirContextMenu}
-          />
-        )}
+            {/* Staged files */}
+            {stagedFiles.length > 0 && (
+              <FileGroup
+                label={t("Staged")}
+                files={stagedFiles}
+                count={stagedFiles.length}
+                expanded={expandedGroups.has("staged")}
+                groupByDirectory={groupByDirectory}
+                onToggle={() => toggleGroup("staged")}
+                selectedFiles={selectedFiles}
+                highlightedFiles={highlightedFiles}
+                onToggleFile={toggleFileSelection}
+                onSetFileKeys={setFileKeys}
+                onHighlightFile={highlightFile}
+                onShowDiff={showDiff}
+                onContextMenu={handleContextMenu}
+                onDirContextMenu={handleDirContextMenu}
+              />
+            )}
 
-        {/* Unversioned Files */}
-        {showUnversioned && untrackedFiles.length > 0 && (
-          <FileGroup
-            label={t("Unversioned Files")}
-            files={untrackedFiles}
-            count={untrackedFiles.length}
-            expanded={expandedGroups.has("unversioned")}
-            groupByDirectory={groupByDirectory}
-            onToggle={() => toggleGroup("unversioned")}
-            selectedFiles={selectedFiles}
-            highlightedFiles={highlightedFiles}
-            onToggleFile={toggleFileSelection}
-            onSetFileKeys={setFileKeys}
-            onHighlightFile={highlightFile}
-            onShowDiff={showDiff}
-            onContextMenu={handleContextMenu}
-            onDirContextMenu={handleDirContextMenu}
-          />
+            {/* Unversioned Files */}
+            {showUnversioned && untrackedFiles.length > 0 && (
+              <FileGroup
+                label={t("Unversioned Files")}
+                files={untrackedFiles}
+                count={untrackedFiles.length}
+                expanded={expandedGroups.has("unversioned")}
+                groupByDirectory={groupByDirectory}
+                onToggle={() => toggleGroup("unversioned")}
+                selectedFiles={selectedFiles}
+                highlightedFiles={highlightedFiles}
+                onToggleFile={toggleFileSelection}
+                onSetFileKeys={setFileKeys}
+                onHighlightFile={highlightFile}
+                onShowDiff={showDiff}
+                onContextMenu={handleContextMenu}
+                onDirContextMenu={handleDirContextMenu}
+              />
+            )}
+          </>
         )}
 
         {changes.length === 0 && (
@@ -443,67 +458,6 @@ function FileGroup({
 
 /* ─── Directory Tree View ────────────────────────────────────────── */
 
-interface DirNode {
-  name: string;
-  fullPath: string;
-  children: DirNode[];
-  files: WorkingTreeFile[];
-}
-
-function buildDirTree(files: WorkingTreeFile[]): DirNode {
-  const root: DirNode = { name: "", fullPath: "", children: [], files: [] };
-
-  for (const file of files) {
-    const parts = file.path.split("/");
-    parts.pop(); // remove filename, we only need directory parts
-    let current = root;
-
-    for (const part of parts) {
-      let child = current.children.find((c) => c.name === part);
-      if (!child) {
-        child = {
-          name: part,
-          fullPath: current.fullPath ? `${current.fullPath}/${part}` : part,
-          children: [],
-          files: [],
-        };
-        current.children.push(child);
-      }
-      current = child;
-    }
-    current.files.push(file);
-  }
-
-  // Compact single-child directories (src/git → src/git)
-  compactDirNode(root);
-  return root;
-}
-
-function compactDirNode(node: DirNode) {
-  for (const child of node.children) {
-    while (child.children.length === 1 && child.files.length === 0) {
-      const grandchild = child.children[0];
-      child.name = `${child.name}/${grandchild.name}`;
-      child.fullPath = grandchild.fullPath;
-      child.children = grandchild.children;
-      child.files = grandchild.files;
-    }
-    compactDirNode(child);
-  }
-}
-
-/** Collect all file keys recursively under a DirNode */
-function collectFileKeys(node: DirNode): string[] {
-  const keys: string[] = [];
-  for (const file of node.files) {
-    keys.push(`${file.path}:${file.staged}`);
-  }
-  for (const child of node.children) {
-    keys.push(...collectFileKeys(child));
-  }
-  return keys;
-}
-
 function DirectoryTree({
   files,
   selectedFiles,
@@ -676,22 +630,6 @@ function DirNodeView({
       })}
     </>
   );
-}
-
-function countFiles(node: DirNode): number {
-  let count = node.files.length;
-  for (const child of node.children) {
-    count += countFiles(child);
-  }
-  return count;
-}
-
-function collectDirFiles(node: DirNode): WorkingTreeFile[] {
-  const result: WorkingTreeFile[] = [...node.files];
-  for (const child of node.children) {
-    result.push(...collectDirFiles(child));
-  }
-  return result;
 }
 
 /* ─── Directory Context Menu ─────────────────────────────────────── */
