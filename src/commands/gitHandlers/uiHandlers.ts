@@ -112,12 +112,9 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
     return { success: true };
   });
 
-  messageRouter.handle("toggleFavorite", async (params) => {
-    const branchName = params.branchName as string;
-    // Favorites are a UI-only concept, handled in webview state
-    void vscode.window.showInformationMessage(
-      `Toggled favorite: ${branchName}`,
-    );
+  messageRouter.handle("toggleFavorite", async () => {
+    // Favorites are UI-only, handled in webview localStorage (per-repo). Host
+    // side is a no-op; kept registered so the protocol contract stays symmetric.
     return { success: true };
   });
 

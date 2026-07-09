@@ -452,23 +452,18 @@
         },
         {
           "command": "git-atlas.nextDiff",
-          "when": "view == git-atlas.gitLog",
+          "when": "view == git-atlas.gitLog && gitAtlas.hasDiffList",
           "group": "navigation@2"
         },
         {
           "command": "git-atlas.prevDiff",
-          "when": "view == git-atlas.gitLog",
+          "when": "view == git-atlas.gitLog && gitAtlas.hasDiffList",
           "group": "navigation@3"
         },
         {
           "command": "git-atlas.openConflicts",
-          "when": "view == git-atlas.gitLog",
+          "when": "view == git-atlas.gitLog && gitAtlas.hasConflicts",
           "group": "navigation@4"
-        },
-        {
-          "command": "git-atlas.openPushPanel",
-          "when": "view == git-atlas.gitLog",
-          "group": "navigation@5"
         }
       ],
       "view/item/context": [

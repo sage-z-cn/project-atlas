@@ -8,6 +8,7 @@ export function Toolbar() {
   const setFilter = usePanelStore((s) => s.setFilter);
   const filter = usePanelStore((s) => s.filter);
   const commits = usePanelStore((s) => s.commits);
+  const currentEmail = usePanelStore((s) => s.currentEmail);
   const branches = usePanelStore((s) => s.branches);
   const currentBranch = usePanelStore((s) => s.currentBranch);
   const visibleColumns = usePanelStore((s) => s.visibleColumns);
@@ -20,16 +21,35 @@ export function Toolbar() {
   const [showBranchDropdown, setShowBranchDropdown] = useState(false);
   const [showViewOptions, setShowViewOptions] = useState(false);
 
-  // Collect unique authors from commits
-  const authors = useMemo(() => {
+  // Collect unique authors from commits; current user pinned to top
+  const { authors, myAuthorName } = useMemo(() => {
     const set = new Set<string>();
+    let me: string | null = null;
     for (const c of commits) {
-      if (c.authorName) set.add(c.authorName);
+      if (!c.authorName) continue;
+      set.add(c.authorName);
+      if (currentEmail && c.authorEmail === currentEmail && me === null) {
+        me = c.authorName;
+      }
     }
-    return Array.from(set).sort((a, b) =>
+    const list = Array.from(set).sort((a, b) =>
       a.localeCompare(b, undefined, { sensitivity: "base" }),
     );
-  }, [commits]);
+    if (me) {
+      const i = list.indexOf(me);
+      if (i > 0) {
+        list.splice(i, 1);
+        list.unshift(me);
+      }
+    }
+    return { authors: list, myAuthorName: me };
+  }, [commits, currentEmail]);
+
+  // Mark the current user with "(me)" in the dropdown display
+  const userLabelMap = useMemo<Record<string, string> | undefined>(() => {
+    if (!myAuthorName) return undefined;
+    return { [myAuthorName]: `${myAuthorName} (${t("(me)")})` };
+  }, [myAuthorName]);
 
   // Collect branch names for filter
   const branchNames = useMemo(() => {
@@ -151,6 +171,7 @@ export function Toolbar() {
             onClear={filter.author ? handleClearAuthor : undefined}
             clearLabel={t("All users")}
             onClose={() => setShowUserDropdown(false)}
+            labelMap={userLabelMap}
           />
         )}
       </div>

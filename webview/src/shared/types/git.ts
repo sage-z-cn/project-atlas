@@ -55,6 +55,8 @@ export interface BranchInfo {
   ahead: number;
   behind: number;
   lastCommitHash: string;
+  authorName?: string;
+  authorEmail?: string;
 }
 
 export interface TagInfo {

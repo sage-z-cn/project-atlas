@@ -6,6 +6,13 @@ import { t } from "../../shared/i18n";
 import ExpandAllIcon from "~icons/codicon/expand-all";
 import CollapseAllIcon from "~icons/codicon/collapse-all";
 import SettingsIcon from "~icons/codicon/settings";
+import RefreshIcon from "~icons/codicon/refresh";
+import FetchIcon from "~icons/codicon/repo-fetch";
+import PullIcon from "~icons/codicon/repo-pull";
+import PushIcon from "~icons/codicon/repo-push";
+import DiffIcon from "~icons/codicon/diff";
+import ShelveIcon from "~icons/codicon/git-stash";
+import RollbackIcon from "~icons/codicon/discard";
 import { useCommitStore } from "../../shared/store/commit-store";
 
 interface ToolbarProps {
@@ -48,6 +55,7 @@ export function Toolbar({
 
   return (
     <div className="commit-toolbar">
+      {/* Refresh group: local refresh + remote fetch */}
       <Tooltip text={t("Refresh")}>
         <button
           type="button"
@@ -57,14 +65,48 @@ export function Toolbar({
           <RefreshIcon />
         </button>
       </Tooltip>
-      <Tooltip text={t("Rollback")}>
+      <Tooltip text={t("Fetch")}>
         <button
           type="button"
           className="commit-toolbar-btn"
-          onClick={onRollback}
+          onClick={() => bridge.request("fetchAll")}
+        >
+          <FetchIcon />
+        </button>
+      </Tooltip>
+
+      <div className="commit-toolbar-separator" />
+
+      {/* Remote sync group */}
+      <Tooltip text={t("Pull")}>
+        <button
+          type="button"
+          className="commit-toolbar-btn"
+          onClick={() => bridge.request("pullBranch", {})}
+        >
+          <PullIcon />
+        </button>
+      </Tooltip>
+      <Tooltip text={t("Push...")}>
+        <button
+          type="button"
+          className="commit-toolbar-btn"
+          onClick={() => bridge.request("openPushPanel")}
+        >
+          <PushIcon />
+        </button>
+      </Tooltip>
+
+      <div className="commit-toolbar-separator" />
+
+      {/* Local changes group: view -> shelve -> rollback (by severity) */}
+      <Tooltip text={t("Show Diff")}>
+        <button
+          type="button"
+          className="commit-toolbar-btn"
           disabled={!hasChanges}
         >
-          <RollbackIcon />
+          <DiffIcon />
         </button>
       </Tooltip>
       <Tooltip text={t("Shelve Changes")}>
@@ -77,33 +119,14 @@ export function Toolbar({
           <ShelveIcon />
         </button>
       </Tooltip>
-      <Tooltip text={t("Show Diff")}>
+      <Tooltip text={t("Rollback")}>
         <button
           type="button"
           className="commit-toolbar-btn"
+          onClick={onRollback}
           disabled={!hasChanges}
         >
-          <DiffIcon />
-        </button>
-      </Tooltip>
-      <Tooltip text={t("Pull")}>
-        <button
-          type="button"
-          className="commit-toolbar-btn"
-          style={{ opacity: 1 }}
-          onClick={() => bridge.request("pullBranch", {})}
-        >
-          <PullIcon />
-        </button>
-      </Tooltip>
-      <Tooltip text={t("Push...")}>
-        <button
-          type="button"
-          className="commit-toolbar-btn"
-          style={{ opacity: 1 }}
-          onClick={() => bridge.request("openPushPanel")}
-        >
-          <PushIcon />
+          <RollbackIcon />
         </button>
       </Tooltip>
 
@@ -293,101 +316,5 @@ function CheckIcon() {
         strokeLinejoin="round"
       />
     </svg>
-  );
-}
-
-/* ─── JetBrains Official Icons (Apache 2.0) ─────────────────────── */
-
-function RefreshIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path
-        d="M2.5 9V8C2.5 4.96243 4.96243 2.5 8 2.5C9.10679 2.5 10.1372 2.82692 11 3.38947"
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-      <path
-        d="M5 12.6105C5.86278 13.1731 6.89321 13.5 8 13.5C11.0376 13.5 13.5 11.0376 13.5 8V7"
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-      <path
-        d="M0.49997 7.50027L2.5 9.5L4.49998 7.50023"
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-      <path
-        d="M11.5 8.49982L13.5 6.5L15.5 8.49982"
-        stroke="currentColor"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function RollbackIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M5.85363 1.85355C6.04889 1.65829 6.04889 1.34171 5.85363 1.14645C5.65837 0.951184 5.34178 0.951184 5.14652 1.14645L1.64652 4.64645L1.29297 5L1.64652 5.35355L5.14652 8.85355C5.34178 9.04882 5.65837 9.04882 5.85363 8.85355C6.04889 8.65829 6.04889 8.34171 5.85363 8.14645L3.20718 5.5H10.5001C12.4331 5.5 14.0001 7.067 14.0001 9C14.0001 10.933 12.4331 12.5 10.5001 12.5H5.50008C5.22393 12.5 5.00008 12.7239 5.00008 13C5.00008 13.2761 5.22393 13.5 5.50008 13.5H10.5001C12.9854 13.5 15.0001 11.4853 15.0001 9C15.0001 6.51472 12.9854 4.5 10.5001 4.5H3.20718L5.85363 1.85355Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function ShelveIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path
-        d="M4.64645 5.14645C4.45118 5.34171 4.45118 5.65829 4.64645 5.85355L7.64645 8.85355C7.84171 9.04882 8.15829 9.04882 8.35355 8.85355L11.3536 5.85355C11.5488 5.65829 11.5488 5.34171 11.3536 5.14645C11.1583 4.95118 10.8417 4.95118 10.6464 5.14645L8.5 7.29289V1.5C8.5 1.22386 8.27614 1 8 1C7.72386 1 7.5 1.22386 7.5 1.5V7.29289L5.35355 5.14645C5.15829 4.95118 4.84171 4.95118 4.64645 5.14645Z"
-        fill="currentColor"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M4.77639 8.55279L5.5 10H10.5L11.2236 8.55279C11.393 8.214 11.7393 8 12.118 8H14C14.5523 8 15 8.44772 15 9V13C15 13.5523 14.5523 14 14 14H2C1.44772 14 1 13.5523 1 13V9C1 8.44772 1.44772 8 2 8H3.88197C4.26074 8 4.607 8.214 4.77639 8.55279ZM3.88197 9L4.88197 11H11.118L12.118 9H14V13H2V9H3.88197Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function DiffIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M5.85355 8.14645C5.65829 7.95118 5.34171 7.95118 5.14645 8.14645C4.95118 8.34171 4.95118 8.65829 5.14645 8.85355L7.29289 11H0.5C0.223858 11 0 11.2239 0 11.5C0 11.7761 0.223858 12 0.5 12H7.29289L5.14645 14.1464C4.95118 14.3417 4.95118 14.6583 5.14645 14.8536C5.34171 15.0488 5.65829 15.0488 5.85355 14.8536L8.85355 11.8536L9.20711 11.5L8.85355 11.1464L5.85355 8.14645Z"
-        fill="currentColor"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M10.1464 1.14645C10.3417 0.951185 10.6583 0.951185 10.8536 1.14645C11.0488 1.34171 11.0488 1.65829 10.8536 1.85355L8.70711 4H15.5C15.7761 4 16 4.22386 16 4.5C16 4.77614 15.7761 5 15.5 5H8.70711L10.8536 7.14645C11.0488 7.34171 11.0488 7.65829 10.8536 7.85355C10.6583 8.04882 10.3417 8.04882 10.1464 7.85355L7.14645 4.85355L6.79289 4.5L7.14645 4.14645L10.1464 1.14645Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-/** Push icon — green ↗ text matching branch ahead indicator */
-function PushIcon() {
-  return (
-    <span style={{ color: "#499c54", fontSize: "16px", fontWeight: 400 }}>
-      ↗
-    </span>
-  );
-}
-
-/** Pull icon — blue ↙ text matching branch behind indicator */
-function PullIcon() {
-  return (
-    <span style={{ color: "#3574f0", fontSize: "16px", fontWeight: 400 }}>
-      ↙
-    </span>
   );
 }

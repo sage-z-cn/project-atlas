@@ -154,6 +154,15 @@
   height: 16px;
 }
 
+/* Vertical divider between logical button groups (horizontal toolbar) */
+.commit-toolbar-separator {
+  width: 1px;
+  height: 18px;
+  align-self: center;
+  margin: 0 2px;
+  background: var(--vscode-panel-border, var(--vscode-widget-border, rgba(128, 128, 128, 0.3)));
+}
+
 .commit-toolbar-spacer {
   flex: 1;
 }

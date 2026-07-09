@@ -78,6 +78,12 @@ interface PanelStore {
   showTags: boolean;
   /** What a plain single-click on a branch row does (Settings menu). */
   singleClickAction: "updateBranchFilter" | "navigateToHead";
+  /** Favorite branches for the current repo (persisted per-repo in localStorage). */
+  favoriteBranches: string[];
+  /** Current git user email (from getUserIdentity), null until resolved. */
+  currentEmail: string | null;
+  /** When true, BranchTree only shows local branches whose tip author matches currentEmail. */
+  showMyBranchesOnly: boolean;
 
   filter: PanelFilter;
   /** Hashes to restore after clearing a filter */
@@ -123,6 +129,11 @@ interface PanelStore {
   toggleBranchGroupByDirectory: () => void;
   toggleShowTags: () => void;
   setSingleClickAction: (action: "updateBranchFilter" | "navigateToHead") => void;
+  toggleFavorite: (branchName: string) => void;
+  /** Directly replace the favorite list (used on repo switch to load persisted state). */
+  setFavoriteBranches: (list: string[]) => void;
+  setCurrentEmail: (email: string | null) => void;
+  toggleShowMyBranchesOnly: () => void;
   refresh: () => Promise<void>;
 }
 
@@ -132,6 +143,19 @@ interface SelectionSnapshot {
   lastSelectedCommitHash: string | null;
   rangeOldest: string | null;
   rangeNewest: string | null;
+}
+
+/**
+ * Load the persisted favorite-branch list for a given repo from localStorage.
+ * Favorites are isolated per-repo (branch names collide across repos).
+ */
+function loadFavoritesForRepo(repoPath: string): string[] {
+  try {
+    const raw = localStorage.getItem(`gitAtlas.favorites:${repoPath}`);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 function filterCommits(
@@ -285,6 +309,15 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       return "updateBranchFilter";
     }
   })(),
+  favoriteBranches: [],
+  currentEmail: null,
+  showMyBranchesOnly: (() => {
+    try {
+      return localStorage.getItem("showMyBranchesOnly") === "true";
+    } catch {
+      return false;
+    }
+  })(),
 
   filter: { searchQuery: "", branch: "", author: "", dateRange: "", file: "" },
   pendingSelectionFromFilter: [],
@@ -334,12 +367,14 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       const reposResult = (await bridge.request("getRepos")) as {
         repos?: RepoInfo[];
       };
+      const repoPath = current?.repoPath ?? null;
       set({
-        currentRepoPath: current?.repoPath ?? null,
+        currentRepoPath: repoPath,
         repos: Array.isArray(reposResult?.repos) ? reposResult.repos : [],
         // Bump seq so any stray fetch issued before this handshake resolves
         // (none in practice, but defensive) is dropped.
         repoSeq: get().repoSeq + 1,
+        favoriteBranches: repoPath ? loadFavoritesForRepo(repoPath) : [],
       });
     } catch (err) {
       console.error("initRepo failed:", err);
@@ -383,7 +418,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     const start = Date.now();
     try {
       const { filter } = get();
-      const [graphResult, branches, tags] = await Promise.all([
+      const [graphResult, branches, tags, identity] = await Promise.all([
         bridge.request("getGraphData", {
           maxCount: 200,
           branch: filter.branch || undefined,
@@ -397,6 +432,10 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
           BranchInfo[] | null
         >,
         bridge.request("getTags", { repoPath }) as Promise<TagInfo[] | null>,
+        bridge.request("getUserIdentity", { repoPath }) as Promise<{
+          name: string;
+          email: string;
+        } | null>,
       ]);
 
       // ★ Race guard: a switch happened during the fetch → drop stale response.
@@ -407,6 +446,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       const snapshot = graphResult?.snapshot ?? null;
       const branchList = branches ?? [];
       const tagList = tags ?? [];
+      const email = identity?.email ?? null;
       const current = branchList.find((b) => b.isCurrent)?.name ?? "";
 
       const { pendingSelectionFromFilter, collapsedIntermediates } = get();
@@ -427,6 +467,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
             branches: branchList,
             tags: tagList,
             currentBranch: current,
+            currentEmail: email,
 
             hasMore: commits.length >= 200,
             selectedCommitHash: validHashes[0],
@@ -459,6 +500,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         branches: branchList,
         tags: tagList,
         currentBranch: current,
+        currentEmail: email,
 
         hasMore: commits.length >= 200,
         selectedCommitHash: firstVisible?.hash ?? null,
@@ -779,6 +821,43 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     set({ singleClickAction: action });
   },
 
+  toggleFavorite(branchName) {
+    const cur = get().favoriteBranches;
+    const next = cur.includes(branchName)
+      ? cur.filter((b) => b !== branchName)
+      : [...cur, branchName];
+    const repoPath = get().currentRepoPath;
+    if (repoPath) {
+      try {
+        localStorage.setItem(
+          `gitAtlas.favorites:${repoPath}`,
+          JSON.stringify(next),
+        );
+      } catch {
+        // localStorage unavailable — silent
+      }
+    }
+    set({ favoriteBranches: next });
+  },
+
+  setFavoriteBranches(list) {
+    set({ favoriteBranches: list });
+  },
+
+  setCurrentEmail(email) {
+    set({ currentEmail: email });
+  },
+
+  toggleShowMyBranchesOnly() {
+    const next = !get().showMyBranchesOnly;
+    try {
+      localStorage.setItem("showMyBranchesOnly", String(next));
+    } catch {
+      // ignore
+    }
+    set({ showMyBranchesOnly: next });
+  },
+
   toggleSequenceCollapse(sequenceId: string, intermediates: string[]) {
     const {
       commits,
@@ -862,9 +941,12 @@ bridge.onEvent((event, data) => {
   if (event === "repoChanged") {
     const { repoPath } = (data ?? {}) as { repoPath?: string | null };
     const state = usePanelStore.getState();
+    const nextRepoPath = repoPath ?? state.currentRepoPath;
     usePanelStore.setState({
       repoSeq: state.repoSeq + 1,
-      currentRepoPath: repoPath ?? state.currentRepoPath,
+      currentRepoPath: nextRepoPath,
+      // Load this repo's persisted favorites (per-repo isolated in localStorage).
+      favoriteBranches: nextRepoPath ? loadFavoritesForRepo(nextRepoPath) : [],
       // Keep commits/visibleCommits/laneSnapshot/graphLayout until the new
       // repo's data lands. Clearing them here blanks the whole Git Log during
       // the slow getGraphData fetch, causing a visible flash. fetchInitialData

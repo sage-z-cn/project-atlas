@@ -278,6 +278,11 @@ function registerGitStatusBar(
         statusBarItem.text = "$(git-branch) Git Atlas";
         statusBarItem.tooltip = vscode.l10n.t("Git Atlas (no repository)");
         statusBarItem.command = "git-atlas._statusBarCheckout";
+        void vscode.commands.executeCommand(
+          "setContext",
+          "gitAtlas.hasConflicts",
+          false,
+        );
         return;
       }
 
@@ -306,11 +311,20 @@ function registerGitStatusBar(
 
       // Working-tree changes count (modified + staged + untracked).
       let dirty = 0;
+      let hasConflicts = false;
       try {
-        dirty = (await svc.getWorkingTreeChanges()).length;
+        const changes = await svc.getWorkingTreeChanges();
+        dirty = changes.length;
+        hasConflicts = changes.some((f) => f.status === "conflicted");
       } catch {
         // ignore — leave dirty at 0
       }
+      // Drive the log-panel "Conflicts" toolbar button visibility (current repo).
+      void vscode.commands.executeCommand(
+        "setContext",
+        "gitAtlas.hasConflicts",
+        hasConflicts,
+      );
 
       // Icon: changes → git-branch-changes, detached → git-commit, else git-branch.
       // Matches VSCode built-in git's per-state branch icon selection.

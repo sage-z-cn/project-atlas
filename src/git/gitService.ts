@@ -149,7 +149,7 @@ export class GitService {
   }
 
   async getBranches(): Promise<BranchInfo[]> {
-    const cacheKey = "branches";
+    const cacheKey = "branches:v2";
     const cached = this.cache.get<BranchInfo[]>(cacheKey);
     if (cached) {
       return cached;
@@ -161,6 +161,8 @@ export class GitService {
       "%(upstream:short)",
       "%(upstream:track,nobracket)",
       "%(objectname:short)",
+      "%(authorname)",
+      "%(authoremail)",
     ].join(REF_FMT_FIELD_SEP);
 
     const localOutput = await this.execGit([
@@ -186,6 +188,8 @@ export class GitService {
       const upstream = fields[2]?.trim() || undefined;
       const track = fields[3]?.trim() ?? "";
       const lastCommitHash = fields[4]?.trim() ?? "";
+      const authorName = fields[5]?.trim();
+      const authorEmail = fields[6]?.trim().replace(/[<>]/g, "");
 
       const { ahead, behind } = parseTrack(track);
 
@@ -197,6 +201,8 @@ export class GitService {
         ahead,
         behind,
         lastCommitHash,
+        authorName,
+        authorEmail,
       });
     }
 
@@ -225,6 +231,16 @@ export class GitService {
 
     this.cache.set(cacheKey, branches);
     return branches;
+  }
+
+  async getUserIdentity(): Promise<{ name: string; email: string }> {
+    const name = (
+      await this.execGit(["config", "user.name"]).catch(() => "")
+    ).trim();
+    const email = (
+      await this.execGit(["config", "user.email"]).catch(() => "")
+    ).trim();
+    return { name, email };
   }
 
   async getRemoteBranches(): Promise<{ remote: string; branches: string[] }[]> {

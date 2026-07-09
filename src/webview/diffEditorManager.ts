@@ -25,6 +25,12 @@ export class DiffEditorManager {
     this.diffBaseRef = baseRef;
     this.diffCherryPickHashes = cherryPickHashes;
     this.diffIndex = -1;
+    // Drive the log-panel next/prev diff toolbar button visibility.
+    void vscode.commands.executeCommand(
+      "setContext",
+      "gitAtlas.hasDiffList",
+      files.length > 0,
+    );
   }
 
   /** Set current index (when opening a specific file) */

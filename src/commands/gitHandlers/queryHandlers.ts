@@ -66,10 +66,17 @@ export function registerQueryHandlers(ctx: GitHandlerContext): void {
   );
 
   messageRouter.handle(
+    "getUserIdentity",
+    requireGit(ctx, async (gitService) => {
+      return gitService.getUserIdentity();
+    }),
+  );
+
+  messageRouter.handle(
     "getRemoteBranches",
     requireGit(ctx, async (gitService) => {
       // Invalidate branch cache to reflect latest remote changes
-      gitService.cache.invalidate("branches");
+      gitService.cache.invalidate("branches:v2");
       return gitService.getRemoteBranches();
     }),
   );

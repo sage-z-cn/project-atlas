@@ -10,6 +10,7 @@ import type { BranchInfo, TagInfo } from "../../shared/types/git";
 import { BranchSidebar as BranchSidebarComponent } from "./BranchSidebar";
 import { CreateBranchDialog } from "./CreateBranchDialog";
 import { PushDialog } from "./PushDialog";
+import IconStarFilled from "~icons/codicon/star-full";
 
 // ---------------------------------------------------------------------------
 // Inline SVG Icons (stroke-based, IDEA style)
@@ -309,6 +310,9 @@ export function BranchTree({
   const selectBranch = usePanelStore((s) => s.selectBranch);
   const branchGroupByDirectory = usePanelStore((s) => s.branchGroupByDirectory);
   const showTags = usePanelStore((s) => s.showTags);
+  const favoriteBranches = usePanelStore((s) => s.favoriteBranches);
+  const showMyBranchesOnly = usePanelStore((s) => s.showMyBranchesOnly);
+  const currentEmail = usePanelStore((s) => s.currentEmail);
 
   const containerRef = usePreventSelect();
 
@@ -378,7 +382,9 @@ export function BranchTree({
     (b) =>
       !b.isRemote &&
       (!searchQuery ||
-        b.name.toLowerCase().includes(searchQuery.toLowerCase())),
+        b.name.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      (!showMyBranchesOnly ||
+        (!!b.authorEmail && b.authorEmail === currentEmail)),
   );
   const remoteBranches = branches.filter(
     (b) =>
@@ -612,6 +618,7 @@ export function BranchTree({
               groupPrefix="local"
               currentBranch={currentBranch}
               selectedBranches={selectedBranches}
+              favoriteBranches={favoriteBranches}
               filteredBranch={filter.branch}
               onBranchClick={handleClick}
               onBranchDoubleClick={handleBranchDoubleClick}
@@ -636,6 +643,7 @@ export function BranchTree({
               groupPrefix="remote"
               currentBranch={currentBranch}
               selectedBranches={selectedBranches}
+              favoriteBranches={favoriteBranches}
               filteredBranch={filter.branch}
               onBranchClick={handleClick}
               onBranchDoubleClick={handleBranchDoubleClick}
@@ -753,6 +761,7 @@ function TreeNodeView({
   groupPrefix,
   currentBranch,
   selectedBranches,
+  favoriteBranches,
   filteredBranch,
   onBranchClick,
   onBranchDoubleClick,
@@ -765,6 +774,7 @@ function TreeNodeView({
   groupPrefix: string;
   currentBranch: string;
   selectedBranches: string[];
+  favoriteBranches: string[];
   filteredBranch: string;
   onBranchClick: (e: React.MouseEvent, name: string) => void;
   onBranchDoubleClick: (name: string) => void;
@@ -794,6 +804,7 @@ function TreeNodeView({
         isCurrent={isCurrent}
         isSelected={selectedBranches.includes(branch.name)}
         isFiltered={filteredBranch === branch.name}
+        isFavorite={favoriteBranches.includes(branch.name)}
         onClick={(e) => onBranchClick(e, branch.name)}
         onDoubleClick={() => onBranchDoubleClick(branch.name)}
         onContextMenu={(e) => onBranchContextMenu(e, branch)}
@@ -834,6 +845,7 @@ function TreeNodeView({
             groupPrefix={groupPrefix}
             currentBranch={currentBranch}
             selectedBranches={selectedBranches}
+            favoriteBranches={favoriteBranches}
             filteredBranch={filteredBranch}
             onBranchClick={onBranchClick}
             onBranchDoubleClick={onBranchDoubleClick}
@@ -961,6 +973,7 @@ function BranchItem({
   isCurrent,
   isSelected,
   isFiltered,
+  isFavorite,
   onClick,
   onDoubleClick,
   onContextMenu,
@@ -973,6 +986,7 @@ function BranchItem({
   isCurrent: boolean;
   isSelected: boolean;
   isFiltered: boolean;
+  isFavorite: boolean;
   onClick: (e: React.MouseEvent) => void;
   onDoubleClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -1014,6 +1028,14 @@ function BranchItem({
           {name}
         </span>
       </Tooltip>
+      {isFavorite && (
+        <IconStarFilled
+          style={{
+            flexShrink: 0,
+            color: "var(--vscode-list-warningForeground, #d4a017)",
+          }}
+        />
+      )}
       {(ahead > 0 || behind > 0) && (
         <span
           style={{

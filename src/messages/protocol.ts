@@ -29,6 +29,7 @@ export type CommandType =
   | "getGraphData"
   | "loadMoreLog"
   | "getBranches"
+  | "getUserIdentity"
   | "getTags"
   | "getDiff"
   | "getFileContent"

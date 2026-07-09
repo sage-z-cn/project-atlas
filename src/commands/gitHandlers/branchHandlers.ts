@@ -142,10 +142,9 @@ export function registerBranchHandlers(ctx: GitHandlerContext): void {
   messageRouter.handle(
     "showMyBranches",
     requireGit(ctx, async () => {
-      // Filter branches by current git user
-      void vscode.window.showInformationMessage(
-        "Show My Branches: filter applied in branch tree",
-      );
+      // "Show My Branches" is now a pure front-end toggle (see
+      // toggleShowMyBranchesOnly in panel-store). Kept as a no-op so the
+      // CommandType stays valid without breaking older webview bundles.
       return { success: true };
     }),
   );
