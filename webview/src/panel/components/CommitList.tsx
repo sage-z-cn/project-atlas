@@ -1,5 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { bridge } from "../../shared/bridge";
 import { useModifierClickSelection } from "../../shared/hooks/useModifierClickSelection";
@@ -79,13 +79,52 @@ export function CommitList({
   );
   const graphWidth = (maxColumn + 1) * COLUMN_WIDTH + GRAPH_PADDING * 2;
 
-  // Graph gutter width is uniform across all rows (based on the global max
-  // column), so every row reserves identical left padding for the graph. A
-  // per-row width based on "active columns" was tried before but accumulated
-  // columns monotonically — branches end by merging into another lane (their
-  // `lines` stay non-empty), so the active-columns set only ever grew, never
-  // shrank, making each row's paddingLeft creep rightward (a staircase indent).
-  // A uniform gutter is simpler and avoids that regression entirely.
+  // Per-row graph gutter: indent each row's message to just past the widest
+  // graph element at that row (its own node or any line spanning it), so the
+  // log text follows the graph instead of being uniformly indented to the
+  // global max column. Only lines with a visible target are considered (the
+  // common case); stub/hidden-parent lines are short and stay at their source
+  // column.
+  //
+  // Do NOT reintroduce a running "active columns" set — an earlier version did
+  // and only removed entries at roots, so the set grew monotonically and every
+  // row's indent crept rightward (a staircase). Marking by actual line spans
+  // below is bounded per-row and correct.
+  const rowMaxColumns = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const commit of visibleCommits) {
+      const lane = graphLayout[commit.hash];
+      result[commit.hash] = lane?.column ?? 0;
+    }
+
+    const rowIndex: Record<string, number> = {};
+    for (let i = 0; i < visibleCommits.length; i++) {
+      rowIndex[visibleCommits[i].hash] = i;
+    }
+
+    for (const commit of visibleCommits) {
+      const lane = graphLayout[commit.hash];
+      if (!lane) continue;
+      const fromRow = rowIndex[commit.hash];
+      if (fromRow == null) continue;
+
+      for (const line of lane.lines) {
+        const toRow = rowIndex[line.toCommit];
+        if (toRow == null) continue; // stub / hidden target — short, skip
+        const maxCol = Math.max(lane.column, line.toColumn, line.fromColumn);
+        const startRow = Math.min(fromRow, toRow);
+        const endRow = Math.max(fromRow, toRow);
+        for (let r = startRow; r <= endRow; r++) {
+          const hash = visibleCommits[r]?.hash;
+          if (hash && (result[hash] ?? 0) < maxCol) {
+            result[hash] = maxCol;
+          }
+        }
+      }
+    }
+
+    return result;
+  }, [visibleCommits, graphLayout]);
 
   const virtualizer = useVirtualizer({
     count: visibleCommits.length,
@@ -379,7 +418,7 @@ export function CommitList({
                 <CommitRow
                   commit={commit}
                   lane={lane}
-                  rowMaxColumn={maxColumn}
+                  rowMaxColumn={rowMaxColumns[commit.hash] ?? 0}
                   columnWidths={columnWidths}
                   visibleColumns={visibleColumns}
                   onCommitClick={handleCommitClick}

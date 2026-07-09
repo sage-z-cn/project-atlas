@@ -200,12 +200,21 @@ export function CommitRow({
         display: "flex",
         alignItems: "center",
         height: ROW_HEIGHT,
-        paddingLeft:
-          GRAPH_PADDING + (rowMaxColumn + 1) * COLUMN_WIDTH + NODE_TEXT_GAP,
         paddingRight: 8,
         color: isSelected ? "var(--selected-fg)" : "inherit",
       }}
     >
+      {/* Graph gutter spacer — reserves the per-row graph width so the subject
+          follows the graph while author/date/hash stay right-aligned. The
+          graph itself is drawn by the GitGraphSvg overlay on top of this. */}
+      <div
+        aria-hidden="true"
+        style={{
+          width:
+            GRAPH_PADDING + (rowMaxColumn + 1) * COLUMN_WIDTH + NODE_TEXT_GAP,
+          flexShrink: 0,
+        }}
+      />
       {/* Subject + refs column (flex) */}
       <span
         style={{
