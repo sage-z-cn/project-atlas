@@ -82,8 +82,11 @@ interface CommitStore {
 
   // List style (VSCode / JetBrains)
   commitListStyle: "vscode" | "jetbrains";
+  // Badge display mode (Total commits / Current repo / Off)
+  commitBadgeMode: "total" | "current" | "off";
   fetchGitConfig: () => Promise<void>;
   setCommitListStyle: (style: "vscode" | "jetbrains") => Promise<void>;
+  setCommitBadgeMode: (mode: "total" | "current" | "off") => Promise<void>;
   /** Discard (rollback) multiple files; backend handler already confirms modally. */
   rollbackFiles: (filePaths: string[]) => Promise<void>;
 
@@ -156,6 +159,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   showUnversioned: true,
   collapsedDirs: new Set<string>(),
   commitListStyle: "vscode",
+  commitBadgeMode: "current",
 
   // ── Multi-repo actions ─────────────────────────────────────────────
   async switchRepo(path: string) {
@@ -677,10 +681,11 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     try {
       const result = (await bridge.request("getGitConfig")) as {
         commitListStyle?: "vscode" | "jetbrains";
+        commitBadgeMode?: "total" | "current" | "off";
       };
-      if (result?.commitListStyle) {
-        set({ commitListStyle: result.commitListStyle });
-      }
+      const commitListStyle = result?.commitListStyle ?? "vscode";
+      const commitBadgeMode = result?.commitBadgeMode ?? "current";
+      set({ commitListStyle, commitBadgeMode });
     } catch (err) {
       console.error("fetchGitConfig failed:", err);
     }
@@ -694,6 +699,17 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await bridge.request("setGitConfig", { commitListStyle: style });
     } catch (err) {
       console.error("setCommitListStyle failed:", err);
+    }
+  },
+
+  async setCommitBadgeMode(mode) {
+    // Optimistic local update + persist to settings; backend broadcasts
+    // gitConfigChanged which makes all webviews refetch.
+    set({ commitBadgeMode: mode });
+    try {
+      await bridge.request("setGitConfig", { commitBadgeMode: mode });
+    } catch (err) {
+      console.error("setCommitBadgeMode failed:", err);
     }
   },
 

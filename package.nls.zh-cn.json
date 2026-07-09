@@ -16,6 +16,7 @@
   "viewContainer.gitAtlasCommit": "Git Commit",
   "view.gitAtlas.gitLog": "Git Log",
   "view.gitAtlas.commitPanel": "提交",
+  "view.gitAtlas.commitBadgeProxy": "提交徽标",
   "command.git-atlas.openPushPanel": "推送...",
   "command.git-atlas.openMergeEditor": "打开合并编辑器",
   "command.git-atlas.openDiffEditor": "打开差异编辑器",
@@ -58,5 +59,9 @@
   "config.taskAtlas.showPinned": "在任务列表顶部显示'置顶'分组。",
   "config.gitAtlas.commitListStyle": "Git Atlas 提交列表的显示风格。",
   "config.gitAtlas.commitListStyle.vscode": "VSCode 风格：暂存的更改 / 更改两个分组，悬停操作。",
-  "config.gitAtlas.commitListStyle.jetbrains": "JetBrains 风格：基于复选框的选择，独立分组。"
+  "config.gitAtlas.commitListStyle.jetbrains": "JetBrains 风格：基于复选框的选择，独立分组。",
+  "config.gitAtlas.commitBadgeMode": "Git Commit 活动栏图标上更改数量徽标的显示方式。",
+  "config.gitAtlas.commitBadgeMode.total": "所有仓库的更改数量总和。",
+  "config.gitAtlas.commitBadgeMode.current": "仅当前选中仓库的更改数量。",
+  "config.gitAtlas.commitBadgeMode.off": "不显示徽标。"
 }

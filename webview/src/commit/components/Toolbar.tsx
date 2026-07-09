@@ -5,6 +5,7 @@ import "../../shared/components/Tooltip.css";
 import { t } from "../../shared/i18n";
 import ExpandAllIcon from "~icons/codicon/expand-all";
 import CollapseAllIcon from "~icons/codicon/collapse-all";
+import SettingsIcon from "~icons/codicon/settings";
 import { useCommitStore } from "../../shared/store/commit-store";
 
 interface ToolbarProps {
@@ -108,20 +109,6 @@ export function Toolbar({
 
       <div className="commit-toolbar-spacer" />
 
-      <div style={{ position: "relative" }}>
-        <Tooltip text={t("View Options")}>
-          <button
-            type="button"
-            className="commit-toolbar-btn"
-            onClick={() => setShowViewMenu(!showViewMenu)}
-          >
-            <ViewOptionsIcon />
-          </button>
-        </Tooltip>
-        {showViewMenu && (
-          <ViewOptionsMenu onClose={() => setShowViewMenu(false)} />
-        )}
-      </div>
       <Tooltip text={t("Expand All")}>
         <button
           type="button"
@@ -140,6 +127,20 @@ export function Toolbar({
           <CollapseAllIcon />
         </button>
       </Tooltip>
+      <div style={{ position: "relative" }}>
+        <Tooltip text={t("Options")}>
+          <button
+            type="button"
+            className="commit-toolbar-btn"
+            onClick={() => setShowViewMenu(!showViewMenu)}
+          >
+            <SettingsIcon />
+          </button>
+        </Tooltip>
+        {showViewMenu && (
+          <ViewOptionsMenu onClose={() => setShowViewMenu(false)} />
+        )}
+      </div>
     </div>
   );
 }
@@ -154,6 +155,8 @@ function ViewOptionsMenu({ onClose }: { onClose: () => void }) {
     toggleShowUnversioned,
     commitListStyle,
     setCommitListStyle,
+    commitBadgeMode,
+    setCommitBadgeMode,
   } = useCommitStore();
 
   return (
@@ -233,6 +236,47 @@ function ViewOptionsMenu({ onClose }: { onClose: () => void }) {
             {showUnversioned && <CheckIcon />}
           </span>
           <span>{t("Unversioned Files")}</span>
+        </button>
+        <div className="commit-context-menu-separator" />
+        <div className="commit-context-menu-header">{t("Badge")}</div>
+        <button
+          type="button"
+          className="commit-context-menu-item"
+          onClick={() => {
+            void setCommitBadgeMode("total");
+            onClose();
+          }}
+        >
+          <span className="commit-context-menu-icon">
+            {commitBadgeMode === "total" && <CheckIcon />}
+          </span>
+          <span>{t("Total")}</span>
+        </button>
+        <button
+          type="button"
+          className="commit-context-menu-item"
+          onClick={() => {
+            void setCommitBadgeMode("current");
+            onClose();
+          }}
+        >
+          <span className="commit-context-menu-icon">
+            {commitBadgeMode === "current" && <CheckIcon />}
+          </span>
+          <span>{t("Current")}</span>
+        </button>
+        <button
+          type="button"
+          className="commit-context-menu-item"
+          onClick={() => {
+            void setCommitBadgeMode("off");
+            onClose();
+          }}
+        >
+          <span className="commit-context-menu-icon">
+            {commitBadgeMode === "off" && <CheckIcon />}
+          </span>
+          <span>{t("Off")}</span>
         </button>
       </div>
     </>
@@ -329,21 +373,6 @@ function DiffIcon() {
     </svg>
   );
 }
-
-/** Eye icon — View Options (from JetBrains expui/general/show.svg style) */
-function ViewOptionsIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path
-        d="M8 4C4.5 4 2 8 2 8C2 8 4.5 12 8 12C11.5 12 14 8 14 8C14 8 11.5 4 8 4Z"
-        stroke="currentColor"
-        strokeLinejoin="round"
-      />
-      <circle cx="8" cy="8" r="2" stroke="currentColor" />
-    </svg>
-  );
-}
-
 
 /** Push icon — green ↗ text matching branch ahead indicator */
 function PushIcon() {

@@ -248,7 +248,11 @@
   "Right-click changed files in the Commit tab to stash changes for later.": "在提交选项卡中右键已更改的文件，可将更改贮藏以备后用。",
   "Use the shelf icon in the Commit tab toolbar to shelve changes to .idea/shelf/ (IDEA-compatible format).": "使用提交选项卡工具栏中的搁置图标将更改搁置到 .idea/shelf/（兼容 IDEA 的格式）。",
   "User": "用户",
-  "View Options": "视图选项",
+  "Options": "选项",
+  "Badge": "徽标",
+  "Total": "所有仓库的更改",
+  "Current": "仅当前仓库",
+  "Off": "不显示",
   "on {0}": "于 {0}",
   "{0} changes · {1} conflicts": "{0} 处更改 · {1} 个冲突",
   "{0} file(s) with conflicts": "{0} 个文件有冲突",
@@ -320,5 +324,7 @@
   "Rollback changes to {0} file(s)? This cannot be undone.": "确定要回滚 {0} 个文件的更改吗？此操作无法撤销。",
   "Delete \"{0}\"? This cannot be undone.": "确定要删除 \"{0}\" 吗？此操作无法撤销。",
   "Delete {0} files? This cannot be undone.": "确定要删除 {0} 个文件吗？此操作无法撤销。",
-  "branch name": "分支名称"
+  "branch name": "分支名称",
+  "{0} changes": "{0} 项变更",
+  "{0} changes across all repositories": "所有仓库共 {0} 项变更"
 }

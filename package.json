@@ -101,6 +101,11 @@
           "name": "%view.gitAtlas.commitPanel%",
           "icon": "$(git-commit)",
           "type": "webview"
+        },
+        {
+          "id": "git-atlas.commitBadgeProxy",
+          "name": "%view.gitAtlas.commitBadgeProxy%",
+          "when": "false"
         }
       ]
     },
@@ -673,6 +678,21 @@
             "%config.gitAtlas.commitListStyle.jetbrains%"
           ],
           "description": "%config.gitAtlas.commitListStyle%"
+        },
+        "gitAtlas.commitBadgeMode": {
+          "type": "string",
+          "default": "current",
+          "enum": [
+            "total",
+            "current",
+            "off"
+          ],
+          "enumDescriptions": [
+            "%config.gitAtlas.commitBadgeMode.total%",
+            "%config.gitAtlas.commitBadgeMode.current%",
+            "%config.gitAtlas.commitBadgeMode.off%"
+          ],
+          "description": "%config.gitAtlas.commitBadgeMode%"
         }
       }
     }

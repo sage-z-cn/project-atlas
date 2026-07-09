@@ -166,7 +166,6 @@ export function BranchSidebar({
           <IconLocate />
         </button>
       </Tooltip>
-      <SettingsButton />
       <Tooltip
         text={branchGroupByDirectory ? t("Flatten List") : t("Group By Directory")}
       >
@@ -199,6 +198,7 @@ export function BranchSidebar({
           <IconCollapseAll />
         </button>
       </Tooltip>
+      <SettingsButton />
     </div>
   );
 }
@@ -207,6 +207,7 @@ export function BranchSidebar({
 
 function SettingsButton() {
   const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState({ left: 40, top: 200 });
   const btnRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -216,17 +217,29 @@ function SettingsButton() {
           type="button"
           className="branch-sidebar-btn"
           ref={btnRef}
-          onClick={() => setOpen(!open)}
+          onClick={() => {
+            const r = btnRef.current?.getBoundingClientRect();
+            setAnchor({ left: r ? r.right + 2 : 40, top: r ? r.top : 200 });
+            setOpen(!open);
+          }}
         >
           <IconSettings />
         </button>
       </Tooltip>
-      {open && <SettingsMenu onClose={() => setOpen(false)} />}
+      {open && (
+        <SettingsMenu anchor={anchor} onClose={() => setOpen(false)} />
+      )}
     </>
   );
 }
 
-function SettingsMenu({ onClose }: { onClose: () => void }) {
+function SettingsMenu({
+  anchor,
+  onClose,
+}: {
+  anchor: { left: number; top: number };
+  onClose: () => void;
+}) {
   const showTags = usePanelStore((s) => s.showTags);
   const singleClickAction = usePanelStore((s) => s.singleClickAction);
   const toggleShowTags = usePanelStore((s) => s.toggleShowTags);
@@ -257,8 +270,8 @@ function SettingsMenu({ onClose }: { onClose: () => void }) {
       className="commit-context-menu"
       style={{
         position: "fixed",
-        left: 40,
-        top: "50%",
+        left: anchor.left,
+        top: anchor.top,
         zIndex: 1000,
       }}
     >
@@ -271,10 +284,10 @@ function SettingsMenu({ onClose }: { onClose: () => void }) {
           onClose();
         }}
       >
-        <span>
-          {singleClickAction === "updateBranchFilter" ? "✓ " : ""}
-          {t("Update Branch Filter")}
+        <span className="commit-context-menu-icon">
+          {singleClickAction === "updateBranchFilter" ? "✓" : ""}
         </span>
+        <span>{t("Update Branch Filter")}</span>
       </button>
       <button
         type="button"
@@ -284,10 +297,10 @@ function SettingsMenu({ onClose }: { onClose: () => void }) {
           onClose();
         }}
       >
-        <span>
-          {singleClickAction === "navigateToHead" ? "✓ " : ""}
-          {t("Navigate Log to Branch Head")}
+        <span className="commit-context-menu-icon">
+          {singleClickAction === "navigateToHead" ? "✓" : ""}
         </span>
+        <span>{t("Navigate Log to Branch Head")}</span>
       </button>
       <div className="commit-context-menu-separator" />
       <button
@@ -298,10 +311,8 @@ function SettingsMenu({ onClose }: { onClose: () => void }) {
           onClose();
         }}
       >
-        <span>
-          {showTags ? "✓ " : ""}
-          {t("Show Tags")}
-        </span>
+        <span className="commit-context-menu-icon">{showTags ? "✓" : ""}</span>
+        <span>{t("Show Tags")}</span>
       </button>
     </div>
   );

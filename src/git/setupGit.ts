@@ -15,6 +15,7 @@ import { PushPanel } from "../webview/pushPanel";
 import { RollbackPanel } from "../webview/rollbackPanel";
 import { registerGitHandlers } from "../commands/gitHandlers";
 import { registerGitCommands } from "../commands/gitCommands";
+import { registerCommitViewBadge } from "./commitViewBadge";
 import type { GitHandlerContext } from "../commands/gitContext";
 
 /**
@@ -197,6 +198,10 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     registerGitStatusBar(registry),
   );
+
+  // j. Commit 视图活动栏徽标（activity bar 上的更改数量 badge）
+  //    受 gitAtlas.commitBadgeMode 控制：total / current / off
+  context.subscriptions.push(registerCommitViewBadge(registry));
 }
 
 // ─── vscode.git 导出 API 最小类型（避免引入 @types/vscode-git） ──────────

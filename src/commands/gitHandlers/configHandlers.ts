@@ -12,6 +12,7 @@ import type { GitHandlerContext } from "../gitContext";
  * listener in setupGit, so externally-edited settings propagate too).
  */
 export type CommitListStyle = "vscode" | "jetbrains";
+export type CommitBadgeMode = "total" | "current" | "off";
 
 export function registerConfigHandlers(ctx: GitHandlerContext): void {
   const { messageRouter } = ctx;
@@ -23,7 +24,11 @@ export function registerConfigHandlers(ctx: GitHandlerContext): void {
       "commitListStyle",
       "vscode",
     );
-    return { commitListStyle };
+    const commitBadgeMode = config.get<CommitBadgeMode>(
+      "commitBadgeMode",
+      "current",
+    );
+    return { commitListStyle, commitBadgeMode };
   });
 
   // 写入配置并广播事件，让所有 webview 热刷新
@@ -33,6 +38,13 @@ export function registerConfigHandlers(ctx: GitHandlerContext): void {
       await config.update(
         "commitListStyle",
         params.commitListStyle as CommitListStyle,
+        vscode.ConfigurationTarget.Global,
+      );
+    }
+    if (typeof params?.commitBadgeMode === "string") {
+      await config.update(
+        "commitBadgeMode",
+        params.commitBadgeMode as CommitBadgeMode,
         vscode.ConfigurationTarget.Global,
       );
     }

@@ -82,7 +82,12 @@ export class RepoRegistry implements vscode.Disposable {
    * phase) — only the delta is created/destroyed.
    */
   async rescan(workspaceRoots: string[]): Promise<void> {
-    const infos = await scanRepos(workspaceRoots);
+    const rawInfos = await scanRepos(workspaceRoots);
+    // Normalize paths once at the ingress so every downstream map key
+    // (services/watchers) and lookup (getService/getCurrent) stays consistent.
+    // Without this, getService(normalizePath(p)) could miss a repo stored under
+    // the scanner's raw casing/separator.
+    const infos = rawInfos.map((i) => ({ ...i, path: normalizePath(i.path) }));
     const newPaths = new Set(infos.map((i) => i.path));
 
     // Tear down services/watchers for repos that are gone.

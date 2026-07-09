@@ -16,6 +16,7 @@
   "viewContainer.gitAtlasCommit": "Git Commit",
   "view.gitAtlas.gitLog": "Git Log",
   "view.gitAtlas.commitPanel": "Commit",
+  "view.gitAtlas.commitBadgeProxy": "Commit Badge",
   "command.git-atlas.openPushPanel": "Push...",
   "command.git-atlas.openMergeEditor": "Open Merge Editor",
   "command.git-atlas.openDiffEditor": "Open Diff Editor",
@@ -58,5 +59,9 @@
   "config.taskAtlas.showPinned": "Show the 'Pinned' group at the top of the task list.",
   "config.gitAtlas.commitListStyle": "Commit list display style for Git Atlas.",
   "config.gitAtlas.commitListStyle.vscode": "VSCode style: two groups (Staged Changes / Changes) with hover actions.",
-  "config.gitAtlas.commitListStyle.jetbrains": "JetBrains style: checkbox-based selection with separate groups."
+  "config.gitAtlas.commitListStyle.jetbrains": "JetBrains style: checkbox-based selection with separate groups.",
+  "config.gitAtlas.commitBadgeMode": "How to show the change count badge on the Git Commit activity bar icon.",
+  "config.gitAtlas.commitBadgeMode.total": "Sum of changes across all repositories.",
+  "config.gitAtlas.commitBadgeMode.current": "Changes in the currently selected repository only.",
+  "config.gitAtlas.commitBadgeMode.off": "Do not show the badge."
 }
