@@ -510,6 +510,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         count: 200,
         snapshot: laneSnapshot,
         branch: filter.branch || undefined,
+        file: filter.file || undefined,
         repoPath,
       })) as {
         graphData: { commits: Commit[]; lanes: Record<string, LaneInfo> };
@@ -926,8 +927,22 @@ bridge.onEvent((event, data) => {
     return;
   }
   if (event === "showFileHistory") {
-    const { file } = data as { file: string };
+    const { file, repoPath } = data as { file: string; repoPath?: string };
+    const state = usePanelStore.getState();
+    // The host may switch the active repo (setCurrent → repoChanged) right
+    // before this event. That repoChanged fetch shares a repoSeq with the
+    // setFilter fetch below, so a slow repoChanged response (no file filter)
+    // could clobber the correct one. Bump repoSeq + sync currentRepoPath so
+    // the earlier fetches are dropped and setFilter's fetch — carrying both
+    // repo and file filter — is authoritative.
+    usePanelStore.setState({
+      repoSeq: state.repoSeq + 1,
+      currentRepoPath: repoPath ?? state.currentRepoPath,
+    });
     usePanelStore.getState().setFilter({ file });
+    // The seq bump also invalidates any in-flight fetchRepoStatuses from the
+    // concurrent repoChanged; re-issue so chip badges stay fresh.
+    usePanelStore.getState().fetchRepoStatuses();
   }
   if (event === "operationStart") {
     usePanelStore.setState({ operationInProgress: true });

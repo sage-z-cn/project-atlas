@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import * as vscode from "vscode";
 import type { GitHandlerContext } from "./gitContext";
 import { GIT_ATLAS_SCHEME } from "../webview/gitContentProvider";
@@ -92,13 +93,24 @@ export function registerGitCommands(
       "git-atlas.showFileHistory",
       async (uri?: vscode.Uri) => {
         const fileUri = uri ?? vscode.window.activeTextEditor?.document.uri;
-        if (!fileUri || !ctx.workspaceRoot) return;
-        const relativePath = vscode.workspace.asRelativePath(fileUri, false);
+        if (!fileUri) return;
+        // Resolve the OWNING repo from the file path (not the currently-active
+        // one) and switch to it, so git log runs against the right repo.
+        const repo = ctx.registry.findRepoForPath(fileUri.fsPath);
+        if (!repo) return; // file lives outside every known repo
+        if (repo.path !== ctx.registry.getCurrentRepoPath()) {
+          await ctx.registry.setCurrent(repo.path); // broadcasts repoChanged
+        }
+        // git log -- <file> needs a path relative to the REPO root, not the
+        // workspace root — they differ when the repo is a workspace subfolder.
+        const relativePath = path.relative(repo.path, fileUri.fsPath);
         // Ensure the Git Log panel is visible before sending the event
         await vscode.commands.executeCommand("git-atlas.gitLog.focus");
-        // Send file filter to webview
+        // Carry repoPath so the store can sync if the repoChanged fetch (from
+        // setCurrent above) lands out of order with the file-filter fetch.
         ctx.messageRouter.broadcastEvent("showFileHistory", {
           file: relativePath,
+          repoPath: repo.path,
         });
       },
     ),

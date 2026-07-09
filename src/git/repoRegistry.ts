@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import * as vscode from "vscode";
 import type { MessageRouter } from "../messages/messageRouter";
 import { GitService } from "./gitService";
@@ -134,6 +135,30 @@ export class RepoRegistry implements vscode.Disposable {
   /** Snapshot of RepoInfo describing every known repo (for getRepos handler). */
   getRepoInfos(): RepoInfo[] {
     return this.repoInfos;
+  }
+
+  /**
+   * Find the repo whose working tree contains `filePath` (longest-prefix wins
+   * to handle nested repos). Returns null when the path is outside every known
+   * repo. Used by commands operating on an arbitrary file URI (e.g.
+   * showFileHistory) to resolve the owning repo instead of blindly using the
+   * currently-selected one.
+   */
+  findRepoForPath(filePath: string): RepoInfo | null {
+    const normalized = normalizePath(filePath);
+    let best: RepoInfo | null = null;
+    for (const info of this.repoInfos) {
+      const repoPath = info.path;
+      if (
+        normalized === repoPath ||
+        normalized.startsWith(repoPath + path.sep)
+      ) {
+        if (!best || repoPath.length > best.path.length) {
+          best = info;
+        }
+      }
+    }
+    return best;
   }
 
   /**

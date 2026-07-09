@@ -72,7 +72,14 @@ export function CommitTab() {
       .filter((f) => selectedFiles.has(`${f.path}:${f.staged}`))
       .map((f) => f.path);
     if (selectedPaths.length === 0) return;
-    await ideaShelveChanges(t("Shelved changes"), [...new Set(selectedPaths)]);
+    // Name is optional: cancel aborts, empty falls back to the default message.
+    const result = (await bridge.request("showInputBox", {
+      prompt: t("Enter shelf name (optional):"),
+      placeHolder: t("Shelved changes"),
+    })) as { value: string | null };
+    if (result.value === null) return;
+    const message = result.value.trim() || t("Shelved changes");
+    await ideaShelveChanges(message, [...new Set(selectedPaths)]);
   }, [changes, selectedFiles, ideaShelveChanges]);
 
   const handleContextMenu = useCallback(

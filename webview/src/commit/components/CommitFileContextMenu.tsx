@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { WorkingTreeFile } from "../../shared/store/commit-store";
 import { useCommitStore } from "../../shared/store/commit-store";
 import { t } from "../../shared/i18n";
+import { bridge } from "../../shared/bridge";
 
 interface CommitFileContextMenuProps {
   x: number;
@@ -114,20 +115,28 @@ export function CommitFileContextMenu({
     onClose();
   }, [file, rollbackFile, onClose]);
 
-  const handleShelve = useCallback(() => {
+  const handleShelve = useCallback(async () => {
+    onClose();
     // If multiple files are highlighted, shelve all of them; otherwise just this file
     const fileKey = `${file.path}:${file.staged}`;
-    if (highlightedFiles.size > 1 && highlightedFiles.has(fileKey)) {
-      // Shelve all highlighted files
-      const paths = changes
-        .filter((f) => highlightedFiles.has(`${f.path}:${f.staged}`))
-        .map((f) => f.path);
-      shelveChanges(t("Shelved changes"), [...new Set(paths)]);
-    } else {
-      // Shelve only this file
-      shelveChanges(t("Shelved changes"), [file.path]);
-    }
-    onClose();
+    const paths =
+      highlightedFiles.size > 1 && highlightedFiles.has(fileKey)
+        ? [
+            ...new Set(
+              changes
+                .filter((f) => highlightedFiles.has(`${f.path}:${f.staged}`))
+                .map((f) => f.path),
+            ),
+          ]
+        : [file.path];
+    // Name is optional: cancel aborts, empty falls back to the default message.
+    const result = (await bridge.request("showInputBox", {
+      prompt: t("Enter stash message (optional):"),
+      placeHolder: t("Stashed changes"),
+    })) as { value: string | null };
+    if (result.value === null) return;
+    const message = result.value.trim() || t("Stashed changes");
+    await shelveChanges(message, paths);
   }, [file, shelveChanges, highlightedFiles, changes, onClose]);
 
   const handleDelete = useCallback(() => {
@@ -238,7 +247,7 @@ export function CommitFileContextMenu({
         onClick={handleShelve}
       >
         <ShelveIcon />
-        <span>{t("Shelve Changes...")}</span>
+        <span>{t("Stash Changes...")}</span>
       </button>
 
       <div className="commit-context-menu-separator" />

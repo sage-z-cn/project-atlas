@@ -24,8 +24,8 @@
   "command.git-atlas.prevDiff": "上一个文件差异",
   "command.git-atlas.openConflicts": "冲突",
   "command.git-atlas.openMergeEditorFromSCM": "在 Git Atlas 合并编辑器中打开",
-  "command.git-atlas.showFileHistory": "(Git Atlas) 显示文件历史",
-  "command.git-atlas.editSource": "(Git Atlas) 编辑源文件",
+  "command.git-atlas.showFileHistory": "Git Atlas: 显示文件历史",
+  "command.git-atlas.editSource": "Git Atlas: 编辑源文件",
 
   "description": "自动记录项目，快速即达",
   "command.openProject": "打开项目",

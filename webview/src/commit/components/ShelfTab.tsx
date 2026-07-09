@@ -71,10 +71,10 @@ export function ShelfTab() {
     return (
       <div className="shelf-list">
         <div className="shelf-empty">
-          <p>{t("No shelved changes")}</p>
+          <p>{t("No stashed changes")}</p>
           <p style={{ fontSize: 11, marginTop: 8 }}>
             {t(
-              "Use the shelf icon in the Commit tab toolbar to shelve changes for later.",
+              "Right-click changed files in the Commit tab to stash changes for later.",
             )}
           </p>
         </div>

@@ -66,7 +66,7 @@ export function ShelfContextMenu({
         onClick={handleUnshelve}
       >
         <UnshelveIcon />
-        <span>{t("Unshelve...")}</span>
+        <span>{t("Unstash...")}</span>
         <span className="commit-context-menu-shortcut">⇧⌘U</span>
       </button>
 

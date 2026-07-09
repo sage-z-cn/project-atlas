@@ -71,7 +71,7 @@ export function ShelfFileContextMenu({
         onClick={handleUnshelveFile}
       >
         <UnshelveIcon />
-        <span>{t("Unshelve This File")}</span>
+        <span>{t("Unstash This File")}</span>
       </button>
 
       <div className="commit-context-menu-separator" />

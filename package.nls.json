@@ -24,8 +24,8 @@
   "command.git-atlas.prevDiff": "Previous File Diff",
   "command.git-atlas.openConflicts": "Conflicts",
   "command.git-atlas.openMergeEditorFromSCM": "Open in Git Atlas Merge Editor",
-  "command.git-atlas.showFileHistory": "(Git Atlas) Show File History",
-  "command.git-atlas.editSource": "(Git Atlas) Edit Source",
+  "command.git-atlas.showFileHistory": "Git Atlas: Show File History",
+  "command.git-atlas.editSource": "Git Atlas: Edit Source",
 
   "description": "Auto-record projects, quick access.",
   "command.openProject": "Open Project",

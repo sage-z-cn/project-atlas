@@ -127,7 +127,24 @@ export class GitService {
     prevSnapshot?: LaneSnapshot,
   ): Promise<GraphLayoutResult> {
     const commits = await this.getLog(options);
-    const breakHiddenParents = !!options.search;
+    // breakHiddenParents: when the commit list is filtered down (by file,
+    // search, author, or date range), the parent chain has gaps — e.g. in file
+    // history most commits' first parent is an intermediate commit that doesn't
+    // touch the file and is therefore absent from the list. Without breaking
+    // those hidden parents, the lane allocator reserves each invisible parent
+    // in its own lane and never recycles it (the parent never appears to
+    // consume the lane), so every commit appends a fresh lane and columns grow
+    // monotonically → the graph renders as a diagonal staircase. Breaking
+    // hidden parents frees the lane after a stub so lanes recycle (typically
+    // collapsing to a single column). branch-only filters are excluded because
+    // a single branch's history is a contiguous ancestry path (no gaps).
+    const breakHiddenParents = !!(
+      options.search ||
+      options.file ||
+      options.author ||
+      options.since ||
+      options.until
+    );
     return computeGraphLayout(commits, prevSnapshot, breakHiddenParents);
   }
 

@@ -45,7 +45,7 @@ export function registerShelfHandlers(ctx: GitHandlerContext): void {
     requireGit(ctx, async (gitService, params) => {
       const stashId = params.stashId as string;
       const choice = await vscode.window.showWarningMessage(
-        `Delete shelved changes "${stashId}"? This cannot be undone.`,
+        `Delete stashed changes "${stashId}"? This cannot be undone.`,
         { modal: true },
         "Delete",
       );
