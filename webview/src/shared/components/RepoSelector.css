@@ -62,6 +62,48 @@
   text-overflow: ellipsis;
 }
 
+/* ─── Branch label (current branch name) ───────────────────────────────
+ * Identity info (which branch), rendered as a sibling of the status badges
+ * but visually subordinate to the repo name (which repo). Weaker weight via
+ * lower opacity + slightly smaller font; the git-branch glyph signals its
+ * role so no textual prefix is needed. Hidden entirely by the component for
+ * detached HEAD / unknown branch, so these rules are inert then.
+ *
+ * Horizontal: capped width with ellipsis — chips are content-width so this
+ * keeps long feature branches from blowing out the row. Vertical: fills the
+ * middle space between the capped repo-name and the right-aligned badges.
+ */
+.repo-selector .repo-chip .repo-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  max-width: 140px;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0.75;
+  font-size: 0.92em;
+}
+
+.repo-selector .repo-chip .repo-branch .branch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Active chip sits on a high-contrast button-bg, so lift the opacity a touch
+ * to keep the branch readable against the colored surface. */
+.repo-selector .repo-chip.active .repo-branch {
+  opacity: 0.9;
+}
+
+/* Vertical: branch fills the middle between repo-name and right-aligned
+ * badges. max-width:none releases the horizontal cap so it can grow to fill. */
+.repo-selector.vertical .repo-chip .repo-branch {
+  flex: 1 1 auto;
+  max-width: none;
+}
+
 /* unplugin-icons renders <svg> inline by default, whose baseline adds a gap
  * below the glyph and breaks vertical centering inside the flex chip. Force
  * block layout so align-items:center centers it cleanly. */
@@ -89,6 +131,14 @@
 
 .repo-selector.vertical .repo-chip .repo-name {
   max-width: none;
+}
+
+/* Cap the repo-name only when a branch label is also present, so the branch
+ * has room to show. specificity beats the rule above via the :has() argument.
+ * Without a branch the name keeps its uncapped behavior (no regression). */
+.repo-selector.vertical .repo-chip:has(.repo-branch) .repo-name {
+  max-width: 40%;
+  min-width: 0;
 }
 
 /* ─── Status badges (↑ ahead / ↓ behind / ● dirty) ─────────────────────

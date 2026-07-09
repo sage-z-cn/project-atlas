@@ -149,4 +149,6 @@ export interface RepoStatus {
   behind: number | null;
   /** Uncommitted file count (modified + staged + untracked). Chip hides ● when 0. */
   dirty: number;
+  /** Current branch name. `null`/`undefined` for detached HEAD or unknown — chip hides it. */
+  branch?: string | null;
 }

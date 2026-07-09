@@ -3,6 +3,7 @@ import { usePanelStore } from "../store/panel-store";
 import type { RepoInfo, RepoStatus } from "../types/git";
 import { t } from "../i18n";
 import RepoIcon from "~icons/codicon/repo";
+import BranchIcon from "~icons/codicon/git-branch";
 import "./RepoSelector.css";
 
 interface Props {
@@ -92,10 +93,30 @@ function RepoSelectorBody({
         >
           <RepoIcon width={14} height={14} />
           <span className="repo-name">{repo.name}</span>
+          <RepoBranch status={repoStatuses[repo.path]} />
           <RepoBadges status={repoStatuses[repo.path]} />
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Current-branch label. Renders a git-branch glyph + branch name, sitting
+ * between the repo name and the status badges. Identity info (which branch),
+ * visually subordinate to the repo name (which repo) — see RepoSelector.css.
+ *
+ * Returns null for detached HEAD / unknown branch (`null`/`undefined`/`""`),
+ * leaving no extra gap in the chip.
+ */
+function RepoBranch({ status }: { status?: RepoStatus }) {
+  const branch = status?.branch;
+  if (!branch) return null;
+  return (
+    <span className="repo-branch" title={t("Branch: {0}", branch)}>
+      <BranchIcon width={12} height={12} />
+      <span className="branch-name">{branch}</span>
+    </span>
   );
 }
 

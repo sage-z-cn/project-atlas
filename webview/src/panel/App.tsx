@@ -1,4 +1,4 @@
-import { Allotment } from "allotment";
+import { Allotment, LayoutPriority } from "allotment";
 import { useCallback, useEffect, useState } from "react";
 import "allotment/dist/style.css";
 import { RepoSelector } from "../shared/components/RepoSelector";
@@ -199,7 +199,7 @@ export function PanelApp() {
         {/* Middle + Right in Allotment */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <Allotment proportionalLayout={false}>
-            <Allotment.Pane minSize={400}>
+            <Allotment.Pane minSize={400} priority={LayoutPriority.High}>
               <div
                 ref={middleRef}
                 style={{

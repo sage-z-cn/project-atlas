@@ -89,6 +89,7 @@
   "Branch '{0}' already exists.\nChange the name or overwrite existing branch.": "分支 '{0}' 已存在。\n更改名称或覆盖现有分支。",
   "Branch '{0}' is not fully merged. Force delete?": "分支 '{0}' 未完全合并。强制删除？",
   "Branch or tag": "分支或标签",
+  "Branch: {0}": "分支：{0}",
   "Cancel": "取消",
   "Changed Files": "已更改的文件",
   "Changes": "更改",

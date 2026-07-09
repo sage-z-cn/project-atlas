@@ -44,6 +44,7 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
             ahead: null,
             behind: null,
             dirty: 0,
+            branch: null,
           };
         }
         try {
@@ -64,6 +65,7 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
             // getWorkingTreeChanges runs `git status --porcelain -uall`, so
             // this already includes modified + staged + untracked files.
             dirty: changes.length,
+            branch: current?.name ?? null,
           };
         } catch {
           return {
@@ -71,6 +73,7 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
             ahead: null,
             behind: null,
             dirty: 0,
+            branch: null,
           };
         }
       }),
