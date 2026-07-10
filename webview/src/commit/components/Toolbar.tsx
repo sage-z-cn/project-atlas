@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { bridge } from "../../shared/bridge";
 import { Tooltip } from "../../shared/components/Tooltip";
 import "../../shared/components/Tooltip.css";
@@ -182,6 +182,12 @@ function ViewOptionsMenu({ onClose }: { onClose: () => void }) {
     setCommitBadgeMode,
   } = useCommitStore();
 
+  useEffect(() => {
+    const handleBlur = () => onClose();
+    window.addEventListener("blur", handleBlur);
+    return () => window.removeEventListener("blur", handleBlur);
+  }, [onClose]);
+
   return (
     <>
       {/* Backdrop to close */}
@@ -202,6 +208,18 @@ function ViewOptionsMenu({ onClose }: { onClose: () => void }) {
           zIndex: 1000,
         }}
       >
+        <button
+          type="button"
+          className="commit-context-menu-item"
+          onClick={() => {
+            void bridge.request("openGitSettings");
+            onClose();
+          }}
+        >
+          <span className="commit-context-menu-icon" />
+          <span>{t("Open Settings")}</span>
+        </button>
+        <div className="commit-context-menu-separator" />
         <div className="commit-context-menu-header">{t("List Style")}</div>
         <button
           type="button"

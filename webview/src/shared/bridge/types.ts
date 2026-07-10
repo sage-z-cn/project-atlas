@@ -115,12 +115,18 @@ export type CommandType =
   | "executeRollback"
   | "closeRollbackPanel"
   | "getGitConfig"
-  | "setGitConfig";
+  | "setGitConfig"
+  | "getAiConfig"
+  | "generateCommitMessage"
+  | "setAiApiKey"
+  | "openAiSettings"
+  | "openGitSettings";
 
 export interface Bridge {
   request(
     command: CommandType | string,
     params?: Record<string, unknown>,
+    options?: { timeout?: number },
   ): Promise<unknown>;
   onEvent(handler: (event: string, data: unknown) => void): () => void;
   /**

@@ -745,9 +745,12 @@ function ViewOptionsDropdown({
     };
     document.addEventListener("mousedown", handleClick, true);
     document.addEventListener("keydown", handleKey);
+    const handleBlur = () => onClose();
+    window.addEventListener("blur", handleBlur);
     return () => {
       document.removeEventListener("mousedown", handleClick, true);
       document.removeEventListener("keydown", handleKey);
+      window.removeEventListener("blur", handleBlur);
     };
   }, [onClose]);
 

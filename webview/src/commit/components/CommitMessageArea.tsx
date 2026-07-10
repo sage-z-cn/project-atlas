@@ -5,6 +5,8 @@ import { Tooltip } from "../../shared/components/Tooltip";
 import "../../shared/components/Tooltip.css";
 import { t } from "../../shared/i18n";
 import { useCommitStore } from "../../shared/store/commit-store";
+import SparkleIcon from "~icons/codicon/sparkle";
+import LoadingIcon from "~icons/codicon/loading";
 
 export function CommitMessageArea() {
   const {
@@ -17,6 +19,11 @@ export function CommitMessageArea() {
     selectedFiles,
     commitListStyle,
     changes,
+    aiGenerating,
+    aiConfigured,
+    aiApiUrl,
+    aiModel,
+    generateCommitMessage,
   } = useCommitStore();
 
   const [showDropdown, setShowDropdown] = useState(false);
@@ -60,6 +67,35 @@ export function CommitMessageArea() {
     },
     [handleCommit],
   );
+
+  const hasChanges = changes.length > 0;
+  const canGenerate = hasChanges && aiConfigured && !aiGenerating;
+
+  // Simplified opacity/cursor logic (m4) — extracted to avoid nested ternaries in JSX
+  const aiClickable = canGenerate || !aiConfigured;
+  const aiBaseOpacity = aiGenerating ? 1 : aiClickable ? 0.6 : 0.3;
+  const aiTooltip = aiGenerating
+    ? t("Generating commit message...")
+    : !aiApiUrl || !aiModel
+      ? t("AI not configured. Click to open settings.")
+      : !aiConfigured
+        ? t("AI API key not set. Click to set up.")
+        : t("Generate commit message with AI");
+
+  const handleAiGenerate = useCallback(async () => {
+    if (aiGenerating) return;
+    // 配置引导：先检查 apiUrl/model，缺失则跳转设置页；再检查 apiKey，缺失则弹输入框
+    if (!aiApiUrl || !aiModel) {
+      await bridge.request("openAiSettings");
+      return;
+    }
+    if (!aiConfigured) {
+      await bridge.request("setAiApiKey", {}, { timeout: 120_000 });
+      return;
+    }
+    if (!hasChanges) return;
+    await generateCommitMessage();
+  }, [aiApiUrl, aiModel, aiConfigured, hasChanges, aiGenerating, generateCommitMessage]);
 
   const handleHistoryClick = useCallback(async () => {
     if (showHistory) {
@@ -113,7 +149,7 @@ export function CommitMessageArea() {
         value={commitMessage}
         onChange={(e) => setCommitMessage(e.target.value)}
         onKeyDown={handleKeyDown}
-        rows={3}
+        rows={5}
       />
 
       <div className="commit-amend-row">
@@ -125,6 +161,40 @@ export function CommitMessageArea() {
           />
           {t("Amend")}
         </label>
+        {/* AI 生成按钮 */}
+        <Tooltip text={aiTooltip}>
+          <span
+            onClick={handleAiGenerate}
+            style={{
+              cursor: aiClickable ? "pointer" : "default",
+              display: "inline-flex",
+              alignItems: "center",
+              borderRadius: 3,
+              padding: 2,
+              opacity: aiBaseOpacity,
+              transition: "background 0.15s, opacity 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              if (aiClickable) (e.currentTarget as HTMLElement).style.opacity = "1";
+            }}
+            onMouseLeave={(e) => {
+              if (aiClickable) (e.currentTarget as HTMLElement).style.opacity = String(aiBaseOpacity);
+            }}
+            onMouseDown={(e) => {
+              (e.currentTarget as HTMLElement).style.background =
+                "var(--vscode-toolbar-activeBackground, rgba(0,0,0,0.15))";
+            }}
+            onMouseUp={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+            }}
+          >
+            {aiGenerating ? (
+              <LoadingIcon style={{ fontSize: 14, animation: "ai-spin 1s linear infinite" }} />
+            ) : (
+              <SparkleIcon style={{ fontSize: 14, color: canGenerate ? "var(--vscode-textLink-foreground, #3794ff)" : undefined }} />
+            )}
+          </span>
+        </Tooltip>
         <Tooltip text={t("Recent commit messages")}>
           <span
             ref={historyBtnRef}

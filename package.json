@@ -264,6 +264,14 @@
         "command": "git-atlas.editSource",
         "title": "%command.git-atlas.editSource%",
         "icon": "$(go-to-file)"
+      },
+      {
+        "command": "git-atlas.setAiApiKey",
+        "title": "%command.git-atlas.setAiApiKey%"
+      },
+      {
+        "command": "git-atlas.clearAiApiKey",
+        "title": "%command.git-atlas.clearAiApiKey%"
       }
     ],
     "menus": {
@@ -688,6 +696,59 @@
             "%config.gitAtlas.commitBadgeMode.off%"
           ],
           "description": "%config.gitAtlas.commitBadgeMode%"
+        },
+        "gitAtlas.aiCommit.apiUrl": {
+          "type": "string",
+          "default": "",
+          "description": "%config.gitAtlas.aiCommit.apiUrl%",
+          "order": 10
+        },
+        "gitAtlas.aiCommit.model": {
+          "type": "string",
+          "default": "",
+          "description": "%config.gitAtlas.aiCommit.model%",
+          "order": 11
+        },
+        "gitAtlas.aiCommit.language": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "en",
+            "zh",
+            "follow-locale"
+          ],
+          "enumDescriptions": [
+            "%config.gitAtlas.aiCommit.language.auto%",
+            "%config.gitAtlas.aiCommit.language.en%",
+            "%config.gitAtlas.aiCommit.language.zh%",
+            "%config.gitAtlas.aiCommit.language.follow-locale%"
+          ],
+          "description": "%config.gitAtlas.aiCommit.language%",
+          "order": 12
+        },
+        "gitAtlas.aiCommit.maxDiffChars": {
+          "type": "number",
+          "default": 8000,
+          "minimum": 500,
+          "maximum": 50000,
+          "description": "%config.gitAtlas.aiCommit.maxDiffChars%",
+          "order": 13
+        },
+        "gitAtlas.aiCommit.customInstructions": {
+          "type": "string",
+          "default": "",
+          "editPresentation": "multilineText",
+          "description": "%config.gitAtlas.aiCommit.customInstructions%",
+          "order": 14
+        },
+        "gitAtlas.aiCommit.timeout": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "maximum": 300,
+          "description": "%config.gitAtlas.aiCommit.timeout%",
+          "order": 15
         }
       }
     }

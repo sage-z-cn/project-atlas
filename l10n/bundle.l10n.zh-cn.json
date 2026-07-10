@@ -327,5 +327,20 @@
   "branch name": "分支名称",
   "{0} changes": "{0} 项变更",
   "{0} changes across all repositories": "所有仓库共 {0} 项变更",
-  "(me)": "(我)"
+  "(me)": "(我)",
+  "Generate commit message with AI": "使用 AI 生成提交信息",
+  "AI not configured. Click to open settings.": "AI 未配置，点击打开设置。",
+  "AI API key not set. Click to set up.": "AI API 密钥未设置，点击配置。",
+  "AI not configured. Click to set up.": "AI 未配置，点击设置",
+  "Generating commit message...": "正在生成提交信息...",
+  "Enter your AI API key": "输入 AI API 密钥",
+  "AI API key saved.": "AI API 密钥已保存。",
+  "AI API key cleared.": "AI API 密钥已清除。",
+  "No active repository.": "没有活动的仓库。",
+  "No changes to generate a commit message from.": "没有可用于生成提交信息的改动。",
+  "AI API returned an empty response.": "AI API 返回了空响应。",
+  "AI request timed out after {0} seconds.": "AI 请求超时（{0} 秒）。",
+  "AI is not configured. Set API URL, model, and API key first.": "AI 未配置，请先设置 API 地址、模型和密钥。",
+  "Open Settings": "打开设置",
+  "Set API Key": "设置 API 密钥"
 }

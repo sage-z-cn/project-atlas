@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { bridge } from "../bridge";
+import { t } from "../i18n";
 import type { RepoInfo, RepoStatus } from "../types/git";
 
 export interface WorkingTreeFile {
@@ -84,7 +85,15 @@ interface CommitStore {
   commitListStyle: "vscode" | "jetbrains";
   // Badge display mode (Total commits / Current repo / Off)
   commitBadgeMode: "total" | "current" | "off";
+  // AI commit message 生成
+  aiGenerating: boolean;
+  aiConfigured: boolean;
+  aiApiUrl: string;
+  aiModel: string;
+  aiTimeout: number;
   fetchGitConfig: () => Promise<void>;
+  fetchAiConfig: () => Promise<void>;
+  generateCommitMessage: () => Promise<void>;
   setCommitListStyle: (style: "vscode" | "jetbrains") => Promise<void>;
   setCommitBadgeMode: (mode: "total" | "current" | "off") => Promise<void>;
   /** Discard (rollback) multiple files; backend handler already confirms modally. */
@@ -160,6 +169,11 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   collapsedDirs: new Set<string>(),
   commitListStyle: "vscode",
   commitBadgeMode: "current",
+  aiGenerating: false,
+  aiConfigured: false,
+  aiApiUrl: "",
+  aiModel: "",
+  aiTimeout: 30,
 
   // ── Multi-repo actions ─────────────────────────────────────────────
   async switchRepo(path: string) {
@@ -213,6 +227,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       get().refresh(),
       get().fetchRepoStatuses(),
       get().fetchGitConfig(),
+      get().fetchAiConfig(),
     ]);
   },
 
@@ -691,6 +706,86 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     }
   },
 
+  async fetchAiConfig() {
+    try {
+      const result = (await bridge.request("getAiConfig")) as {
+        configured: boolean;
+        hasApiKey: boolean;
+        apiUrl: string;
+        model: string;
+        timeout: number;
+      };
+      set({
+        aiConfigured: result?.configured ?? false,
+        aiApiUrl: result?.apiUrl ?? "",
+        aiModel: result?.model ?? "",
+        aiTimeout: result?.timeout ?? 30,
+      });
+    } catch (err) {
+      console.error("fetchAiConfig failed:", err);
+    }
+  },
+
+  async generateCommitMessage() {
+    const mySeq = get().repoSeq;
+    const { commitListStyle, selectedFiles, changes } = get();
+    if (changes.length === 0) return;
+
+    set({ aiGenerating: true });
+    try {
+      const filePaths = [...selectedFiles].map((key) => key.split(":")[0]);
+      const uniquePaths = [...new Set(filePaths)];
+
+      const result = (await bridge.request(
+        "generateCommitMessage",
+        { commitListStyle, selectedFiles: uniquePaths, repoPath: get().currentRepoPath },
+        { timeout: (get().aiTimeout + 10) * 1000 },
+      )) as { message?: string; source?: string; status?: string };
+
+      if (mySeq !== get().repoSeq) return;
+
+      if (result?.status === "not_git_repo") {
+        bridge.request("showErrorNotification", {
+          message: t("No active repository."),
+        }).catch(() => {});
+        return;
+      }
+
+      if (result?.message) {
+        set({ commitMessage: result.message });
+      }
+    } catch (err) {
+      if (mySeq !== get().repoSeq) return;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("generateCommitMessage failed:", msg);
+
+      // Categorize error and offer actionable guidance
+      const isAuthError = /\b40[13]\b|unauthorized|invalid.*key/i.test(msg);
+      const isConfigError = /\b404\b|model|not.?found|econnrefused|enotfound|fetch failed|timed out/i.test(msg);
+
+      const openSettingsLabel = t("Open Settings");
+      const setKeyLabel = t("Set API Key");
+      const actions = isAuthError ? [setKeyLabel] : isConfigError ? [openSettingsLabel] : [];
+
+      bridge.request(
+        "showErrorNotification",
+        { message: msg, actions },
+        { timeout: 120_000 },
+      ).then((res) => {
+        const action = (res as { action?: string })?.action;
+        if (action === openSettingsLabel) {
+          bridge.request("openAiSettings").catch(() => {});
+        } else if (action === setKeyLabel) {
+          bridge.request("setAiApiKey", {}, { timeout: 120_000 }).catch(() => {});
+        }
+      }).catch(() => {});
+    } finally {
+      // Always clear aiGenerating — unlike fetchChanges, there's no automatic
+      // re-trigger on repo switch, so a conditional clear would leave it stuck.
+      set({ aiGenerating: false });
+    }
+  },
+
   async setCommitListStyle(style) {
     // Optimistic local update + persist to settings; backend broadcasts
     // gitConfigChanged which makes all webviews refetch.
@@ -749,6 +844,11 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 bridge.onEvent((event, data) => {
   if (event === "gitConfigChanged") {
     useCommitStore.getState().fetchGitConfig();
+    useCommitStore.getState().fetchAiConfig();
+    return;
+  }
+  if (event === "aiConfigChanged") {
+    useCommitStore.getState().fetchAiConfig();
     return;
   }
   if (event === "repoChanged") {

@@ -282,9 +282,12 @@ function ShelfBgContextMenu({
       };
       document.addEventListener("mousedown", handleClick);
       document.addEventListener("keydown", handleKey);
+      const handleBlur = () => onClose();
+      window.addEventListener("blur", handleBlur);
       return () => {
         document.removeEventListener("mousedown", handleClick);
         document.removeEventListener("keydown", handleKey);
+        window.removeEventListener("blur", handleBlur);
       };
     },
     [onClose],

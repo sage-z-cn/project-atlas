@@ -61,6 +61,14 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
 
   messageRouter.handle("showErrorNotification", async (params) => {
     const message = params.message as string;
+    const actions = (params.actions as string[]) ?? [];
+    if (actions.length > 0) {
+      const selection = await vscode.window.showErrorMessage(
+        message,
+        ...actions,
+      );
+      return { success: true, action: selection ?? null };
+    }
     void vscode.window.showErrorMessage(message);
     return { success: true };
   });

@@ -63,5 +63,17 @@
   "config.gitAtlas.commitBadgeMode": "Git Commit 活动栏图标上更改数量徽标的显示方式。",
   "config.gitAtlas.commitBadgeMode.total": "所有仓库的更改数量总和。",
   "config.gitAtlas.commitBadgeMode.current": "仅当前选中仓库的更改数量。",
-  "config.gitAtlas.commitBadgeMode.off": "不显示徽标。"
+  "config.gitAtlas.commitBadgeMode.off": "不显示徽标。",
+  "config.gitAtlas.aiCommit.apiUrl": "AI API 基础地址或完整端点（OpenAI 兼容）。如果缺少 /chat/completions 后缀会自动补全，如 https://api.openai.com/v1 或 https://open.bigmodel.cn/api/paas/v4",
+  "config.gitAtlas.aiCommit.model": "AI 模型名称（如 gpt-4o-mini、deepseek-chat）。",
+  "config.gitAtlas.aiCommit.language": "生成提交信息的语言。",
+  "config.gitAtlas.aiCommit.language.auto": "根据最近的 git 提交历史自动检测。",
+  "config.gitAtlas.aiCommit.language.en": "英文",
+  "config.gitAtlas.aiCommit.language.zh": "中文",
+  "config.gitAtlas.aiCommit.language.follow-locale": "跟随 VS Code 显示语言",
+  "config.gitAtlas.aiCommit.maxDiffChars": "发送给 AI 的最大 diff 字符数，超出则截断。",
+  "config.gitAtlas.aiCommit.customInstructions": "追加到 AI 提示词中的自定义提交信息规则。如“始终包含 JIRA 工单号”或“使用 Angular 提交规范”。",
+  "config.gitAtlas.aiCommit.timeout": "AI 生成提交信息的请求超时时间（秒）。",
+  "command.git-atlas.setAiApiKey": "Git Atlas: 设置 AI API 密钥",
+  "command.git-atlas.clearAiApiKey": "Git Atlas: 清除 AI API 密钥"
 }

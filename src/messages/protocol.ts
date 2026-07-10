@@ -122,7 +122,12 @@ export type CommandType =
   | "getRepoStatuses"
   | "getL10nBundle"
   | "getGitConfig"
-  | "setGitConfig";
+  | "setGitConfig"
+  | "getAiConfig"
+  | "generateCommitMessage"
+  | "setAiApiKey"
+  | "openAiSettings"
+  | "openGitSettings";
 
 export type EventType =
   | "gitStateChanged"
@@ -135,7 +140,8 @@ export type EventType =
   | "rollbackPanelInit"
   | "repoChanged"
   | "reposChanged"
-  | "gitConfigChanged";
+  | "gitConfigChanged"
+  | "aiConfigChanged";
 
 export interface RemoteBranchGroup {
   remote: string;

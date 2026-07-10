@@ -1,11 +1,11 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { bridge } from "../../shared/bridge";
 import { Tooltip } from "../../shared/components/Tooltip";
 import "../../shared/components/Tooltip.css";
 import { t } from "../../shared/i18n";
 import IconExpandAll from "~icons/codicon/expand-all";
 import IconCollapseAll from "~icons/codicon/collapse-all";
-import IconCollapsePanel from "~icons/codicon/layout-sidebar-left-off";
+import IconChevronLeft from "~icons/codicon/chevron-left";
 import IconAdd from "~icons/codicon/add";
 import IconUpdate from "~icons/codicon/repo-pull";
 import IconDelete from "~icons/codicon/trash";
@@ -15,7 +15,7 @@ import IconFetch from "~icons/codicon/repo-fetch";
 import IconStar from "~icons/codicon/star-full";
 import IconLocate from "~icons/codicon/target";
 import IconListFiles from "~icons/codicon/list-tree";
-import IconSettings from "~icons/codicon/settings-gear";
+import IconSettings from "~icons/codicon/settings";
 import { usePanelStore } from "../../shared/store/panel-store";
 
 export function BranchSidebar({
@@ -94,6 +94,7 @@ export function BranchSidebar({
 
   return (
     <div className="branch-sidebar">
+      <div className="branch-sidebar-scroll">
       {onTogglePanel && (
         <>
           <Tooltip text={t("Hide Branches")}>
@@ -102,7 +103,7 @@ export function BranchSidebar({
               className="branch-sidebar-btn"
               onClick={onTogglePanel}
             >
-              <IconCollapsePanel />
+              <IconChevronLeft />
             </button>
           </Tooltip>
           <div className="branch-sidebar-separator" />
@@ -204,8 +205,8 @@ export function BranchSidebar({
         </button>
       </Tooltip>
 
-      <div className="branch-sidebar-spacer" />
-
+      </div>
+      <div className="branch-sidebar-footer">
       <Tooltip text={t("Expand All")}>
         <button
           type="button"
@@ -225,6 +226,7 @@ export function BranchSidebar({
         </button>
       </Tooltip>
       <SettingsButton />
+      </div>
     </div>
   );
 }
@@ -238,7 +240,7 @@ function SettingsButton() {
 
   return (
     <>
-      <Tooltip text={t("Settings")}>
+      <Tooltip text={t("Options")}>
         <button
           type="button"
           className="branch-sidebar-btn"
@@ -270,25 +272,56 @@ function SettingsMenu({
   const singleClickAction = usePanelStore((s) => s.singleClickAction);
   const toggleShowTags = usePanelStore((s) => s.toggleShowTags);
   const setSingleClickAction = usePanelStore((s) => s.setSingleClickAction);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
 
-  const menuRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (!node) return;
-      const handleClick = (e: MouseEvent) => {
-        if (!node.contains(e.target as Node)) onClose();
-      };
-      const handleKey = (e: KeyboardEvent) => {
-        if (e.key === "Escape") onClose();
-      };
-      document.addEventListener("mousedown", handleClick);
-      document.addEventListener("keydown", handleKey);
-      return () => {
-        document.removeEventListener("mousedown", handleClick);
-        document.removeEventListener("keydown", handleKey);
-      };
-    },
-    [onClose],
-  );
+  // Adjust position after first render to keep menu within viewport
+  useEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect();
+      const viewportH = window.innerHeight;
+      const viewportW = window.innerWidth;
+      let top = anchor.top;
+      let left = anchor.left;
+      if (top + rect.height > viewportH) {
+        const above = anchor.top - rect.height;
+        if (above >= 4) {
+          top = above;
+        } else {
+          top = Math.max(4, viewportH - rect.height - 4);
+        }
+      }
+      if (left + rect.width > viewportW) {
+        left = Math.max(4, viewportW - rect.width - 4);
+      }
+      setPosition({ left, top });
+    });
+  }, [anchor.left, anchor.top]);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    const handleBlur = () => onClose();
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [onClose]);
 
   return (
     <div
@@ -296,11 +329,26 @@ function SettingsMenu({
       className="commit-context-menu"
       style={{
         position: "fixed",
-        left: anchor.left,
-        top: anchor.top,
+        left: position ? position.left : anchor.left,
+        top: position ? position.top : -9999,
         zIndex: 1000,
+        maxHeight: "calc(100vh - 8px)",
+        overflowY: "auto",
+        visibility: position ? "visible" : "hidden",
       }}
     >
+      <button
+        type="button"
+        className="commit-context-menu-item"
+        onClick={() => {
+          void bridge.request("openGitSettings");
+          onClose();
+        }}
+      >
+        <span className="commit-context-menu-icon" />
+        <span>{t("Open Settings")}</span>
+      </button>
+      <div className="commit-context-menu-separator" />
       <div className="commit-context-menu-header">{t("On Single Click")}</div>
       <button
         type="button"

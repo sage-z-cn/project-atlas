@@ -11,6 +11,7 @@ import { registerUiHandlers } from "./uiHandlers";
 import { registerRepoHandlers } from "./repoHandlers";
 import { registerI18nHandlers } from "./i18nHandlers";
 import { registerConfigHandlers } from "./configHandlers";
+import { registerAiHandlers } from "./aiHandlers";
 
 /**
  * Aggregate entry point that registers every git-related MessageRouter
@@ -33,4 +34,5 @@ export function registerGitHandlers(ctx: GitHandlerContext): void {
   registerRepoHandlers(ctx);
   registerI18nHandlers(ctx);
   registerConfigHandlers(ctx);
+  registerAiHandlers(ctx);
 }

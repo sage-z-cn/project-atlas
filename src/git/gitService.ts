@@ -340,6 +340,18 @@ export class GitService {
     return this.execGit(args);
   }
 
+  /**
+   * 获取已暂存改动的 unified diff（git diff --cached）。
+   * 用于 AI commit message 生成时 VSCode 风格的"暂存优先"策略。
+   */
+  async getStagedPatch(): Promise<string> {
+    try {
+      return await this.execGit(["diff", "--cached"]);
+    } catch {
+      return "";
+    }
+  }
+
   async getFileContent(ref: string, filePath: string): Promise<string> {
     if (!ref) {
       return "";
@@ -1542,7 +1554,7 @@ export class GitService {
     }
   }
 
-  private async generatePatchForFiles(filePaths: string[]): Promise<string> {
+  public async generatePatchForFiles(filePaths: string[]): Promise<string> {
     let patch = "";
 
     // Separate tracked and untracked files
@@ -1601,7 +1613,7 @@ export class GitService {
     return patch;
   }
 
-  private async generatePatchAll(): Promise<string> {
+  public async generatePatchAll(): Promise<string> {
     let patch = "";
 
     // Get diff for all tracked changes

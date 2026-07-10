@@ -292,4 +292,5 @@
   font-size: 11px;
   white-space: nowrap;
   flex-shrink: 0;
+  opacity: 0.8;
 }

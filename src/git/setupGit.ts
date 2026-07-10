@@ -15,6 +15,7 @@ import { PushPanel } from "../webview/pushPanel";
 import { RollbackPanel } from "../webview/rollbackPanel";
 import { registerGitHandlers } from "../commands/gitHandlers";
 import { registerGitCommands } from "../commands/gitCommands";
+import { registerAiCommands } from "../commands/aiCommands";
 import { registerCommitViewBadge } from "./commitViewBadge";
 import type { GitHandlerContext } from "../commands/gitContext";
 
@@ -162,6 +163,8 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   );
 
   registerGitCommands(context, ctx);
+
+  registerAiCommands(ctx);
 
   // h. 临时调试命令（不进 package.json contributes，仅内部 registerCommand
   //    用于阶段 A 手测后端联动）

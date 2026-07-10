@@ -41,13 +41,13 @@ export function createVSCodeBridge(): Bridge {
   });
 
   return {
-    request(command, params = {}) {
+    request(command, params = {}, options?: { timeout?: number }) {
       return new Promise((resolve, reject) => {
         const id = crypto.randomUUID();
         const timeout = setTimeout(() => {
           pendingRequests.delete(id);
           reject(new Error(`Request '${command}' timed out`));
-        }, 10_000);
+        }, options?.timeout ?? 10_000);
 
         pendingRequests.set(id, {
           resolve: (v) => {
