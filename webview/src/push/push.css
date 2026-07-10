@@ -150,6 +150,10 @@
 }
 
 .push-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   padding: 6px 16px;
   border: none;
   border-radius: 4px;
