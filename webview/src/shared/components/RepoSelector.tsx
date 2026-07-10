@@ -22,10 +22,12 @@ interface Props {
  * view's `mode` (package.json views maps gitLog→panel, commitPanel→activitybar),
  * so we derive orientation from the store rather than detecting layout at runtime.
  *
- * Renders nothing for a single-repo workspace (`repos.length <= 1`) — there's
- * nothing to choose, so we avoid taking space. With multiple repos the chips
- * scroll (overflow) rather than collapsing to a dropdown, to keep every repo
- * one click away.
+ * Renders nothing for a zero-repo workspace (`repos.length === 0`). A
+ * single-repo workspace (`repos.length === 1`) renders a read-only status
+ * strip — there's nothing to switch, but the branch name and
+ * ahead/behind/dirty badges are still surfaced so the user sees repo status
+ * at the top of the view. With multiple repos the chips scroll (overflow)
+ * rather than collapsing to a dropdown, to keep every repo one click away.
  *
  * Clicking a chip calls `switchRepo`, which only issues the host `switchRepo`
  * command. The host then broadcasts `repoChanged`, which both stores listen for
@@ -70,6 +72,20 @@ interface BodyProps {
   orientation: "horizontal" | "vertical";
 }
 
+/**
+ * Renders the repo chip strip. Three cases:
+ *  - `repos.length === 0`: renders nothing (no repo to show).
+ *  - `repos.length === 1`: renders a read-only status strip — the single repo
+ *    with its branch + ahead/behind/dirty badges, but no click/switch behavior
+ *    (there's nothing to switch to). Reuses RepoBranch and RepoBadges so it
+ *    stays visually consistent with the multi-repo chips; the chip is a
+ *    non-interactive <div> (no switchRepo, no hover lift, default cursor).
+ *  - `repos.length > 1`: the normal clickable chips. Clicking a chip calls
+ *    `switchRepo`, which only issues the host `switchRepo` command. The host
+ *    then broadcasts `repoChanged`, which both stores listen for (clearing
+ *    per-repo state + refetching). No optimistic local update — the host is
+ *    the source of truth for the active repo.
+ */
 function RepoSelectorBody({
   repos,
   currentRepoPath,
@@ -77,8 +93,25 @@ function RepoSelectorBody({
   repoStatuses,
   orientation,
 }: BodyProps) {
-  // Single-repo workspace: nothing to choose, hide the selector entirely.
-  if (repos.length <= 1) return null;
+  // No repos: nothing to render.
+  if (repos.length === 0) return null;
+
+  // Single-repo workspace: a read-only status strip. Reuses RepoBranch and
+  // RepoBadges for visual consistency, but the chip is a non-interactive
+  // <div> — it only surfaces the repo's status, with no switch behavior.
+  if (repos.length === 1) {
+    const repo = repos[0];
+    return (
+      <div className={`repo-selector ${orientation} readonly`}>
+        <div className="repo-chip" title={repo.path}>
+          <RepoSelectedIcon width={14} height={14} />
+          <span className="repo-name">{repo.name}</span>
+          <RepoBranch status={repoStatuses[repo.path]} />
+          <RepoBadges status={repoStatuses[repo.path]} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`repo-selector ${orientation}`}>
