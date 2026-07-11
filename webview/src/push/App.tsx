@@ -88,6 +88,9 @@ export function PushApp() {
   // Editable remote branch target state
   const [targetRemote, setTargetRemote] = useState(remoteName);
   const [targetBranch, setTargetBranch] = useState(branchName);
+  const [pushTags, setPushTags] = useState(
+    root?.dataset.withTags === "true",
+  );
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"tree" | "flat">("tree");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -96,6 +99,20 @@ export function PushApp() {
   const bodyRef = useRef<HTMLDivElement>(null);
   const { leftWidthPercent, isDragging, dividerProps } =
     useDraggableDivider(bodyRef);
+
+  // Update state when push panel is re-opened (reveal path sends pushPanelInit
+  // with the latest branch/remote/withTags — without this, re-opening an already
+  // open panel would keep stale pushTags since the webview is not recreated).
+  useEffect(() => {
+    const off = bridge.onEvent((event, data) => {
+      if (event !== "pushPanelInit") return;
+      const d = data as { withTags?: boolean } | null;
+      if (d && typeof d.withTags === "boolean") {
+        setPushTags(d.withTags);
+      }
+    });
+    return () => off();
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -144,6 +161,7 @@ export function PushApp() {
           remote: targetRemote,
           targetBranch: targetBranch,
           force,
+          withTags: pushTags,
         })) as { data?: { output?: string; isUpToDate?: boolean } };
         setPushing(false);
         const isUpToDate = result?.data?.isUpToDate;
@@ -174,7 +192,7 @@ export function PushApp() {
         }
       }
     },
-    [branchName, targetRemote, targetBranch, commits.length],
+    [branchName, targetRemote, targetBranch, commits.length, pushTags],
   );
 
   const handleRebaseAndPush = useCallback(async () => {
@@ -189,6 +207,7 @@ export function PushApp() {
         remote: targetRemote,
         targetBranch: targetBranch,
         force: false,
+        withTags: pushTags,
       });
       setPushing(false);
       const message = t("Rebased and pushed to {0}/{1}", targetRemote, targetBranch);
@@ -202,7 +221,7 @@ export function PushApp() {
       setError(msg);
       bridge.request("showErrorNotification", { message: msg }).catch(() => {});
     }
-  }, [branchName, targetRemote, targetBranch]);
+  }, [branchName, targetRemote, targetBranch, pushTags]);
 
   const handleMergeAndPush = useCallback(async () => {
     setPushRejected({ show: false, branchName: "" });
@@ -216,6 +235,7 @@ export function PushApp() {
         remote: targetRemote,
         targetBranch: targetBranch,
         force: false,
+        withTags: pushTags,
       });
       setPushing(false);
       const message = t("Merged and pushed to {0}/{1}", targetRemote, targetBranch);
@@ -229,7 +249,7 @@ export function PushApp() {
       setError(msg);
       bridge.request("showErrorNotification", { message: msg }).catch(() => {});
     }
-  }, [branchName, targetRemote, targetBranch]);
+  }, [branchName, targetRemote, targetBranch, pushTags]);
 
   const handleBranchSelect = useCallback((branch: string) => {
     setTargetBranch(branch);
@@ -437,6 +457,25 @@ export function PushApp() {
       <div className="push-footer">
         {error && <span className="push-error">{error}</span>}
         <span style={{ flex: 1 }} />
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            cursor: "pointer",
+            fontSize: "13px",
+            color: "var(--vscode-foreground)",
+            userSelect: "none",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={pushTags}
+            onChange={(e) => setPushTags(e.target.checked)}
+            disabled={pushing}
+          />
+          {t("Push tags")}
+        </label>
         <button
           type="button"
           className="push-btn push-btn-secondary"

@@ -310,11 +310,14 @@ export class GitService {
       "%(objectname:short)",
       "%(objecttype)",
       "%(contents:subject)",
+      "%(creatordate:unix)",
     ].join(REF_FMT_FIELD_SEP);
 
+    // --sort=-creatordate: newest tags first (creator date desc).
     const output = await this.execGit([
       "tag",
       "-l",
+      "--sort=-creatordate",
       `--format=${tagFormat}`,
     ]).catch(() => "");
 
@@ -329,6 +332,7 @@ export class GitService {
         hash: fields[1]?.trim() ?? "",
         isAnnotated: fields[2]?.trim() === "tag",
         message: fields[3]?.trim() || undefined,
+        date: fields[4]?.trim() || undefined,
       });
     }
 
@@ -728,9 +732,11 @@ export class GitService {
     force = false,
     remote = "origin",
     targetBranch?: string,
+    withTags = false,
   ): Promise<string> {
     const args = ["push"];
     if (force) args.push("--force-with-lease");
+    if (withTags) args.push("--tags");
     args.push(remote, `${branchName}:${targetBranch || branchName}`);
     const output = await this.execGit(args);
     this.invalidateCache();
@@ -966,6 +972,17 @@ export class GitService {
       await this.execGit(["tag", tagName, hash]);
     }
     this.invalidateCache();
+  }
+
+  async deleteTag(tagName: string): Promise<void> {
+    await this.execGit(["tag", "-d", tagName]);
+    this.invalidateCache();
+  }
+
+  async pushTag(tagName: string, remote = "origin"): Promise<string> {
+    const output = await this.execGit(["push", remote, tagName]);
+    this.invalidateCache();
+    return output;
   }
 
   // ─── Commit Panel Operations ───────────────────────────────────────

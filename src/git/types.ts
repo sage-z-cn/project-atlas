@@ -66,6 +66,8 @@ export interface TagInfo {
   hash: string;
   isAnnotated: boolean;
   message?: string;
+  /** Creator date as unix seconds (annotated→tagger date, lightweight→commit date). */
+  date?: string;
 }
 
 export interface FileStatus {

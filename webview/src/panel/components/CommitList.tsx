@@ -211,10 +211,12 @@ export function CommitList({
     );
     if (idx >= 0) {
       virtualizer.scrollToIndex(idx, { align: "start" });
+      // Clear the one-shot trigger once the row is found and scrolled to.
+      usePanelStore.setState({ scrollTargetHash: null });
     }
-    // Clear the one-shot trigger regardless of whether the row was found, so a
-    // stale target never blocks a future navigation.
-    usePanelStore.setState({ scrollTargetHash: null });
+    // If not found, keep the trigger so it retries when visibleCommits updates
+    // (e.g. after a filter change loads the target commit's history). A new
+    // navigation will overwrite the value, so a stale target never blocks it.
   }, [scrollTargetHash, visibleCommits, virtualizer]);
 
   const handleScroll = useCallback(() => {

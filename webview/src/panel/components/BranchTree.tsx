@@ -209,6 +209,12 @@ function sortTreeNodes(nodes: TreeNode[]): void {
     if (a.isLeaf !== b.isLeaf) {
       return a.isLeaf ? 1 : -1;
     }
+    // Tags sorted by creator date, newest first; other leaves by name.
+    if (a.isLeaf && b.isLeaf && a.tag && b.tag) {
+      const aDate = Number(a.tag.date ?? 0);
+      const bDate = Number(b.tag.date ?? 0);
+      return bDate - aDate;
+    }
     return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   });
 
@@ -370,6 +376,54 @@ export function BranchTree({
   );
   const closeDirectoryContextMenu = useCallback(() => {
     setDirectoryContextMenu(null);
+  }, []);
+
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [tagContextMenu, setTagContextMenu] = useState<{
+    x: number;
+    y: number;
+    tag: TagInfo;
+  } | null>(null);
+  const selectCommit = usePanelStore((s) => s.selectCommit);
+  const handleTagClick = useCallback((_e: React.MouseEvent, tag: TagInfo) => {
+    setSelectedTag(tag.name);
+  }, []);
+  const handleTagDoubleClick = useCallback(
+    (tag: TagInfo) => {
+      setSelectedTag(tag.name);
+      const state = usePanelStore.getState();
+      // Match by full hash or prefix (tag.hash may be a short hash).
+      const matched = state.visibleCommits.find(
+        (c) =>
+          c.hash === tag.hash ||
+          c.hash.startsWith(tag.hash) ||
+          tag.hash.startsWith(c.hash),
+      );
+      if (matched) {
+        // Commit is in the loaded log — select + scroll using the FULL hash.
+        // selectCommit compares by strict equality, so the short tag.hash
+        // would fail to highlight the row (and break keyboard navigation).
+        void selectCommit(matched.hash);
+        usePanelStore.setState({ scrollTargetHash: matched.hash });
+      } else {
+        // Commit not in the loaded log — load the tag's history (tag becomes
+        // the branch filter; fetchInitialData auto-selects the first visible
+        // commit, which is the tag itself).
+        state.setFilter({ branch: tag.name });
+        usePanelStore.setState({ scrollTargetHash: tag.hash });
+      }
+    },
+    [selectCommit],
+  );
+  const handleTagContextMenu = useCallback(
+    (e: React.MouseEvent, tag: TagInfo) => {
+      e.preventDefault();
+      setTagContextMenu({ x: e.clientX, y: e.clientY, tag });
+    },
+    [],
+  );
+  const closeTagContextMenu = useCallback(() => {
+    setTagContextMenu(null);
   }, []);
 
   // Listen for expand-all / collapse-all events from sidebar
@@ -690,6 +744,10 @@ export function BranchTree({
                 groupPrefix="tags"
                 collapsed={collapsed}
                 onToggle={toggle}
+                selectedTag={selectedTag}
+                onTagClick={handleTagClick}
+                onTagDoubleClick={handleTagDoubleClick}
+                onTagContextMenu={handleTagContextMenu}
               />
             ))}
           </GroupSection>
@@ -724,6 +782,22 @@ export function BranchTree({
               y={directoryContextMenu.y}
               remoteName={directoryContextMenu.remoteName}
               onClose={closeDirectoryContextMenu}
+            />,
+            document.body,
+          )}
+
+        {/* Tag Context Menu */}
+        {tagContextMenu &&
+          createPortal(
+            <TagContextMenu
+              x={tagContextMenu.x}
+              y={tagContextMenu.y}
+              tag={tagContextMenu.tag}
+              onClose={closeTagContextMenu}
+              onCreateBranch={(startPoint, defaultName) => {
+                closeTagContextMenu();
+                setCreateBranchDialog({ startPoint, defaultName });
+              }}
             />,
             document.body,
           )}
@@ -899,6 +973,17 @@ function TreeNodeView({
   );
 }
 
+/** Format a tag's unix-second creator date as yyyy-mm-dd. */
+function formatTagDate(unixSec: string | undefined): string {
+  if (!unixSec) return "";
+  const d = new Date(Number(unixSec) * 1000);
+  if (Number.isNaN(d.getTime())) return "";
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 // ---------------------------------------------------------------------------
 // TagTreeNodeView – recursive renderer for tag nodes
 // ---------------------------------------------------------------------------
@@ -909,22 +994,37 @@ function TagTreeNodeView({
   groupPrefix,
   collapsed,
   onToggle,
+  selectedTag,
+  onTagClick,
+  onTagDoubleClick,
+  onTagContextMenu,
 }: {
   node: TreeNode;
   depth: number;
   groupPrefix: string;
   collapsed: Record<string, boolean>;
   onToggle: (key: string) => void;
+  selectedTag: string | null;
+  onTagClick: (e: React.MouseEvent, tag: TagInfo) => void;
+  onTagDoubleClick: (tag: TagInfo) => void;
+  onTagContextMenu: (e: React.MouseEvent, tag: TagInfo) => void;
 }) {
   const collapseKey = `${groupPrefix}:${node.fullPath}`;
 
-  if (node.isLeaf) {
+  if (node.isLeaf && node.tag) {
+    const isSelected = node.tag.name === selectedTag;
     return (
       <div
+        onClick={(e) => onTagClick(e, node.tag!)}
+        onDoubleClick={() => onTagDoubleClick(node.tag!)}
+        onContextMenu={(e) => onTagContextMenu(e, node.tag!)}
         style={{
-          padding: `4px 8px 4px ${20 + depth * 12}px`,
-          cursor: "default",
-          color: "var(--description-fg)",
+          padding: `4px 8px 4px ${20 + depth * 12 + 16}px`,
+          cursor: "pointer",
+          color: isSelected ? "var(--selected-fg)" : "inherit",
+          background: isSelected
+            ? "var(--vscode-list-activeSelectionBackground, #094771)"
+            : "transparent",
           display: "flex",
           alignItems: "center",
           gap: 4,
@@ -932,6 +1032,13 @@ function TagTreeNodeView({
       >
         <IconTagOutline style={{ color: "var(--description-fg)" }} />
         {node.name}
+        {node.tag.date && (
+          <span
+            style={{ fontSize: "0.85em", opacity: 0.6, marginLeft: 6 }}
+          >
+            {formatTagDate(node.tag.date)}
+          </span>
+        )}
       </div>
     );
   }
@@ -965,6 +1072,10 @@ function TagTreeNodeView({
             groupPrefix={groupPrefix}
             collapsed={collapsed}
             onToggle={onToggle}
+            selectedTag={selectedTag}
+            onTagClick={onTagClick}
+            onTagDoubleClick={onTagDoubleClick}
+            onTagContextMenu={onTagContextMenu}
           />
         ))}
     </div>
@@ -1540,15 +1651,28 @@ function RemoteDirContextMenu({
         onClose();
       }
     };
+    const handleScroll = (e: Event) => {
+      if (
+        menuRef.current &&
+        e.target instanceof Node &&
+        !menuRef.current.contains(e.target)
+      ) {
+        onClose();
+      }
+    };
     document.addEventListener("mousedown", handleClickOutside, true);
     document.addEventListener("contextmenu", handleContextMenu, true);
     document.addEventListener("keydown", handleEscape);
+    document.addEventListener("scroll", handleScroll, true);
     window.addEventListener("blur", onClose);
+    window.addEventListener("resize", onClose);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside, true);
       document.removeEventListener("contextmenu", handleContextMenu, true);
       document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("blur", onClose);
+      window.removeEventListener("resize", onClose);
     };
   }, [onClose]);
 
@@ -1597,6 +1721,217 @@ function RemoteDirContextMenu({
       >
         {t("Copy Remote URL")}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TagContextMenu – right-click context menu for tags
+// ---------------------------------------------------------------------------
+
+function TagContextMenu({
+  x,
+  y,
+  tag,
+  onClose,
+  onCreateBranch,
+}: {
+  x: number;
+  y: number;
+  tag: TagInfo;
+  onClose: () => void;
+  onCreateBranch: (startPoint: string, defaultName: string) => void;
+}) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect();
+      const top = Math.max(4, Math.min(y, window.innerHeight - rect.height - 4));
+      const left = Math.max(4, Math.min(x, window.innerWidth - rect.width - 4));
+      setPosition({ top, left });
+    });
+  }, [x, y]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    const handleContextMenu = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const handleScroll = (e: Event) => {
+      if (
+        menuRef.current &&
+        e.target instanceof Node &&
+        !menuRef.current.contains(e.target)
+      ) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside, true);
+    document.addEventListener("contextmenu", handleContextMenu, true);
+    document.addEventListener("keydown", handleEscape);
+    document.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("blur", onClose);
+    window.addEventListener("resize", onClose);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("contextmenu", handleContextMenu, true);
+      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("blur", onClose);
+      window.removeEventListener("resize", onClose);
+    };
+  }, [onClose]);
+
+  const handleCheckout = async () => {
+    onClose();
+    try {
+      await bridgeWithProgress("checkoutBranch", { branchName: tag.name });
+    } catch (err) {
+      console.error("Tag checkout failed:", err);
+    }
+  };
+
+  const handleNewBranch = () => {
+    onClose();
+    onCreateBranch(tag.name, tag.name);
+  };
+
+  const handleCopyName = async () => {
+    onClose();
+    await bridge.request("copyToClipboard", { text: tag.name });
+    void bridge.request("showInfoNotification", {
+      message: t("Copied tag name: {0}", tag.name),
+    });
+  };
+
+  const handleCopyHash = async () => {
+    onClose();
+    await bridge.request("copyToClipboard", { text: tag.hash });
+    void bridge.request("showInfoNotification", {
+      message: t("Copied tag hash: {0}", tag.hash),
+    });
+  };
+
+  const handlePushTag = async () => {
+    onClose();
+    try {
+      await bridgeWithProgress("pushTag", { tagName: tag.name });
+      void bridge.request("showInfoNotification", {
+        message: t("Pushed tag '{0}'", tag.name),
+      });
+    } catch (err) {
+      console.error("Push tag failed:", err);
+    }
+  };
+
+  const handleDelete = async () => {
+    onClose();
+    const result = (await bridge.request("showConfirmMessage", {
+      message: t("Delete tag '{0}'?", tag.name),
+      confirmLabel: t("Delete"),
+    })) as { confirmed: boolean };
+    if (!result.confirmed) return;
+    try {
+      await bridgeWithProgress("deleteTag", { tagName: tag.name });
+      void bridge.request("showInfoNotification", {
+        message: t("Deleted tag '{0}'", tag.name),
+      });
+    } catch (err) {
+      console.error("Delete tag failed:", err);
+    }
+  };
+
+  const items: {
+    label: string;
+    action: () => void;
+    disabled?: boolean;
+    separator?: boolean;
+  }[] = [
+    { label: t("Checkout"), action: handleCheckout },
+    { label: t("New Branch from '{0}'...", tag.name), action: handleNewBranch },
+    { label: "", action: () => {}, separator: true },
+    { label: t("Copy Tag Name"), action: handleCopyName },
+    { label: t("Copy Tag Hash"), action: handleCopyHash },
+    { label: "", action: () => {}, separator: true },
+    { label: t("Push Tag..."), action: handlePushTag },
+    { label: t("Delete Tag"), action: handleDelete },
+  ];
+
+  return (
+    <div
+      ref={menuRef}
+      style={{
+        position: "fixed",
+        top: position ? position.top : -9999,
+        left: position ? position.left : -9999,
+        zIndex: 9999,
+        background: "var(--vscode-menu-background, #1e1e1e)",
+        border: "1px solid var(--vscode-menu-border, #454545)",
+        borderRadius: 4,
+        padding: "4px 0",
+        minWidth: 160,
+        maxHeight: "calc(100vh - 8px)",
+        overflowY: "auto",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+        visibility: position ? "visible" : "hidden",
+      }}
+    >
+      {items.map((item, i) =>
+        item.separator ? (
+          <div
+            key={`sep-${i}`}
+            style={{
+              height: 1,
+              background: "var(--vscode-menu-separatorBackground, #454545)",
+              margin: "4px 0",
+            }}
+          />
+        ) : (
+          <div
+            key={item.label}
+            onClick={item.disabled ? undefined : item.action}
+            style={{
+              padding: "6px 16px",
+              cursor: item.disabled ? "default" : "pointer",
+              opacity: item.disabled ? 0.5 : 1,
+              color: "var(--vscode-menu-foreground, #ccc)",
+              fontSize: "13px",
+              whiteSpace: "nowrap",
+            }}
+            onMouseEnter={(e) => {
+              if (!item.disabled) {
+                (e.currentTarget as HTMLElement).style.background =
+                  "var(--vscode-list-hoverBackground, #2a2d2e)";
+                (e.currentTarget as HTMLElement).style.color =
+                  "var(--vscode-menu-selectionForeground, #fff)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.color =
+                "var(--vscode-menu-foreground, #ccc)";
+            }}
+          >
+            {item.label}
+          </div>
+        ),
+      )}
     </div>
   );
 }

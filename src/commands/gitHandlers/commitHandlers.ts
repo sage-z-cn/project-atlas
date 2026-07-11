@@ -226,4 +226,14 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
       return { success: true };
     }),
   );
+
+  messageRouter.handle(
+    "deleteTag",
+    requireGit(ctx, async (gitService, params) => {
+      const tagName = params.tagName as string;
+      await gitService.deleteTag(tagName);
+      messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+      return { success: true };
+    }),
+  );
 }

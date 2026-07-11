@@ -14,14 +14,14 @@ export class PushPanel {
     private readonly messageRouter: MessageRouter,
   ) {}
 
-  open(branchName: string, remoteName = "origin"): void {
+  open(branchName: string, remoteName = "origin", withTags = false): void {
     if (this.panel) {
       this.panel.reveal();
       // Re-send init data
       this.panel.webview.postMessage({
         type: "event",
         event: "pushPanelInit",
-        data: { branchName, remoteName },
+        data: { branchName, remoteName, withTags },
       });
       return;
     }
@@ -41,7 +41,7 @@ export class PushPanel {
       this.panel.webview,
       this.extensionUri,
       "push",
-      { branch: branchName, remote: remoteName },
+      { branch: branchName, remote: remoteName, withTags: String(withTags) },
     );
 
     const routerDisposable = this.messageRouter.registerWebview(

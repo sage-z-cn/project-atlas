@@ -91,12 +91,14 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
       const force = params.force as boolean | undefined;
       const remote = (params.remote as string) || "origin";
       const targetBranch = (params.targetBranch as string) || branchName;
+      const withTags = params.withTags as boolean | undefined;
       return withProgress(ctx, async () => {
         const output = await gitService.push(
           branchName,
           force ?? false,
           remote,
           targetBranch,
+          withTags ?? false,
         );
         messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
         messageRouter.broadcastEvent("commitStateChanged", {});
@@ -111,11 +113,12 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
 
   messageRouter.handle(
     "openPushPanel",
-    requireGit(ctx, async (gitService) => {
+    requireGit(ctx, async (gitService, params) => {
       const branch = await gitService.getCurrentBranch();
       if (!branch) return { error: "No current branch" };
       const remote = await gitService.getDefaultRemote(branch);
-      ctx.pushPanel.open(branch, remote);
+      const withTags = params.withTags as boolean | undefined;
+      ctx.pushPanel.open(branch, remote, withTags ?? false);
       return { success: true };
     }),
   );
@@ -126,6 +129,19 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
       const remote = (params.remote as string) || "origin";
       const url = await gitService.getRemoteUrl(remote);
       return { success: true, url };
+    }),
+  );
+
+  messageRouter.handle(
+    "pushTag",
+    requireGit(ctx, async (gitService, params) => {
+      const tagName = params.tagName as string;
+      const remote = (params.remote as string) || "origin";
+      return withProgress(ctx, async () => {
+        await gitService.pushTag(tagName, remote);
+        messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+        return { success: true };
+      });
     }),
   );
 

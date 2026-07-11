@@ -57,6 +57,13 @@ export function CommitMessageArea() {
     await bridge.request("openPushPanel");
   }, [canCommit, commit]);
 
+  const handleCommitAndPushWithTags = useCallback(async () => {
+    if (!canCommit) return;
+    setShowDropdown(false);
+    await commit();
+    await bridge.request("openPushPanel", { withTags: true });
+  }, [canCommit, commit]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       // Ctrl/Cmd + Enter to commit
@@ -289,6 +296,13 @@ export function CommitMessageArea() {
                 onClick={handleCommitAndPush}
               >
                 {t("Commit and Push")}
+              </button>
+              <button
+                type="button"
+                className="commit-dropdown-item"
+                onClick={handleCommitAndPushWithTags}
+              >
+                {t("Commit and Push with Tags")}
               </button>
               <div className="commit-dropdown-separator" />
               <button
