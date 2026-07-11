@@ -214,8 +214,12 @@ export class GitService {
       const name = fields[0]?.trim() ?? "";
       const lastCommitHash = fields[4]?.trim() ?? "";
 
-      // Skip HEAD pointers like origin/HEAD
-      if (name.endsWith("/HEAD")) {
+      // Skip HEAD pointers like origin/HEAD. Also skip stray symref
+      // remnants: `git branch -r --format="%(refname:short)"` renders
+      // refs/remotes/origin/HEAD as a bare "origin" (no slash), which
+      // would otherwise leak through as a bogus remote branch.
+      // Legitimate remote tracking branches are always "remote/branch".
+      if (name.endsWith("/HEAD") || !name.includes("/")) {
         continue;
       }
 
@@ -1142,6 +1146,19 @@ export class GitService {
     }
 
     return "origin";
+  }
+
+  /**
+   * Get the URL configured for a remote via `git remote get-url`.
+   * Returns "" when the remote is unknown or has no URL.
+   */
+  async getRemoteUrl(remote: string): Promise<string> {
+    try {
+      const output = await this.execGit(["remote", "get-url", remote]);
+      return output.trim();
+    } catch {
+      return "";
+    }
   }
 
   async getLastCommitMessage(): Promise<string> {

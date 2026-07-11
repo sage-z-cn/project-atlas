@@ -352,6 +352,26 @@ export function BranchTree({
     setContextMenu(null);
   }, []);
 
+  const [directoryContextMenu, setDirectoryContextMenu] = useState<{
+    x: number;
+    y: number;
+    remoteName: string;
+  } | null>(null);
+  const handleDirectoryContextMenu = useCallback(
+    (e: React.MouseEvent, remoteName: string) => {
+      e.preventDefault();
+      setDirectoryContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        remoteName,
+      });
+    },
+    [],
+  );
+  const closeDirectoryContextMenu = useCallback(() => {
+    setDirectoryContextMenu(null);
+  }, []);
+
   // Listen for expand-all / collapse-all events from sidebar
   useEffect(() => {
     const handleExpandAll = () => {
@@ -648,6 +668,7 @@ export function BranchTree({
               onBranchClick={handleClick}
               onBranchDoubleClick={handleBranchDoubleClick}
               onBranchContextMenu={handleContextMenu}
+              onDirectoryContextMenu={handleDirectoryContextMenu}
               collapsed={collapsed}
               onToggle={toggle}
             />
@@ -691,6 +712,18 @@ export function BranchTree({
                 closeContextMenu();
                 setPushDialog({ branchName });
               }}
+            />,
+            document.body,
+          )}
+
+        {/* Directory Context Menu (remote folders) */}
+        {directoryContextMenu &&
+          createPortal(
+            <RemoteDirContextMenu
+              x={directoryContextMenu.x}
+              y={directoryContextMenu.y}
+              remoteName={directoryContextMenu.remoteName}
+              onClose={closeDirectoryContextMenu}
             />,
             document.body,
           )}
@@ -766,6 +799,7 @@ function TreeNodeView({
   onBranchClick,
   onBranchDoubleClick,
   onBranchContextMenu,
+  onDirectoryContextMenu,
   collapsed,
   onToggle,
 }: {
@@ -779,6 +813,7 @@ function TreeNodeView({
   onBranchClick: (e: React.MouseEvent, name: string) => void;
   onBranchDoubleClick: (name: string) => void;
   onBranchContextMenu: (e: React.MouseEvent, branch: BranchInfo) => void;
+  onDirectoryContextMenu?: (e: React.MouseEvent, remoteName: string) => void;
   collapsed: Record<string, boolean>;
   onToggle: (key: string) => void;
 }) {
@@ -822,6 +857,11 @@ function TreeNodeView({
     <div>
       <div
         onClick={() => onToggle(collapseKey)}
+        onContextMenu={
+          groupPrefix === "remote" && onDirectoryContextMenu
+            ? (e) => onDirectoryContextMenu(e, node.fullPath.split("/")[0])
+            : undefined
+        }
         style={{
           padding: `4px 8px 4px ${20 + depth * 12}px`,
           cursor: "pointer",
@@ -850,6 +890,7 @@ function TreeNodeView({
             onBranchClick={onBranchClick}
             onBranchDoubleClick={onBranchDoubleClick}
             onBranchContextMenu={onBranchContextMenu}
+            onDirectoryContextMenu={onDirectoryContextMenu}
             collapsed={collapsed}
             onToggle={onToggle}
           />
@@ -1065,6 +1106,31 @@ function BranchItem({
 }
 
 // ---------------------------------------------------------------------------
+// copyRemoteUrl – shared by branch + directory context menus
+// ---------------------------------------------------------------------------
+
+async function copyRemoteUrl(remoteName: string): Promise<void> {
+  try {
+    const res = (await bridge.request("getRemoteUrl", {
+      remote: remoteName,
+    })) as { url?: string };
+    const url = res?.url;
+    if (url) {
+      await bridge.request("copyToClipboard", { text: url });
+      void bridge.request("showInfoNotification", {
+        message: t("Copied remote URL of {0}", remoteName),
+      });
+    } else {
+      void bridge.request("showErrorNotification", {
+        message: t("No remote URL configured for {0}", remoteName),
+      });
+    }
+  } catch (err) {
+    console.error("Copy remote URL failed:", err);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // BranchContextMenu – right-click context menu for branches
 // ---------------------------------------------------------------------------
 
@@ -1256,6 +1322,12 @@ function BranchContextMenu({
     onPush(branch.name);
   };
 
+  const handleCopyRemoteUrl = () => {
+    onClose();
+    const remoteName = branch.name.substring(0, branch.name.indexOf("/"));
+    void copyRemoteUrl(remoteName);
+  };
+
   const handleUpdate = async () => {
     onClose();
     try {
@@ -1352,6 +1424,11 @@ function BranchContextMenu({
     items.push({ label: t("Push..."), action: handlePush });
   }
 
+  if (branch.isRemote) {
+    items.push({ label: "", action: () => {}, separator: true });
+    items.push({ label: t("Copy Remote URL"), action: handleCopyRemoteUrl });
+  }
+
   if (items.length === 0) return null;
 
   return (
@@ -1413,6 +1490,113 @@ function BranchContextMenu({
           </div>
         ),
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RemoteDirContextMenu – right-click menu for remote directory nodes
+// ---------------------------------------------------------------------------
+
+function RemoteDirContextMenu({
+  x,
+  y,
+  remoteName,
+  onClose,
+}: {
+  x: number;
+  y: number;
+  remoteName: string;
+  onClose: () => void;
+}) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect();
+      const top = Math.max(4, Math.min(y, window.innerHeight - rect.height - 4));
+      const left = Math.max(4, Math.min(x, window.innerWidth - rect.width - 4));
+      setPosition({ top, left });
+    });
+  }, [x, y]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    const handleContextMenu = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside, true);
+    document.addEventListener("contextmenu", handleContextMenu, true);
+    document.addEventListener("keydown", handleEscape);
+    window.addEventListener("blur", onClose);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("contextmenu", handleContextMenu, true);
+      document.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("blur", onClose);
+    };
+  }, [onClose]);
+
+  const handleCopy = () => {
+    onClose();
+    void copyRemoteUrl(remoteName);
+  };
+
+  return (
+    <div
+      ref={menuRef}
+      style={{
+        position: "fixed",
+        top: position ? position.top : -9999,
+        left: position ? position.left : -9999,
+        zIndex: 9999,
+        background: "var(--vscode-menu-background, #1e1e1e)",
+        border: "1px solid var(--vscode-menu-border, #454545)",
+        borderRadius: 4,
+        padding: "4px 0",
+        minWidth: 160,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+        visibility: position ? "visible" : "hidden",
+      }}
+    >
+      <div
+        onClick={handleCopy}
+        style={{
+          padding: "6px 16px",
+          cursor: "pointer",
+          color: "var(--vscode-menu-foreground, #ccc)",
+          fontSize: "13px",
+          whiteSpace: "nowrap",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.background =
+            "var(--vscode-list-hoverBackground, #2a2d2e)";
+          (e.currentTarget as HTMLElement).style.color =
+            "var(--vscode-menu-selectionForeground, #fff)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "transparent";
+          (e.currentTarget as HTMLElement).style.color =
+            "var(--vscode-menu-foreground, #ccc)";
+        }}
+      >
+        {t("Copy Remote URL")}
+      </div>
     </div>
   );
 }

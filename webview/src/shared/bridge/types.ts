@@ -109,6 +109,7 @@ export type CommandType =
   | "executePush"
   | "openPushPanel"
   | "getRemoteBranches"
+  | "getRemoteUrl"
   | "dropCommit"
   | "closePushPanel"
   | "openRollbackPanel"

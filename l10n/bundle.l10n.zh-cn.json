@@ -342,5 +342,8 @@
   "AI request timed out after {0} seconds.": "AI 请求超时（{0} 秒）。",
   "AI is not configured. Set API URL, model, and API key first.": "AI 未配置，请先设置 API 地址、模型和密钥。",
   "Open Settings": "打开设置",
-  "Set API Key": "设置 API 密钥"
+  "Set API Key": "设置 API 密钥",
+  "Copy Remote URL": "复制远程地址",
+  "Copied remote URL of {0}": "已复制 {0} 的远程地址",
+  "No remote URL configured for {0}": "{0} 未配置远程地址"
 }

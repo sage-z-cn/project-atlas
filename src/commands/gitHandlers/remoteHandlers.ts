@@ -120,6 +120,15 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
+  messageRouter.handle(
+    "getRemoteUrl",
+    requireGit(ctx, async (gitService, params) => {
+      const remote = (params.remote as string) || "origin";
+      const url = await gitService.getRemoteUrl(remote);
+      return { success: true, url };
+    }),
+  );
+
   messageRouter.handle("closePushPanel", async () => {
     ctx.pushPanel.close();
     return { success: true };

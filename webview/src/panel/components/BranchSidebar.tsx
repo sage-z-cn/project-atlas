@@ -14,7 +14,8 @@ import IconSearch from "~icons/codicon/search";
 import IconFetch from "~icons/codicon/repo-fetch";
 import IconStar from "~icons/codicon/star-full";
 import IconLocate from "~icons/codicon/target";
-import IconListFiles from "~icons/codicon/list-tree";
+import IconListTree from "~icons/codicon/list-tree";
+import IconListFlat from "~icons/codicon/list-flat";
 import IconSettings from "~icons/codicon/settings";
 import { usePanelStore } from "../../shared/store/panel-store";
 
@@ -131,6 +132,15 @@ export function BranchSidebar({
       </Tooltip>
       <div className="branch-sidebar-separator" />
       {/* Remote sync */}
+      <Tooltip text={t("Fetch")}>
+        <button
+          type="button"
+          className="branch-sidebar-btn"
+          onClick={handleFetch}
+        >
+          <IconFetch />
+        </button>
+      </Tooltip>
       <Tooltip text={t("Update Selected")}>
         <button
           type="button"
@@ -139,15 +149,6 @@ export function BranchSidebar({
           disabled={!selectedBranch}
         >
           <IconUpdate />
-        </button>
-      </Tooltip>
-      <Tooltip text={t("Fetch")}>
-        <button
-          type="button"
-          className="branch-sidebar-btn"
-          onClick={handleFetch}
-        >
-          <IconFetch />
         </button>
       </Tooltip>
       <div className="branch-sidebar-separator" />
@@ -201,7 +202,7 @@ export function BranchSidebar({
           className={`branch-sidebar-btn${branchGroupByDirectory ? " active" : ""}`}
           onClick={toggleBranchGroupByDirectory}
         >
-          <IconListFiles />
+          {branchGroupByDirectory ? <IconListFlat /> : <IconListTree />}
         </button>
       </Tooltip>
 
