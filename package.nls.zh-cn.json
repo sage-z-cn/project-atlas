@@ -74,6 +74,8 @@
   "config.gitAtlas.aiCommit.maxDiffChars": "发送给 AI 的最大 diff 字符数，超出则截断。",
   "config.gitAtlas.aiCommit.customInstructions": "追加到 AI 提示词中的自定义提交信息规则。如“始终包含 JIRA 工单号”或“使用 Angular 提交规范”。",
   "config.gitAtlas.aiCommit.timeout": "AI 生成提交信息的请求超时时间（秒）。",
+  "config.gitAtlas.enableGitLogPanel": "启用底部面板中的 Git Atlas 面板（Git Log）。即时生效，无需重载窗口。",
+  "config.gitAtlas.enableCommitPanel": "启用活动栏中的提交面板。即时生效，无需重载窗口。",
   "command.git-atlas.setAiApiKey": "Git Atlas: 设置 AI API 密钥",
   "command.git-atlas.clearAiApiKey": "Git Atlas: 清除 AI API 密钥"
 }

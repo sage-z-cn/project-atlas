@@ -44,6 +44,10 @@ import type { GitHandlerContext } from "../commands/gitContext";
  *   i. 全部 disposable push 到 context.subscriptions
  */
 export async function setupGit(context: vscode.ExtensionContext): Promise<void> {
+  // 0. 同步面板可见性配置 → setContext（驱动 package.json 中视图的 when 子句）。
+  //    尽早执行，避免首次激活时视图因 context 默认 false 而短暂不可见。
+  applyPanelVisibility();
+
   // a. MessageRouter 单例（所有 webview 共享）
   const messageRouter = new MessageRouter();
 
@@ -157,6 +161,7 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("gitAtlas")) {
+        applyPanelVisibility();
         messageRouter.broadcastEvent("gitConfigChanged", {});
       }
     }),
@@ -205,6 +210,27 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   // j. Commit 视图活动栏徽标（activity bar 上的更改数量 badge）
   //    受 gitAtlas.commitBadgeMode 控制：total / current / off
   context.subscriptions.push(registerCommitViewBadge(registry));
+}
+
+/**
+ * 根据 `gitAtlas.enableGitLogPanel` / `gitAtlas.enableCommitPanel` 配置同步
+ * setContext，驱动 package.json 中两个面板视图的 `when` 子句。
+ *
+ * VSCode 会在容器内所有视图均不可见时自动隐藏该容器（活动栏图标 / 底部
+ * 面板页签），因此关闭某面板即隐藏对应容器，无需重载窗口。默认均为开启。
+ */
+function applyPanelVisibility(): void {
+  const config = vscode.workspace.getConfiguration("gitAtlas");
+  void vscode.commands.executeCommand(
+    "setContext",
+    "gitAtlas.gitLogEnabled",
+    config.get<boolean>("enableGitLogPanel", true),
+  );
+  void vscode.commands.executeCommand(
+    "setContext",
+    "gitAtlas.commitEnabled",
+    config.get<boolean>("enableCommitPanel", true),
+  );
 }
 
 // ─── vscode.git 导出 API 最小类型（避免引入 @types/vscode-git） ──────────

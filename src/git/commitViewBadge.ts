@@ -21,6 +21,7 @@ import type { RepoRegistry } from "./repoRegistry";
  */
 const VIEW_ID = "git-atlas.commitBadgeProxy";
 const CONFIG_KEY = "gitAtlas.commitBadgeMode";
+const ENABLE_KEY = "gitAtlas.enableCommitPanel";
 
 type BadgeMode = "total" | "current" | "off";
 
@@ -31,6 +32,12 @@ function readMode(): BadgeMode {
   return raw === "total" || raw === "current" || raw === "off"
     ? raw
     : "current";
+}
+
+function readEnabled(): boolean {
+  return vscode.workspace
+    .getConfiguration("gitAtlas")
+    .get<boolean>("enableCommitPanel", true);
 }
 
 // The proxy view is never rendered ("when": "false"), so this provider is a
@@ -78,6 +85,10 @@ export function registerCommitViewBadge(
     count: number;
     aggregated: boolean;
   }> {
+    // Commit 面板已关闭时跳过所有计算：容器已隐藏，徽标无意义，且避免
+    // 在多 repo + total 模式下遍历所有仓库的工作树（可能较重）。
+    if (!readEnabled()) return { count: 0, aggregated: false };
+
     const mode = readMode();
     if (mode === "off") return { count: 0, aggregated: false };
 
@@ -126,7 +137,12 @@ export function registerCommitViewBadge(
   const subscriptions: vscode.Disposable[] = [
     registry.onGitStateChanged(scheduleRefresh),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration(CONFIG_KEY)) scheduleRefresh();
+      if (
+        e.affectsConfiguration(CONFIG_KEY) ||
+        e.affectsConfiguration(ENABLE_KEY)
+      ) {
+        scheduleRefresh();
+      }
     }),
   ];
 

@@ -92,7 +92,8 @@
           "id": "git-atlas.gitLog",
           "name": "%view.gitAtlas.gitLog%",
           "icon": "$(history)",
-          "type": "webview"
+          "type": "webview",
+          "when": "gitAtlas.gitLogEnabled"
         }
       ],
       "git-atlas-commit": [
@@ -100,7 +101,8 @@
           "id": "git-atlas.commitPanel",
           "name": "%view.gitAtlas.commitPanel%",
           "icon": "$(git-commit)",
-          "type": "webview"
+          "type": "webview",
+          "when": "gitAtlas.commitEnabled"
         },
         {
           "id": "git-atlas.commitBadgeProxy",
@@ -696,6 +698,16 @@
             "%config.gitAtlas.commitBadgeMode.off%"
           ],
           "description": "%config.gitAtlas.commitBadgeMode%"
+        },
+        "gitAtlas.enableGitLogPanel": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.gitAtlas.enableGitLogPanel%"
+        },
+        "gitAtlas.enableCommitPanel": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.gitAtlas.enableCommitPanel%"
         },
         "gitAtlas.aiCommit.apiUrl": {
           "type": "string",
