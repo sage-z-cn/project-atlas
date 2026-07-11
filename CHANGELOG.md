@@ -4,6 +4,20 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.8.0
+- **Git Atlas**: 新增 Git Atlas 子系统，提供多仓库 git log、提交、合并/冲突编辑、推送、回滚等功能
+- **多仓库支持**: 自动扫描工作区根及一级子目录的 git 仓库，支持切换当前仓库
+- **提交面板**: 新增 VSCode/JetBrains 两种提交列表风格及切换，活动栏新增更改数量徽标
+- **AI 提交信息**: 支持 AI 自动生成提交信息（OpenAI 兼容）
+- **分支与标签**: 新增分支收藏、我的分支过滤、标签交互与推送、复制远程地址
+- **提交日志**: 提交日志跟随分支图逐行缩进，记住面板布局
+- **国际化**: webview 新增国际化支持
+- **面板开关**: 新增 Git Atlas 面板与提交面板开关配置，即时生效
+- **RepoSelector**: 单仓库工作空间展示只读状态条而非隐藏
+- 修复多仓库路径拼接、设置菜单、navigateToHead 滚动与打包 CSP 等问题
+- 修复提交按钮启用条件、文件历史渲染与 panel 空白问题
+- 图标改用 codicon，调整图标与背景色样式
+
 #### 1.7.0
 - **布局优化**: 移除任务的 group 分组，改为仅按项目分组展示，减少嵌套层级
 - **展开/折叠**: 工具栏新增全部展开、全部折叠按钮
