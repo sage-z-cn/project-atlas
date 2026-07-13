@@ -4,6 +4,16 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.8.1
+- **AI 提交信息**: 支持取消生成、思考模式与空响应重试
+- **提交草稿**: 多仓库提交信息草稿持久化
+- **文件历史**: 新增文件历史功能
+- **聚合徽标**: 显示不可用仓库数量
+- **推送配置**: 新增跳过推送确认面板的配置项
+- **主题适配**: 使用 VSCode CSS 变量替换硬编码颜色
+- 重构收藏、最近项目和任务面板为统一 webview 消息驱动架构
+- 修复已删除文件在工作树对比时的显示错误
+
 #### 1.8.0
 - **Git Atlas**: 新增 Git Atlas 子系统，提供多仓库 git log、提交、合并/冲突编辑、推送、回滚等功能
 - **多仓库支持**: 自动扫描工作区根及一级子目录的 git 仓库，支持切换当前仓库
