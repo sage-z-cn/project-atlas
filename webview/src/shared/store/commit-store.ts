@@ -87,6 +87,8 @@ interface CommitStore {
   commitBadgeMode: "total" | "current" | "off";
   // AI commit message 生成
   aiGenerating: boolean;
+  /** 用户已请求取消当前生成（generateCommitMessage 的 catch 据此跳过错误提示）。 */
+  aiCancelling: boolean;
   aiConfigured: boolean;
   aiApiUrl: string;
   aiModel: string;
@@ -94,6 +96,8 @@ interface CommitStore {
   fetchGitConfig: () => Promise<void>;
   fetchAiConfig: () => Promise<void>;
   generateCommitMessage: () => Promise<void>;
+  /** 取消进行中的 AI 生成。 */
+  cancelCommitMessage: () => Promise<void>;
   setCommitListStyle: (style: "vscode" | "jetbrains") => Promise<void>;
   setCommitBadgeMode: (mode: "total" | "current" | "off") => Promise<void>;
   /** Discard (rollback) multiple files; backend handler already confirms modally. */
@@ -199,6 +203,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   commitListStyle: "vscode",
   commitBadgeMode: "current",
   aiGenerating: false,
+  aiCancelling: false,
   aiConfigured: false,
   aiApiUrl: "",
   aiModel: "",
@@ -805,6 +810,10 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       }
     } catch (err) {
       if (mySeq !== get().repoSeq) return;
+      // 用户主动取消 → 静默处理，不弹错误通知
+      if (get().aiCancelling) {
+        return;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       console.error("generateCommitMessage failed:", msg);
 
@@ -831,7 +840,18 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     } finally {
       // Always clear aiGenerating — unlike fetchChanges, there's no automatic
       // re-trigger on repo switch, so a conditional clear would leave it stuck.
-      set({ aiGenerating: false });
+      set({ aiGenerating: false, aiCancelling: false });
+    }
+  },
+
+  async cancelCommitMessage() {
+    // 标记取消，generateCommitMessage 的 catch 据此跳过错误提示
+    if (!get().aiGenerating) return;
+    set({ aiCancelling: true });
+    try {
+      await bridge.request("cancelCommitMessageGeneration");
+    } catch {
+      // ignore — 即使取消请求失败，生成请求最终也会返回并清掉 aiGenerating
     }
   },
 

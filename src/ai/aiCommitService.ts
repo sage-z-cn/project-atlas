@@ -31,6 +31,9 @@ export interface DiffContext {
 }
 
 export class AiCommitService {
+  /** 当前进行中的生成请求的 AbortController；null 表示无在途请求。供 cancelGeneration 使用。 */
+  private currentAbort: AbortController | null = null;
+
   constructor(private context: vscode.ExtensionContext) {}
 
   /** Shared config reader — eliminates duplication between getConfig/getStatus. */
@@ -122,19 +125,34 @@ export class AiCommitService {
     gitService: GitService,
     cfg: AiCommitConfig,
   ): Promise<string> {
-    // Resolve effective language (auto → detect from history)
-    const language = await this.resolveLanguage(cfg.language, gitService);
+    // 建立本次生成的 AbortController 并登记到实例，cancelGeneration() 可据此中止。
+    const controller = new AbortController();
+    this.currentAbort = controller;
 
-    // Truncate diff
-    const diff = this.truncateDiff(diffContext.diff, cfg.maxDiffChars);
+    try {
+      // Resolve effective language (auto → detect from history)
+      const language = await this.resolveLanguage(cfg.language, gitService);
 
-    // Build prompt
-    const systemPrompt = this.buildSystemPrompt(language, cfg.customInstructions);
-    const userPrompt = this.buildUserPrompt(diff, diffContext.fileSummary);
+      // Truncate diff
+      const diff = this.truncateDiff(diffContext.diff, cfg.maxDiffChars);
 
-    // Call API
-    const response = await this.callApi(cfg, systemPrompt, userPrompt);
-    return this.cleanMessage(response);
+      // Build prompt
+      const systemPrompt = this.buildSystemPrompt(language, cfg.customInstructions);
+      const userPrompt = this.buildUserPrompt(diff, diffContext.fileSummary);
+
+      // Call API（传入取消信号，用户取消时中止 fetch 并跳出重试循环）
+      const response = await this.callApi(cfg, systemPrompt, userPrompt, controller.signal);
+      return this.cleanMessage(response);
+    } finally {
+      if (this.currentAbort === controller) {
+        this.currentAbort = null;
+      }
+    }
+  }
+
+  /** 取消当前进行中的生成请求（无在途请求时为空操作）。 */
+  cancelGeneration(): void {
+    this.currentAbort?.abort();
   }
 
   private truncateDiff(diff: string, maxChars: number): string {
@@ -271,22 +289,31 @@ export class AiCommitService {
    *
    * 仅对空响应重试；真正的 HTTP/网络/超时错误会立即抛出，避免对配置类
    * 错误（401/404 等）做无意义重试。空响应通常返回很快，重试成本可控。
+   * cancelSignal 中止时立即抛出 "cancelled"（用户取消，区别于超时）。
    */
   private async callApi(
     cfg: AiCommitConfig,
     systemPrompt: string,
     userPrompt: string,
+    cancelSignal: AbortSignal,
   ): Promise<string> {
     const totalAttempts = AiCommitService.MAX_EMPTY_RETRIES + 1;
     let lastDiagnostic = "";
 
     for (let attempt = 1; attempt <= totalAttempts; attempt++) {
+      // 重试前检查取消：用户在两次尝试之间点了取消，立即跳出。
+      if (cancelSignal.aborted) {
+        throw new Error("cancelled");
+      }
       if (attempt > 1) {
         // 重试前短暂线性退避，缓解瞬时模型/网关抖动。
         await this.sleep(800 * (attempt - 1));
       }
+      if (cancelSignal.aborted) {
+        throw new Error("cancelled");
+      }
 
-      const result = await this.doRequest(cfg, systemPrompt, userPrompt);
+      const result = await this.doRequest(cfg, systemPrompt, userPrompt, cancelSignal);
       if (result.content) {
         return result.content;
       }
@@ -342,16 +369,27 @@ export class AiCommitService {
     return body;
   }
 
-  /** 执行单次 API 请求。HTTP 成功时返回（含空 content）；HTTP/超时/网络错误时抛出。 */
+  /**
+   * 执行单次 API 请求。HTTP 成功时返回（含空 content）；HTTP/超时/网络错误时抛出。
+   * cancelSignal 与每次请求的超时 controller 联动：用户取消时中止 fetch。
+   */
   private async doRequest(
     cfg: AiCommitConfig,
     systemPrompt: string,
     userPrompt: string,
+    cancelSignal: AbortSignal,
   ): Promise<{ content: string; finishReason: string | null; raw: unknown }> {
     const body = this.buildRequestBody(cfg, systemPrompt, userPrompt);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), cfg.timeout * 1000);
+    // 把外部取消信号联动到本次请求的 controller
+    const onCancel = () => controller.abort();
+    if (cancelSignal.aborted) {
+      controller.abort();
+    } else {
+      cancelSignal.addEventListener("abort", onCancel, { once: true });
+    }
 
     try {
       const resp = await fetch(this.buildEndpoint(cfg.apiUrl), {
@@ -373,6 +411,10 @@ export class AiCommitService {
       const { content, finishReason } = this.extractContent(data);
       return { content, finishReason, raw: data };
     } catch (err) {
+      // 用户取消优先识别（区别于超时），抛出语义化的 "cancelled"
+      if (cancelSignal.aborted) {
+        throw new Error("cancelled");
+      }
       // AbortError → 友好提示（否则用户看到晦涩的 "The operation was aborted"）
       if (err instanceof Error && err.name === "AbortError") {
         throw new Error(
@@ -382,6 +424,7 @@ export class AiCommitService {
       throw err;
     } finally {
       clearTimeout(timeout);
+      cancelSignal.removeEventListener("abort", onCancel);
     }
   }
 

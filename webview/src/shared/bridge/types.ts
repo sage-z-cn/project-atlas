@@ -123,6 +123,7 @@ export type CommandType =
   | "setGitConfig"
   | "getAiConfig"
   | "generateCommitMessage"
+  | "cancelCommitMessageGeneration"
   | "setAiApiKey"
   | "openAiSettings"
   | "openGitSettings";

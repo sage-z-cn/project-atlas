@@ -41,6 +41,12 @@ export function registerAiHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
+  // 取消进行中的 AI 生成（中止 in-flight 的 fetch + 重试循环）
+  messageRouter.handle("cancelCommitMessageGeneration", async () => {
+    aiService.cancelGeneration();
+    return { success: true };
+  });
+
   // 通过 webview 触发 API Key 设置（命令委托）
   messageRouter.handle("setAiApiKey", async () => {
     await vscode.commands.executeCommand("git-atlas.setAiApiKey");

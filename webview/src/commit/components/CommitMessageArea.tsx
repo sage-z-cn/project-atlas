@@ -7,6 +7,7 @@ import { t } from "../../shared/i18n";
 import { useCommitStore } from "../../shared/store/commit-store";
 import SparkleIcon from "~icons/codicon/sparkle";
 import LoadingIcon from "~icons/codicon/loading";
+import StopIcon from "~icons/codicon/debug-stop";
 
 export function CommitMessageArea() {
   const {
@@ -24,11 +25,13 @@ export function CommitMessageArea() {
     aiApiUrl,
     aiModel,
     generateCommitMessage,
+    cancelCommitMessage,
   } = useCommitStore();
 
   const [showDropdown, setShowDropdown] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [recentMessages, setRecentMessages] = useState<string[]>([]);
+  const [aiHover, setAiHover] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const historyBtnRef = useRef<HTMLSpanElement>(null);
   const historyDropdownRef = useRef<HTMLDivElement>(null);
@@ -79,10 +82,11 @@ export function CommitMessageArea() {
   const canGenerate = hasChanges && aiConfigured && !aiGenerating;
 
   // Simplified opacity/cursor logic (m4) — extracted to avoid nested ternaries in JSX
-  const aiClickable = canGenerate || !aiConfigured;
+  // 生成中也可点击（用于取消），故 aiClickable 包含 aiGenerating
+  const aiClickable = canGenerate || !aiConfigured || aiGenerating;
   const aiBaseOpacity = aiGenerating ? 1 : aiClickable ? 0.6 : 0.3;
   const aiTooltip = aiGenerating
-    ? t("Generating commit message...")
+    ? t("Stop generating")
     : !aiApiUrl || !aiModel
       ? t("AI not configured. Click to open settings.")
       : !aiConfigured
@@ -90,7 +94,11 @@ export function CommitMessageArea() {
         : t("Generate commit message with AI");
 
   const handleAiGenerate = useCallback(async () => {
-    if (aiGenerating) return;
+    // 生成中再次点击 → 取消
+    if (aiGenerating) {
+      await cancelCommitMessage();
+      return;
+    }
     // 配置引导：先检查 apiUrl/model，缺失则跳转设置页；再检查 apiKey，缺失则弹输入框
     if (!aiApiUrl || !aiModel) {
       await bridge.request("openAiSettings");
@@ -102,7 +110,7 @@ export function CommitMessageArea() {
     }
     if (!hasChanges) return;
     await generateCommitMessage();
-  }, [aiApiUrl, aiModel, aiConfigured, hasChanges, aiGenerating, generateCommitMessage]);
+  }, [aiApiUrl, aiModel, aiConfigured, hasChanges, aiGenerating, generateCommitMessage, cancelCommitMessage]);
 
   const handleHistoryClick = useCallback(async () => {
     if (showHistory) {
@@ -182,9 +190,11 @@ export function CommitMessageArea() {
               transition: "background 0.15s, opacity 0.15s",
             }}
             onMouseEnter={(e) => {
+              setAiHover(true);
               if (aiClickable) (e.currentTarget as HTMLElement).style.opacity = "1";
             }}
             onMouseLeave={(e) => {
+              setAiHover(false);
               if (aiClickable) (e.currentTarget as HTMLElement).style.opacity = String(aiBaseOpacity);
             }}
             onMouseDown={(e) => {
@@ -196,7 +206,11 @@ export function CommitMessageArea() {
             }}
           >
             {aiGenerating ? (
-              <LoadingIcon style={{ fontSize: 14, animation: "ai-spin 1s linear infinite" }} />
+              aiHover ? (
+                <StopIcon style={{ fontSize: 14, color: "var(--vscode-errorForeground, #f48771)" }} />
+              ) : (
+                <LoadingIcon style={{ fontSize: 14, animation: "ai-spin 1s linear infinite" }} />
+              )
             ) : (
               <SparkleIcon style={{ fontSize: 14, color: canGenerate ? "var(--vscode-textLink-foreground, #3794ff)" : undefined }} />
             )}
