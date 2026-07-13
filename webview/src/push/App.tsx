@@ -552,7 +552,7 @@ export function PushApp() {
               height: "100%",
               width: "40%",
               background:
-                "linear-gradient(90deg, transparent, #007acc 30%, #3794ff 70%, transparent)",
+                "linear-gradient(90deg, transparent, var(--vscode-progressBar-background, #007acc) 30%, var(--vscode-progressBar-background, #3794ff) 70%, transparent)",
               animation: "progress-slide 1s infinite linear",
             }}
           />

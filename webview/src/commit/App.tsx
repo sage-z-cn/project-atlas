@@ -84,8 +84,9 @@ function RebaseBanner() {
         alignItems: "center",
         gap: 8,
         padding: "6px 12px",
-        background: "#e8f5e9",
-        borderBottom: "1px solid #c8e6c9",
+        background: "var(--vscode-inputValidation-infoBackground, #e8f5e9)",
+        borderBottom:
+          "1px solid var(--vscode-inputValidation-infoBorder, #c8e6c9)",
         fontSize: 12,
         flexShrink: 0,
       }}
@@ -119,14 +120,14 @@ function RebaseBanner() {
           >
             <path
               d="M2.5 11.5L6 8L2.5 4.5"
-              stroke="#ffffff"
+                stroke="var(--vscode-button-foreground, #ffffff)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
             <path
               d="M8.5 11.5L12 8L8.5 4.5"
-              stroke="#ffffff"
+                stroke="var(--vscode-button-foreground, #ffffff)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -158,7 +159,7 @@ function RebaseBanner() {
           >
             <path
               d="M4 12L12 4M12 12L4 4"
-              stroke="#ffffff"
+                stroke="var(--vscode-button-foreground, #ffffff)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -276,14 +277,14 @@ function CherryPickBanner() {
           >
             <path
               d="M2.5 11.5L6 8L2.5 4.5"
-              stroke="#ffffff"
+                stroke="var(--vscode-button-foreground, #ffffff)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
             <path
               d="M8.5 11.5L12 8L8.5 4.5"
-              stroke="#ffffff"
+                stroke="var(--vscode-button-foreground, #ffffff)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -304,7 +305,7 @@ function CherryPickBanner() {
             }
           }}
           className="rebase-action-btn rebase-continue"
-          style={{ background: "#fb8c00" }}
+          style={{ background: "var(--vscode-statusBarItem-warningBackground, #fb8c00)" }}
         >
           <svg
             width="16"
@@ -315,7 +316,7 @@ function CherryPickBanner() {
           >
             <path
               d="M5 4L11 8L5 12"
-              stroke="#ffffff"
+              stroke="var(--vscode-statusBarItem-warningForeground, #000)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -346,7 +347,7 @@ function CherryPickBanner() {
           >
             <path
               d="M4 12L12 4M12 12L4 4"
-              stroke="#ffffff"
+                stroke="var(--vscode-button-foreground, #ffffff)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -435,8 +436,9 @@ function MergeBanner() {
         alignItems: "center",
         gap: 8,
         padding: "6px 12px",
-        background: "#e8f5e9",
-        borderBottom: "1px solid #c8e6c9",
+        background: "var(--vscode-inputValidation-infoBackground, #e8f5e9)",
+        borderBottom:
+          "1px solid var(--vscode-inputValidation-infoBorder, #c8e6c9)",
         fontSize: 12,
         flexShrink: 0,
       }}
@@ -468,14 +470,14 @@ function MergeBanner() {
           >
             <path
               d="M2.5 11.5L6 8L2.5 4.5"
-              stroke="#ffffff"
+                stroke="var(--vscode-button-foreground, #ffffff)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
             <path
               d="M8.5 11.5L12 8L8.5 4.5"
-              stroke="#ffffff"
+                stroke="var(--vscode-button-foreground, #ffffff)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -506,7 +508,7 @@ function MergeBanner() {
           >
             <path
               d="M4 12L12 4M12 12L4 4"
-              stroke="#ffffff"
+                stroke="var(--vscode-button-foreground, #ffffff)"
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"

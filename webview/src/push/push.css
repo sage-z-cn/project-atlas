@@ -145,7 +145,7 @@
 }
 
 .push-error {
-  color: #f44747;
+  color: var(--vscode-errorForeground, #f44747);
   font-size: 12px;
 }
 
@@ -432,8 +432,8 @@ button.push-menu-item:hover:not(:disabled) {
   background: linear-gradient(
     90deg,
     transparent,
-    #007acc 30%,
-    #3794ff 70%,
+    var(--vscode-progressBar-background, #007acc) 30%,
+    var(--vscode-progressBar-background, #3794ff) 70%,
     transparent
   );
   animation: push-progress-slide 1.2s infinite linear;
@@ -501,13 +501,13 @@ button.push-menu-item:hover:not(:disabled) {
 }
 
 .push-btn-rebase {
-  background: #2563eb;
-  color: #fff;
+  background: var(--vscode-button-background, #2563eb);
+  color: var(--vscode-button-foreground, #fff);
   font-weight: 600;
 }
 
 .push-btn-rebase:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: var(--vscode-button-hoverBackground, #1d4ed8);
 }
 
 .push-btn-merge {

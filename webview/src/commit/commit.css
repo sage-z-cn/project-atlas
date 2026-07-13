@@ -24,8 +24,8 @@
 }
 
 .commit-app input[type="checkbox"]:checked {
-  background: #3574f0;
-  border-color: #3574f0;
+  background: var(--vscode-checkbox-selectBackground, #3574f0);
+  border-color: var(--vscode-checkbox-selectBackground, #3574f0);
 }
 
 .commit-app input[type="checkbox"]:checked::after {
@@ -35,14 +35,14 @@
   top: 1px;
   width: 5px;
   height: 9px;
-  border: solid #fff;
+  border: solid var(--vscode-checkbox-foreground, #fff);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .commit-app input[type="checkbox"]:indeterminate {
-  background: #3574f0;
-  border-color: #3574f0;
+  background: var(--vscode-checkbox-selectBackground, #3574f0);
+  border-color: var(--vscode-checkbox-selectBackground, #3574f0);
 }
 
 .commit-app input[type="checkbox"]:indeterminate::after {
@@ -52,7 +52,7 @@
   top: 6px;
   width: 8px;
   height: 2px;
-  background: #fff;
+  background: var(--vscode-checkbox-foreground, #fff);
   border-radius: 1px;
 }
 
@@ -412,7 +412,7 @@
 }
 
 .commit-message-textarea:focus {
-  border-color: #3574f0;
+  border-color: var(--vscode-focusBorder, #3574f0);
 }
 
 .commit-message-textarea::placeholder {
@@ -686,8 +686,8 @@ button.commit-dropdown-item:hover:not(:disabled) {
   background: linear-gradient(
     90deg,
     transparent,
-    #007acc 30%,
-    #3794ff 70%,
+    var(--vscode-progressBar-background, #007acc) 30%,
+    var(--vscode-progressBar-background, #3794ff) 70%,
     transparent
   );
   animation: commit-progress-slide 1s infinite linear;
@@ -713,7 +713,7 @@ button.commit-dropdown-item:hover:not(:disabled) {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  color: #fff;
+  color: var(--vscode-button-foreground, #fff);
   user-select: none;
 }
 
@@ -725,12 +725,14 @@ button.commit-dropdown-item:hover:not(:disabled) {
   opacity: 0.85;
 }
 
+/* continue/abort 用 debugIcon-start/stop 前景色作底色：VSCode 无 success/danger
+   按钮背景令牌，绿色=proceed、红色=abort 的语义与调试启动/停止一致。 */
 .rebase-action-btn.rebase-continue {
-  background: #4a8c5c;
+  background: var(--vscode-debugIcon-startForeground, #4a8c5c);
 }
 
 .rebase-action-btn.rebase-abort {
-  background: #c75b5b;
+  background: var(--vscode-debugIcon-stopForeground, #c75b5b);
 }
 
 /* ─── Merge Conflicts Resolve Link ─────────────────────────────── */

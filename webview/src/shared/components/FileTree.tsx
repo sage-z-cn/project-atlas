@@ -11,13 +11,15 @@ import { t } from "../i18n";
 // Constants
 // ---------------------------------------------------------------------------
 
+// git 状态装饰色 → VSCode gitDecoration-* 主题变量（原 IDEA 色作回退）
 export const STATUS_COLORS: Record<string, string> = {
-  added: "#6a8759",
-  modified: "#6897bb",
-  deleted: "#6c6c6c",
-  renamed: "#b9b462",
-  copied: "#b9b462",
-  conflicts: "#d1675a",
+  added: "var(--vscode-gitDecoration-addedForeground, #6a8759)",
+  modified: "var(--vscode-gitDecoration-modifiedForeground, #6897bb)",
+  deleted: "var(--vscode-gitDecoration-deletedForeground, #6c6c6c)",
+  renamed: "var(--vscode-gitDecoration-renamedForeground, #b9b462)",
+  copied: "var(--vscode-gitDecoration-renamedForeground, #b9b462)",
+  conflicts:
+    "var(--vscode-gitDecoration-conflictingResourceForeground, #d1675a)",
 };
 
 // ---------------------------------------------------------------------------

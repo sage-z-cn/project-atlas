@@ -602,14 +602,16 @@ export function BranchTree({
                 boxSizing: "border-box",
               }}
               onFocus={(e) => {
-                (e.target as HTMLElement).style.borderColor = "#3574f0";
+                (e.target as HTMLElement).style.borderColor =
+                  "var(--vscode-focusBorder, #3574f0)";
               }}
               onBlur={(e) => {
                 (e.target as HTMLElement).style.borderColor =
                   "var(--vscode-input-border, #3c3c3c)";
               }}
               onMouseEnter={(e) => {
-                (e.target as HTMLElement).style.borderColor = "#3574f0";
+                (e.target as HTMLElement).style.borderColor =
+                  "var(--vscode-focusBorder, #3574f0)";
               }}
               onMouseLeave={(e) => {
                 if (document.activeElement !== e.target) {
@@ -900,7 +902,7 @@ function TreeNodeView({
       <BranchItem
         icon={
           isCurrent ? (
-            <IconTag style={{ color: "#d4a017" }} />
+            <IconTag style={{ color: "var(--vscode-list-warningForeground, #d4a017)" }} />
           ) : (
             <IconBranch
               style={{
@@ -1160,7 +1162,7 @@ function BranchItem({
             ? "var(--list-hoverBackground, rgba(0,0,0,0.04))"
             : undefined,
         color: isSelected ? "var(--selected-fg)" : "inherit",
-        outline: isFiltered ? "1px solid var(--focus-border, #3574f0)" : "none",
+        outline: isFiltered ? "1px solid var(--vscode-focusBorder, #3574f0)" : "none",
         display: "flex",
         alignItems: "center",
         gap: 4,
@@ -1201,12 +1203,12 @@ function BranchItem({
           }}
         >
           {behind > 0 && (
-            <span style={{ color: "#3574f0" }}>
+            <span style={{ color: "var(--vscode-textLink-foreground, #3574f0)" }}>
               ↙ {behind > 99 ? "99+" : behind}
             </span>
           )}
           {ahead > 0 && (
-            <span style={{ color: "#499c54" }}>
+            <span style={{ color: "var(--vscode-gitDecoration-addedForeground, #499c54)" }}>
               ↗ {ahead > 99 ? "99+" : ahead}
             </span>
           )}

@@ -13,7 +13,10 @@ function Linkify({ text }: { text: string }) {
           <a
             key={`link-${i}-${part.slice(0, 20)}`}
             href={part}
-            style={{ color: "#3574f0", textDecoration: "none" }}
+            style={{
+              color: "var(--vscode-textLink-foreground, #3574f0)",
+              textDecoration: "none",
+            }}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -102,7 +105,10 @@ export function CommitInfo({ commit }: { commit: Commit }) {
           <>
             <a
               href={`mailto:${commit.authorEmail}`}
-              style={{ color: "#3574f0", textDecoration: "none" }}
+              style={{
+                color: "var(--vscode-textLink-foreground, #3574f0)",
+                textDecoration: "none",
+              }}
             >
               &lt;{commit.authorEmail}&gt;
             </a>{" "}

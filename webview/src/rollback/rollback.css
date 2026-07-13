@@ -85,8 +85,8 @@
 }
 
 .rollback-file-list input[type="checkbox"]:checked {
-  background: #3574f0;
-  border-color: #3574f0;
+  background: var(--vscode-checkbox-selectBackground, #3574f0);
+  border-color: var(--vscode-checkbox-selectBackground, #3574f0);
 }
 
 .rollback-file-list input[type="checkbox"]:checked::after {
@@ -96,14 +96,14 @@
   top: 1px;
   width: 5px;
   height: 9px;
-  border: solid #fff;
+  border: solid var(--vscode-checkbox-foreground, #fff);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .rollback-file-list input[type="checkbox"]:indeterminate {
-  background: #3574f0;
-  border-color: #3574f0;
+  background: var(--vscode-checkbox-selectBackground, #3574f0);
+  border-color: var(--vscode-checkbox-selectBackground, #3574f0);
 }
 
 .rollback-file-list input[type="checkbox"]:indeterminate::after {
@@ -113,7 +113,7 @@
   top: 6px;
   width: 8px;
   height: 2px;
-  background: #fff;
+  background: var(--vscode-checkbox-foreground, #fff);
   border-radius: 1px;
 }
 
@@ -155,8 +155,8 @@
 }
 
 .rollback-delete-option input[type="checkbox"]:checked {
-  background: #3574f0;
-  border-color: #3574f0;
+  background: var(--vscode-checkbox-selectBackground, #3574f0);
+  border-color: var(--vscode-checkbox-selectBackground, #3574f0);
 }
 
 .rollback-delete-option input[type="checkbox"]:checked::after {
@@ -166,7 +166,7 @@
   top: 1px;
   width: 5px;
   height: 9px;
-  border: solid #fff;
+  border: solid var(--vscode-checkbox-foreground, #fff);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
@@ -179,7 +179,7 @@
 /* --- Error Message ----------------------------------------------- */
 
 .rollback-error {
-  color: #f44747;
+  color: var(--vscode-errorForeground, #f44747);
   font-size: 12px;
 }
 
