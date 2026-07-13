@@ -16,9 +16,11 @@ export function CommitMessageArea() {
     amend,
     setAmend,
     commit,
+    commitAndPush,
     loading,
     selectedFiles,
     commitListStyle,
+    skipPushConfirmation,
     changes,
     aiGenerating,
     aiConfigured,
@@ -56,9 +58,14 @@ export function CommitMessageArea() {
   const handleCommitAndPush = useCallback(async () => {
     if (!canCommit) return;
     setShowDropdown(false);
+    // 跳过确认面板 → 直接提交并推送；否则提交后打开推送确认面板
+    if (skipPushConfirmation) {
+      await commitAndPush();
+      return;
+    }
     await commit();
     await bridge.request("openPushPanel");
-  }, [canCommit, commit]);
+  }, [canCommit, commit, commitAndPush, skipPushConfirmation]);
 
   const handleCommitAndPushWithTags = useCallback(async () => {
     if (!canCommit) return;
@@ -155,6 +162,24 @@ export function CommitMessageArea() {
       document.removeEventListener("mousedown", handleClickOutside, true);
     };
   }, [showHistory]);
+
+  // Close commit-and-push dropdown on outside click
+  useEffect(() => {
+    if (!showDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      // dropdownRef 同时包裹触发按钮和菜单，命中其中任意一个都不算 outside
+      if (dropdownRef.current?.contains(target)) return;
+      setShowDropdown(false);
+    };
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside, true);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClickOutside, true);
+    };
+  }, [showDropdown]);
 
   return (
     <div className="commit-message-area">

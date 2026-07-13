@@ -28,7 +28,11 @@ export function registerConfigHandlers(ctx: GitHandlerContext): void {
       "commitBadgeMode",
       "current",
     );
-    return { commitListStyle, commitBadgeMode };
+    const skipPushConfirmation = config.get<boolean>(
+      "skipPushConfirmation",
+      true,
+    );
+    return { commitListStyle, commitBadgeMode, skipPushConfirmation };
   });
 
   // 写入配置并广播事件，让所有 webview 热刷新

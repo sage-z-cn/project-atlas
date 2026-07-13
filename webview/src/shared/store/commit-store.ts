@@ -85,6 +85,8 @@ interface CommitStore {
   commitListStyle: "vscode" | "jetbrains";
   // Badge display mode (Total commits / Current repo / Off)
   commitBadgeMode: "total" | "current" | "off";
+  /** 提交并推送时是否跳过推送确认面板直接推送。 */
+  skipPushConfirmation: boolean;
   // AI commit message 生成
   aiGenerating: boolean;
   /** 用户已请求取消当前生成（generateCommitMessage 的 catch 据此跳过错误提示）。 */
@@ -202,6 +204,8 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   collapsedDirs: new Set<string>(),
   commitListStyle: "vscode",
   commitBadgeMode: "current",
+  /** 提交并推送时是否跳过推送确认面板直接推送（默认 true）。 */
+  skipPushConfirmation: true,
   aiGenerating: false,
   aiCancelling: false,
   aiConfigured: false,
@@ -751,10 +755,12 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       const result = (await bridge.request("getGitConfig")) as {
         commitListStyle?: "vscode" | "jetbrains";
         commitBadgeMode?: "total" | "current" | "off";
+        skipPushConfirmation?: boolean;
       };
       const commitListStyle = result?.commitListStyle ?? "vscode";
       const commitBadgeMode = result?.commitBadgeMode ?? "current";
-      set({ commitListStyle, commitBadgeMode });
+      const skipPushConfirmation = result?.skipPushConfirmation ?? true;
+      set({ commitListStyle, commitBadgeMode, skipPushConfirmation });
     } catch (err) {
       console.error("fetchGitConfig failed:", err);
     }

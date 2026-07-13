@@ -722,6 +722,11 @@
           "default": true,
           "description": "%config.gitAtlas.enableCommitPanel%"
         },
+        "gitAtlas.skipPushConfirmation": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.gitAtlas.skipPushConfirmation%"
+        },
         "gitAtlas.aiCommit.apiUrl": {
           "type": "string",
           "default": "",
