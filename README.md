@@ -56,7 +56,7 @@
 
 **IDEA-style Commit Panel**
 > An activity-bar commit panel with Changes / Staged / Unversioned groups, directory tree, amend, recent commit messages, and commit-and-push split button. Includes git stash (Shelf) and IDEA-compatible shelf (`.idea/shelf/`) with patch import/export.
-
+123
 **Multi-repo Support**
 > Workspaces with sub-directory git repos get a repo selector in both the Git Log and Commit views. Switch the active repo with one click; status badges (↑ahead / ↓behind / ●uncommitted) update in real time.
 

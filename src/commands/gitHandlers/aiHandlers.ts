@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
-import { requireGit, withProgress } from "../gitContext";
+import { requireGit } from "../gitContext";
 import { AiCommitService } from "../../ai/aiCommitService";
 
 export function registerAiHandlers(ctx: GitHandlerContext): void {
@@ -34,11 +34,10 @@ export function registerAiHandlers(ctx: GitHandlerContext): void {
         throw new Error("No changes to generate a commit message from.");
       }
 
-      return withProgress(ctx, async () => {
-        // 将已读取的 cfg 传入，避免 generateMessage 内部重复读取 SecretStorage
-        const message = await aiService.generateMessage(diffContext, gitService, cfg);
-        return { message, source: diffContext.source };
-      });
+      // AI 生成不是 git 操作，不触发全局 operationStart/End 进度条；
+      // commit 区有自己的 aiGenerating spinner 作为加载指示。
+      const message = await aiService.generateMessage(diffContext, gitService, cfg);
+      return { message, source: diffContext.source };
     }),
   );
 

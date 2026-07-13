@@ -236,4 +236,34 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
       return { success: true };
     }),
   );
+
+  // ── Commit message draft (project-level, multi-repo) ───────────────────
+  // 缓存在 workspaceState（项目级，跨重载持久化），按 repoPath 分键，支持多 repo。
+  // 空 message 时删除该 repo 的键，避免堆积空草稿。
+  const DRAFT_KEY = "gitAtlas.commitDrafts";
+
+  messageRouter.handle("getCommitDraft", async (params) => {
+    const repoPath = (params?.repoPath as string) ?? "";
+    if (!repoPath) {
+      return { message: "" };
+    }
+    const drafts = ctx.context.workspaceState.get<Record<string, string>>(DRAFT_KEY, {});
+    return { message: drafts[repoPath] ?? "" };
+  });
+
+  messageRouter.handle("saveCommitDraft", async (params) => {
+    const repoPath = (params?.repoPath as string) ?? "";
+    if (!repoPath) {
+      return { success: false };
+    }
+    const message = (params?.message as string) ?? "";
+    const drafts = ctx.context.workspaceState.get<Record<string, string>>(DRAFT_KEY, {});
+    if (message.trim() === "") {
+      delete drafts[repoPath];
+    } else {
+      drafts[repoPath] = message;
+    }
+    await ctx.context.workspaceState.update(DRAFT_KEY, drafts);
+    return { success: true };
+  });
 }

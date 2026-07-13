@@ -74,6 +74,8 @@ export type CommandType =
   | "deleteShelve"
   | "showDiffForWorkingFile"
   | "getAmendMessage"
+  | "getCommitDraft"
+  | "saveCommitDraft"
   | "getIdeaShelves"
   | "ideaShelveChanges"
   | "ideaUnshelveChanges"

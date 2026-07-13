@@ -114,6 +114,8 @@ interface CommitStore {
   fetchChanges: () => Promise<void>;
   fetchShelves: () => Promise<void>;
   setCommitMessage: (msg: string) => void;
+  /** 从 host 读取当前 repo 的草稿并回填（不走持久化，避免回写）。 */
+  loadCommitDraft: () => Promise<void>;
   setAmend: (amend: boolean) => void;
   toggleFileSelection: (filePath: string) => void;
   setFileKeys: (keys: string[], selected: boolean) => void;
@@ -145,6 +147,33 @@ interface CommitStore {
   toggleGroupByDirectory: () => void;
   toggleShowUnversioned: () => void;
   refresh: () => Promise<void>;
+}
+
+/**
+ * 提交信息草稿的持久化辅助（项目级、多 repo）。
+ *
+ * - scheduleDraftSave：防抖写入（用户连续输入时合并，400ms 静默后落盘）。
+ * - flushDraftSave：立即落盘并取消未到期的防抖（用于 repo 切换前 / 提交成功清空）。
+ * repoPath 为 null（无活动仓库）时不操作。
+ */
+let draftSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleDraftSave(repoPath: string | null, message: string): void {
+  if (!repoPath) return;
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(() => {
+    draftSaveTimer = null;
+    void bridge.request("saveCommitDraft", { repoPath, message }).catch(() => {});
+  }, 400);
+}
+
+function flushDraftSave(repoPath: string | null, message: string): void {
+  if (draftSaveTimer) {
+    clearTimeout(draftSaveTimer);
+    draftSaveTimer = null;
+  }
+  if (!repoPath) return;
+  void bridge.request("saveCommitDraft", { repoPath, message }).catch(() => {});
 }
 
 export const useCommitStore = create<CommitStore>((set, get) => ({
@@ -228,6 +257,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       get().fetchRepoStatuses(),
       get().fetchGitConfig(),
       get().fetchAiConfig(),
+      get().loadCommitDraft(),
     ]);
   },
 
@@ -311,6 +341,23 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 
   setCommitMessage(msg: string) {
     set({ commitMessage: msg });
+    scheduleDraftSave(get().currentRepoPath, msg);
+  },
+
+  async loadCommitDraft() {
+    const repoPath = get().currentRepoPath;
+    if (!repoPath) return;
+    const mySeq = get().repoSeq;
+    try {
+      const result = (await bridge.request("getCommitDraft", { repoPath })) as {
+        message?: string;
+      };
+      if (mySeq !== get().repoSeq) return; // 期间 repo 已切换，丢弃过期结果
+      // 直接 set，不走 setCommitMessage（刚从缓存读出，无需回写）
+      set({ commitMessage: result?.message ?? "" });
+    } catch {
+      // ignore
+    }
   },
 
   setAmend(amend: boolean) {
@@ -323,7 +370,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
             repoPath: get().currentRepoPath,
           })) as { message: string };
           if (result?.message) {
-            set({ commitMessage: result.message });
+            get().setCommitMessage(result.message);
           }
         } catch {
           // ignore
@@ -468,6 +515,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         repoPath: get().currentRepoPath,
       });
       set({ commitMessage: "", amend: false });
+      flushDraftSave(get().currentRepoPath, "");
       await get().fetchChanges();
       return true;
     } catch (err) {
@@ -495,6 +543,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         repoPath: get().currentRepoPath,
       });
       set({ commitMessage: "", amend: false });
+      flushDraftSave(get().currentRepoPath, "");
       await get().fetchChanges();
       return true;
     } catch (err) {
@@ -752,7 +801,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       }
 
       if (result?.message) {
-        set({ commitMessage: result.message });
+        get().setCommitMessage(result.message);
       }
     } catch (err) {
       if (mySeq !== get().repoSeq) return;
@@ -854,6 +903,8 @@ bridge.onEvent((event, data) => {
   if (event === "repoChanged") {
     const { repoPath } = (data ?? {}) as { repoPath?: string | null };
     const state = useCommitStore.getState();
+    // 切换前立即落盘旧 repo 的草稿（含尚未到期的防抖写入），避免丢字。
+    flushDraftSave(state.currentRepoPath, state.commitMessage);
     useCommitStore.setState({
       repoSeq: state.repoSeq + 1,
       currentRepoPath: repoPath ?? state.currentRepoPath,
@@ -868,6 +919,8 @@ bridge.onEvent((event, data) => {
     useCommitStore.getState().fetchChanges();
     // Refresh badges for the new active repo (and the rest, in one round-trip).
     useCommitStore.getState().fetchRepoStatuses();
+    // 回填新 repo 的草稿（loadCommitDraft 内部有 seq 竞态保护）。
+    useCommitStore.getState().loadCommitDraft();
     return;
   }
   if (event === "commitStateChanged" || event === "gitStateChanged") {
