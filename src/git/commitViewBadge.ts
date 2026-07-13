@@ -84,6 +84,7 @@ export function registerCommitViewBadge(
   async function computeCount(): Promise<{
     count: number;
     aggregated: boolean;
+    failedRepos?: string[];
   }> {
     // Commit 面板已关闭时跳过所有计算：容器已隐藏，徽标无意义，且避免
     // 在多 repo + total 模式下遍历所有仓库的工作树（可能较重）。
@@ -101,20 +102,36 @@ export function registerCommitViewBadge(
       return { count: await countChanges(svc), aggregated: false };
     }
 
-    // `total` in a multi-repo workspace: sum across every repo.
+    // `total` in a multi-repo workspace: sum across every repo. MUST iterate
+    // getAll() (services Map values) directly — never getService(path), which
+    // re-normalizes the path and can silently miss entries when the double
+    // normalize produces a different key, dropping repos from the total.
+    // Per-repo failures are surfaced via tooltip instead of being swallowed.
+    const allSvcs = registry.getAll();
+    const names = registry.getRepoInfos().map((i) => i.name);
     let sum = 0;
+    const failedRepos: string[] = [];
     await Promise.all(
-      registry.getAll().map(async (svc) => {
-        sum += await countChanges(svc);
+      allSvcs.map(async (svc, idx) => {
+        try {
+          sum += (await svc.getWorkingTreeChanges()).length;
+        } catch (err) {
+          const name = names[idx] ?? `repo${idx}`;
+          failedRepos.push(name);
+          console.warn(
+            `[commitViewBadge] getWorkingTreeChanges failed for ${name}:`,
+            err,
+          );
+        }
       }),
     );
-    return { count: sum, aggregated: true };
+    return { count: sum, aggregated: true, failedRepos };
   }
 
   async function refreshBadge(): Promise<void> {
     refreshing = true;
     try {
-      const { count, aggregated } = await computeCount();
+      const { count, aggregated, failedRepos } = await computeCount();
       // NEVER assign `undefined` — throws TypeError on some VSCode versions
       // (issues #162900, #210640). Clear the badge via value:0 instead.
       if (count <= 0) {
@@ -122,7 +139,13 @@ export function registerCommitViewBadge(
         return;
       }
       const tooltip = aggregated
-        ? vscode.l10n.t("{0} changes across all repositories", count)
+        ? failedRepos && failedRepos.length > 0
+          ? vscode.l10n.t(
+              "{0} changes across all repositories ({1} unavailable)",
+              count,
+              failedRepos.length,
+            )
+          : vscode.l10n.t("{0} changes across all repositories", count)
         : vscode.l10n.t("{0} changes", count);
       treeView.badge = { value: count, tooltip };
     } finally {
