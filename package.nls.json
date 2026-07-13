@@ -74,6 +74,7 @@
   "config.gitAtlas.aiCommit.maxDiffChars": "Maximum diff characters sent to the AI. Longer diffs are truncated.",
   "config.gitAtlas.aiCommit.customInstructions": "Custom instructions appended to the AI prompt for commit message generation. E.g. 'Always include a JIRA ticket number' or 'Use Angular commit convention'.",
   "config.gitAtlas.aiCommit.timeout": "Timeout in seconds for AI commit message generation requests.",
+  "config.gitAtlas.aiCommit.enableThinking": "Enable the model's thinking/reasoning mode when generating commit messages. The request field is auto-selected by provider/model (DeepSeek, GLM, Kimi, Qwen, MiMo); for unknown providers no thinking field is sent. Off by default.",
   "config.gitAtlas.enableGitLogPanel": "Enable the Git Atlas panel (Git Log) in the bottom panel. Takes effect immediately, no reload required.",
   "config.gitAtlas.enableCommitPanel": "Enable the Commit panel in the activity bar. Takes effect immediately, no reload required.",
   "command.git-atlas.setAiApiKey": "Git Atlas: Set AI API Key",

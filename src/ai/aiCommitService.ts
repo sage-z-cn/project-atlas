@@ -1,5 +1,10 @@
 import * as vscode from "vscode";
 import type { GitService } from "../git/gitService";
+import {
+  detectProvider,
+  getThinkingBehavior,
+  THINKING_TOKEN_BUDGET,
+} from "./thinkingProviders";
 
 const SECRET_KEY = "gitAtlas.aiCommit.apiKey";
 
@@ -13,6 +18,7 @@ export interface AiCommitConfig {
   maxDiffChars: number;
   customInstructions: string;
   timeout: number;
+  enableThinking: boolean;
 }
 
 export interface DiffContext {
@@ -37,15 +43,16 @@ export class AiCommitService {
       maxDiffChars: config.get<number>("maxDiffChars", 8000),
       customInstructions: config.get<string>("customInstructions", "").trim(),
       timeout: config.get<number>("timeout", 30),
+      enableThinking: config.get<boolean>("enableThinking", false),
       apiKey: (await this.context.secrets.get(SECRET_KEY)) ?? "",
     };
   }
 
   /** 读取配置 + secret。返回 null 表示未完成配置。 */
   async getConfig(): Promise<AiCommitConfig | null> {
-    const { apiUrl, model, apiKey, language, maxDiffChars, customInstructions, timeout } = await this.readConfig();
+    const { apiUrl, model, apiKey, language, maxDiffChars, customInstructions, timeout, enableThinking } = await this.readConfig();
     if (!apiUrl || !apiKey || !model) return null;
-    return { apiUrl, model, apiKey, language, maxDiffChars, customInstructions, timeout };
+    return { apiUrl, model, apiKey, language, maxDiffChars, customInstructions, timeout, enableThinking };
   }
 
   /** 返回是否已配置（不含 key 明文，供前端判断按钮可用性）。 */
@@ -295,22 +302,53 @@ export class AiCommitService {
     );
   }
 
-  /** 执行单次 API 请求。HTTP 成功时返回（含空 content）；HTTP/超时/网络错误时抛出。 */
-  private async doRequest(
+  /**
+   * 构建请求体。开启思考时按 provider 注入对应思考字段，并放大 token 预算
+   * （推理过程消耗 token）；Kimi 思考模式会因自定义采样参数报错，需删除 temperature。
+   */
+  private buildRequestBody(
     cfg: AiCommitConfig,
     systemPrompt: string,
     userPrompt: string,
-  ): Promise<{ content: string; finishReason: string | null; raw: unknown }> {
-    const body = {
+  ): Record<string, unknown> {
+    const body: Record<string, unknown> = {
       model: cfg.model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.3,
-      max_tokens: 500,
       stream: false,
     };
+
+    if (cfg.enableThinking) {
+      const provider = detectProvider(cfg.apiUrl, cfg.model);
+      const behavior = getThinkingBehavior(provider, cfg.model);
+
+      // 合并思考字段（自带思考的模型 fields 为 {}，不传）
+      for (const [k, v] of Object.entries(behavior.fields)) {
+        body[k] = v;
+      }
+      // Kimi 思考模式传非标准 temperature 会报错
+      if (behavior.dropSamplingParams) {
+        delete body.temperature;
+      }
+      // 放大预算并使用 provider 要求的字段名
+      body[behavior.tokenField] = THINKING_TOKEN_BUDGET;
+    } else {
+      body.max_tokens = 500;
+    }
+
+    return body;
+  }
+
+  /** 执行单次 API 请求。HTTP 成功时返回（含空 content）；HTTP/超时/网络错误时抛出。 */
+  private async doRequest(
+    cfg: AiCommitConfig,
+    systemPrompt: string,
+    userPrompt: string,
+  ): Promise<{ content: string; finishReason: string | null; raw: unknown }> {
+    const body = this.buildRequestBody(cfg, systemPrompt, userPrompt);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), cfg.timeout * 1000);

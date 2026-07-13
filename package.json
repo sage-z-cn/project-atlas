@@ -774,6 +774,12 @@
           "maximum": 300,
           "description": "%config.gitAtlas.aiCommit.timeout%",
           "order": 15
+        },
+        "gitAtlas.aiCommit.enableThinking": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.gitAtlas.aiCommit.enableThinking%",
+          "order": 16
         }
       }
     }
