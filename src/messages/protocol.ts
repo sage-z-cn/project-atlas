@@ -57,6 +57,7 @@ export type CommandType =
   | "confirmCancelMerge"
   | "closeMergeEditor"
   | "openFile"
+  | "showFileHistory"
   | "checkoutBranch"
   | "createBranch"
   | "deleteBranch"

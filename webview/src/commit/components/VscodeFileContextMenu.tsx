@@ -11,6 +11,7 @@ import DiscardIcon from "~icons/codicon/discard";
 import RevealIcon from "~icons/codicon/folder";
 import CopyIcon from "~icons/codicon/copy";
 import MergeIcon from "~icons/codicon/git-merge";
+import HistoryIcon from "~icons/codicon/history";
 
 export interface VscodeFileContextMenuProps {
   x: number;
@@ -118,6 +119,14 @@ export function VscodeFileContextMenu({
     onClose();
   }, [file.path, onClose]);
 
+  const handleShowFileHistory = useCallback(() => {
+    bridge.request("showFileHistory", {
+      filePath: file.path,
+      repoPath: currentRepoPath,
+    });
+    onClose();
+  }, [file.path, currentRepoPath, onClose]);
+
   const handleOpenChanges = useCallback(() => {
     showDiff(file.path, file.staged);
     onClose();
@@ -183,6 +192,16 @@ export function VscodeFileContextMenu({
           <OpenFileIcon />
         </span>
         <span>{t("Open File")}</span>
+      </button>
+      <button
+        type="button"
+        className="commit-context-menu-item"
+        onClick={handleShowFileHistory}
+      >
+        <span className="commit-context-menu-icon">
+          <HistoryIcon />
+        </span>
+        <span>{t("Show File History")}</span>
       </button>
 
       {isConflicted ? (

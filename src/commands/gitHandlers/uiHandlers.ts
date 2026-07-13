@@ -36,6 +36,23 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
     return { success: true };
   });
 
+  // Show the file's git history in the Git Log panel. Reuses the registered
+  // `git-atlas.showFileHistory` command so repo resolution/switching,
+  // relativePath computation and the gitLog.focus + broadcastEvent flow stay
+  // in one place. Path resolution mirrors openFile above.
+  messageRouter.handle("showFileHistory", async (params) => {
+    const filePath = params.filePath as string;
+    const repoRoot =
+      (params?.repoPath as string) ||
+      ctx.registry.getCurrentRepoPath() ||
+      ctx.workspaceRoot;
+    const absUri = repoRoot
+      ? vscode.Uri.joinPath(vscode.Uri.file(repoRoot), filePath)
+      : vscode.Uri.file(filePath);
+    await vscode.commands.executeCommand("git-atlas.showFileHistory", absUri);
+    return { success: true };
+  });
+
   messageRouter.handle("showInputBox", async (params) => {
     const prompt = params.prompt as string | undefined;
     const value = params.value as string | undefined;

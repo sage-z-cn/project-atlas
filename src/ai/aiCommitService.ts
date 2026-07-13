@@ -253,11 +253,54 @@ export class AiCommitService {
     ].join("\n");
   }
 
+  /**
+   * 空响应的最大重试次数（不含首次）。部分模型/网关偶发地在 HTTP 200
+   * 下返回空 content，重试可消除这类瞬时抖动。
+   */
+  private static readonly MAX_EMPTY_RETRIES = 2;
+
+  /**
+   * 调用 AI API，并在遇到"HTTP 成功但内容为空"时自动重试。
+   *
+   * 仅对空响应重试；真正的 HTTP/网络/超时错误会立即抛出，避免对配置类
+   * 错误（401/404 等）做无意义重试。空响应通常返回很快，重试成本可控。
+   */
   private async callApi(
     cfg: AiCommitConfig,
     systemPrompt: string,
     userPrompt: string,
   ): Promise<string> {
+    const totalAttempts = AiCommitService.MAX_EMPTY_RETRIES + 1;
+    let lastDiagnostic = "";
+
+    for (let attempt = 1; attempt <= totalAttempts; attempt++) {
+      if (attempt > 1) {
+        // 重试前短暂线性退避，缓解瞬时模型/网关抖动。
+        await this.sleep(800 * (attempt - 1));
+      }
+
+      const result = await this.doRequest(cfg, systemPrompt, userPrompt);
+      if (result.content) {
+        return result.content;
+      }
+      lastDiagnostic = this.describeEmptyResponse(result.finishReason, result.raw);
+    }
+
+    throw new Error(
+      vscode.l10n.t(
+        "AI returned an empty response while generating the commit message after {0} attempts ({1}).",
+        String(totalAttempts),
+        lastDiagnostic,
+      ),
+    );
+  }
+
+  /** 执行单次 API 请求。HTTP 成功时返回（含空 content）；HTTP/超时/网络错误时抛出。 */
+  private async doRequest(
+    cfg: AiCommitConfig,
+    systemPrompt: string,
+    userPrompt: string,
+  ): Promise<{ content: string; finishReason: string | null; raw: unknown }> {
     const body = {
       model: cfg.model,
       messages: [
@@ -288,26 +331,71 @@ export class AiCommitService {
         throw new Error(`AI API returned ${resp.status}: ${text.slice(0, 200)}`);
       }
 
-      const data = (await resp.json()) as {
-        choices?: { message?: { content?: string } }[];
-      };
-
-      const content = data.choices?.[0]?.message?.content;
-      if (!content) {
-        throw new Error("AI API returned an empty response.");
-      }
-      return content;
+      const data = await resp.json();
+      const { content, finishReason } = this.extractContent(data);
+      return { content, finishReason, raw: data };
     } catch (err) {
       // AbortError → 友好提示（否则用户看到晦涩的 "The operation was aborted"）
       if (err instanceof Error && err.name === "AbortError") {
         throw new Error(
-          vscode.l10n.t("AI request timed out after {0} seconds.", String(cfg.timeout)),
+          vscode.l10n.t("AI request timed out after {0} seconds while generating the commit message.", String(cfg.timeout)),
         );
       }
       throw err;
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  /**
+   * 从 OpenAI 兼容的响应中抽取文本内容。
+   *
+   * 兼容两种 content 形态：
+   *   - 字符串（标准 chat completions）
+   *   - 内容块数组（多模态格式 [{type:"text",text:"..."}]，部分网关用于纯文本响应）
+   * 返回 content 为 "" 表示未抽取到有效文本（调用方据此决定是否重试）。
+   */
+  private extractContent(data: unknown): { content: string; finishReason: string | null } {
+    const choice = (
+      data as { choices?: { finish_reason?: string; message?: unknown }[] }
+    )?.choices?.[0];
+    const finishReason = choice?.finish_reason ?? null;
+    const message = choice?.message as
+      | { content?: string | { type?: string; text?: string }[] }
+      | undefined;
+
+    let content = "";
+    if (message) {
+      if (typeof message.content === "string") {
+        content = message.content;
+      } else if (Array.isArray(message.content)) {
+        content = message.content
+          .filter(
+            (p): p is { type: "text"; text: string } =>
+              !!p && p.type === "text" && typeof p.text === "string",
+          )
+          .map((p) => p.text)
+          .join("\n");
+      }
+    }
+    return { content, finishReason };
+  }
+
+  /** 为空响应生成诊断摘要（finish_reason + 响应 id），用于最终错误信息。 */
+  private describeEmptyResponse(finishReason: string | null, raw: unknown): string {
+    const id = (raw as { id?: string })?.id;
+    const parts: string[] = [];
+    if (finishReason) {
+      parts.push(`finish_reason=${finishReason}`);
+    }
+    if (id) {
+      parts.push(`id=${id}`);
+    }
+    return parts.join(", ") || "no diagnostics";
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private cleanMessage(raw: string): string {

@@ -23,8 +23,9 @@ export default defineConfig({
         "stream",
         "util",
         "zlib",
-      ],
+      ], 
     },
     minify: "esbuild",
   },
 });
+123
