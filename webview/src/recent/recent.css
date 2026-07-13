@@ -1,0 +1,179 @@
+/* Recent 面板样式。端口自 legacy recentViewProvider.ts + baseViewProvider.sharedCss()，
+   改为类名驱动（无内联 style，CSP 友好）。 */
+
+.recent-list {
+  height: 100%;
+  overflow-y: auto;
+  background: var(--vscode-sideBar-background);
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  user-select: none;
+}
+
+.recent-item {
+  display: flex;
+  align-items: flex-start;
+  min-height: 22px;
+  padding: 4px 8px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.recent-item:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.recent-item.focused {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+  background: var(--vscode-list-inactiveSelectionBackground);
+  color: var(--vscode-list-inactiveSelectionForeground);
+}
+.recent-item.selected {
+  background: var(--vscode-list-inactiveSelectionBackground);
+  color: var(--vscode-list-inactiveSelectionForeground);
+}
+.recent-item.invalid {
+  opacity: 0.5;
+}
+.recent-item.selecting {
+  background: var(--vscode-list-inactiveSelectionBackground);
+  color: var(--vscode-list-inactiveSelectionForeground);
+}
+
+.recent-item-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+}
+
+.recent-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  align-self: flex-start;
+}
+
+.recent-item-label-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.recent-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.recent-item-desc {
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: auto;
+  text-align: right;
+}
+
+.recent-item-path-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.recent-item-path {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.recent-item-hover-actions {
+  visibility: hidden;
+  flex-shrink: 0;
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.recent-item:hover .recent-item-hover-actions {
+  visibility: visible;
+}
+.recent-hover-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  color: var(--vscode-descriptionForeground);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  width: 20px;
+}
+.recent-hover-btn:hover {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.recent-empty {
+  padding: 8px 16px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+.recent-loading {
+  padding: 8px 16px;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* 右键菜单（复用 .context-menu 类名，Favorites/Tasks 后续共用） */
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--vscode-menu-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-menu-border, var(--vscode-editorWidget-border));
+  border-radius: 4px;
+  padding: 2px 0;
+  min-width: 140px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.context-menu-item {
+  padding: 2px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 0.9em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.context-menu-item:hover {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground));
+  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground));
+}
+.context-menu-item.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.context-menu-separator {
+  height: 1px;
+  background: var(--vscode-menu-separatorBackground, var(--vscode-editorWidget-border));
+  margin: 2px 0;
+}
+
+/* 框选可视化矩形（由 useRubberBand 创建到 body） */
+.rubber-band-box {
+  position: fixed;
+  border: 1px solid var(--vscode-focusBorder);
+  pointer-events: none;
+  z-index: 999;
+  background: var(--vscode-focusBorder);
+  opacity: 0.1;
+}

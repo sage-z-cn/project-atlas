@@ -20,9 +20,6 @@ screenshot/**
 AGENTS.md
 
 node_modules/**
-!node_modules/@vscode/codicons/dist/**
-!node_modules/devicon/devicon.min.css
-!node_modules/devicon/fonts/**
 
 # webview 子包的 node_modules 不打包（依赖已由 vite 打包进 out/webview/assets/main.js）
 webview/node_modules/**

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { MessageRouter } from "../messages/messageRouter";
-import { getGitWebviewHtml } from "./gitHtml";
+import { getReactWebviewHtml } from "./reactHtml";
 
 /**
  * Opens a "Push Commits" webview panel in an editor tab,
@@ -37,11 +37,12 @@ export class PushPanel {
       },
     );
 
-    this.panel.webview.html = getGitWebviewHtml(
+    this.panel.webview.html = getReactWebviewHtml(
       this.panel.webview,
       this.extensionUri,
       "push",
       { branch: branchName, remote: remoteName, withTags: String(withTags) },
+      "Git Atlas",
     );
 
     const routerDisposable = this.messageRouter.registerWebview(

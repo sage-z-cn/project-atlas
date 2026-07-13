@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { MessageRouter } from "../messages/messageRouter";
-import { getGitWebviewHtml } from "./gitHtml";
+import { getReactWebviewHtml } from "./reactHtml";
 
 export class ConflictsManager {
   private panel: vscode.WebviewPanel | null = null;
@@ -27,10 +27,12 @@ export class ConflictsManager {
       },
     );
 
-    panel.webview.html = getGitWebviewHtml(
+    panel.webview.html = getReactWebviewHtml(
       panel.webview,
       this.extensionUri,
       "conflicts",
+      undefined,
+      "Git Atlas",
     );
 
     const routerDisposable = this.messageRouter.registerWebview(panel.webview);

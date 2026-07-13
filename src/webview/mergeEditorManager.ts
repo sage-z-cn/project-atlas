@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { MessageRouter } from "../messages/messageRouter";
-import { getGitWebviewHtml } from "./gitHtml";
+import { getReactWebviewHtml } from "./reactHtml";
 
 export class MergeEditorManager {
   private panels = new Map<string, vscode.WebviewPanel>();
@@ -29,7 +29,7 @@ export class MergeEditorManager {
       },
     );
 
-    panel.webview.html = getGitWebviewHtml(
+    panel.webview.html = getReactWebviewHtml(
       panel.webview,
       this.extensionUri,
       "merge",
@@ -37,6 +37,7 @@ export class MergeEditorManager {
         file: filePath,
         "merge-msg": mergeMsg ?? "",
       },
+      "Git Atlas",
     );
 
     const routerDisposable = this.messageRouter.registerWebview(panel.webview);

@@ -1,0 +1,150 @@
+/* Task 面板样式。端口自 legacy tasksViewProvider.ts 的内联 CSS。 */
+
+.tasks-list {
+  height: 100%;
+  overflow-y: auto;
+  background: var(--vscode-sideBar-background);
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  user-select: none;
+}
+
+.tasks-group-header,
+.tasks-project-header {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-weight: 600;
+  gap: 4px;
+}
+.tasks-group-header {
+  font-size: 0.9em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.tasks-group-header:hover,
+.tasks-project-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.tasks-chevron,
+.tasks-header-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vscode-icon-foreground);
+}
+
+.tasks-separator {
+  height: 1px;
+  margin: 6px 12px;
+  background: var(--vscode-widget-border, rgba(255, 255, 255, 0.1));
+}
+
+.tasks-item {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 4px 8px;
+  cursor: pointer;
+  overflow: hidden;
+  gap: 6px;
+  position: relative;
+}
+.tasks-item:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.tasks-item.running {
+  color: var(--vscode-notificationsInfoIcon-foreground, #3794ff);
+}
+.tasks-item.drag-over {
+  background: var(--vscode-list-focusHighlightForeground);
+  outline: 1px solid var(--vscode-focusBorder);
+  border-radius: 3px;
+}
+.tasks-drop-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--vscode-focusBorder);
+  pointer-events: none;
+  z-index: 100;
+}
+.tasks-drop-indicator.before { top: 0; }
+.tasks-drop-indicator.after { bottom: 0; }
+.tasks-project-indent {
+  flex-shrink: 0;
+  width: 14px;
+}
+.tasks-item-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vscode-icon-foreground);
+}
+.tasks-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tasks-path {
+  margin-left: 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+.tasks-run-btn,
+.tasks-stop-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  color: var(--vscode-descriptionForeground);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  width: 20px;
+}
+.tasks-run-btn:hover,
+.tasks-stop-btn:hover {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground);
+}
+.tasks-item.running .tasks-stop-btn {
+  color: var(--vscode-notificationsErrorIcon-foreground, #f14c4c);
+}
+
+.tasks-empty {
+  padding: 8px 16px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+.tasks-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0;
+  gap: 8px;
+  color: var(--vscode-descriptionForeground);
+}
+.tasks-spin {
+  animation: tasks-spin 0.8s linear infinite;
+}
+@keyframes tasks-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

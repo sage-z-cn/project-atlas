@@ -4,11 +4,10 @@ import { ProjectService } from "./services/projectService";
 import { FavoriteService } from "./services/favoriteService";
 import { GroupService } from "./services/groupService";
 import { TaskService } from "./services/taskService";
-import { RecentViewProvider } from "./webview/recentViewProvider";
-import { FavoritesViewProvider } from "./webview/favoritesViewProvider";
-import { TasksViewProvider } from "./webview/tasksViewProvider";
 import { registerProjectCommands } from "./commands/projectCommands";
 import { registerGroupCommands } from "./commands/groupCommands";
+import { setupProject } from "./setupProject";
+import { setupTask } from "./setupTask";
 import { setupGit } from "./git/setupGit";
 
 export function activate(context: vscode.ExtensionContext) {
@@ -19,127 +18,27 @@ export function activate(context: vscode.ExtensionContext) {
   const taskService = new TaskService();
   taskService.initStorage(context.globalState);
 
-  const recentView = new RecentViewProvider(
-    context.extensionUri,
-    projectService,
-    favoriteService,
-    groupService
-  );
-  const favoritesView = new FavoritesViewProvider(
-    context.extensionUri,
-    favoriteService,
-    groupService,
-    projectService
-  );
-  const tasksView = new TasksViewProvider(
-    context.extensionUri,
-    taskService,
-    projectService,
-    favoriteService,
-    groupService
-  );
-
-  const refreshAll = () => {
-    recentView.refresh();
-    favoritesView.refresh();
-  };
-
-  const refreshTasks = () => {
-    tasksView.refresh();
-  };
-
-  storage.onDidChange(() => refreshAll());
-
-  // Refresh tasks when task state changes (run/stop)
-  taskService.onDidChange(() => refreshTasks());
-
-  context.subscriptions.push(
-    vscode.window.onDidChangeWindowState((e) => {
-      if (e.focused) {
-        refreshAll();
-        refreshTasks();
-      }
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("projectAtlas.openMode") || e.affectsConfiguration("workbench.list.openMode")) {
-        refreshAll();
-      }
-      if (e.affectsConfiguration("taskAtlas")) {
-        refreshTasks();
-      }
-    })
-  );
-
-  // Watch for changes to tasks.json and package.json
-  const tasksWatcher = vscode.workspace.createFileSystemWatcher("**/.vscode/tasks.json");
-  const pkgWatcher = vscode.workspace.createFileSystemWatcher("**/package.json");
-  context.subscriptions.push(tasksWatcher, pkgWatcher);
-  const refreshTasksWithCache = () => {
-    taskService.invalidateCache();
-    refreshTasks();
-  };
-  context.subscriptions.push(
-    tasksWatcher.onDidChange(() => refreshTasksWithCache()),
-    tasksWatcher.onDidCreate(() => refreshTasksWithCache()),
-    tasksWatcher.onDidDelete(() => refreshTasksWithCache()),
-    pkgWatcher.onDidChange(() => refreshTasksWithCache()),
-    pkgWatcher.onDidCreate(() => refreshTasksWithCache()),
-    pkgWatcher.onDidDelete(() => refreshTasksWithCache()),
-  );
+  // Recent / Favorites / Tasks 全部迁移到 React。storage.onDidChange 与
+  // openMode/config 变更由 setupProject 广播 projectDataChanged/openModeChanged
+  // 驱动 recent+favorites 重拉；tasks 由 setupTask 的 tasksChanged 驱动。
+  // refreshAll 现为空操作，仅保留签名以最小化 projectCommands/groupCommands 改动。
+  const refreshAll = () => {};
 
   // Reveal active file in built-in explorer sidebar
   context.subscriptions.push(
     vscode.commands.registerCommand("project-atlas.revealActiveFile", () => {
       vscode.commands.executeCommand("revealInExplorer");
-    })
+    }),
   );
 
-  // Refresh tasks command
-  context.subscriptions.push(
-    vscode.commands.registerCommand("task-atlas.refreshTasks", () => {
-      refreshTasks();
-    })
-  );
+  // Project Atlas 装配（Recent + Favorites React 化；project router + 事件广播）
+  setupProject(context, storage, projectService, favoriteService, groupService);
 
-  // Open Task Atlas settings
-  context.subscriptions.push(
-    vscode.commands.registerCommand("task-atlas.openSettings", () => {
-      vscode.commands.executeCommand("workbench.action.openSettings", "taskAtlas");
-    })
-  );
-
-  // Task Atlas expand / collapse
-  context.subscriptions.push(
-    vscode.commands.registerCommand("task-atlas.expandAll", () => {
-      tasksView.expandAll();
-    })
-  );
-  context.subscriptions.push(
-    vscode.commands.registerCommand("task-atlas.collapseAll", () => {
-      tasksView.collapseAll();
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      "project-atlas.recent",
-      recentView
-    ),
-    vscode.window.registerWebviewViewProvider(
-      "project-atlas.favorites",
-      favoritesView
-    ),
-    vscode.window.registerWebviewViewProvider(
-      "task-atlas.tasks",
-      tasksView
-    )
-  );
+  // Task Atlas 装配（React 化；task router + watcher + view/title 命令）
+  setupTask(context, taskService);
 
   registerProjectCommands(context, projectService, favoriteService, groupService, refreshAll);
-  registerGroupCommands(context, groupService, favoriteService, projectService, refreshAll, favoritesView);
+  registerGroupCommands(context, groupService, favoriteService, projectService, refreshAll);
 
   projectService.recordCurrentWorkspace();
 

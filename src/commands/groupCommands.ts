@@ -4,7 +4,6 @@ import { FavoriteService } from "../services/favoriteService";
 import { ProjectService } from "../services/projectService";
 import { confirmDelete } from "../utils/confirm";
 import type { GroupItem } from "../models/group";
-import type { FavoritesViewProvider } from "../webview/favoritesViewProvider";
 
 type GroupNode = { type: "group"; item: GroupItem };
 
@@ -14,7 +13,6 @@ export function registerGroupCommands(
   favoriteService: FavoriteService,
   projectService: ProjectService,
   refreshAll: () => void,
-  favoritesView: FavoritesViewProvider
 ): void {
   const register = (cmd: string, handler: (...args: any[]) => any) => {
     context.subscriptions.push(
@@ -25,8 +23,6 @@ export function registerGroupCommands(
   register("addGroup", addGroupCmd);
   register("renameGroup", renameGroupCmd);
   register("deleteGroup", deleteGroupCmd);
-  register("collapseAll", collapseAllCmd);
-  register("expandAll", expandAllCmd);
   register("cleanInvalid", cleanInvalidCmd);
   register("openSettings", openSettingsCmd);
   register("addCurrentToFavorites", addCurrentToFavoritesCmd);
@@ -79,14 +75,6 @@ export function registerGroupCommands(
     }
 
     refreshAll();
-  }
-
-  function collapseAllCmd() {
-    favoritesView.collapseAll();
-  }
-
-  function expandAllCmd() {
-    favoritesView.expandAll();
   }
 
   async function cleanInvalidCmd() {

@@ -3,9 +3,12 @@ import { createRoot } from "react-dom/client";
 import { CommitApp } from "./commit/App";
 import { ConflictsApp } from "./conflicts/App";
 import { MergeStandaloneApp } from "./conflicts/MergeStandaloneApp";
+import { FavoritesApp } from "./favorites/App";
 import { PanelApp } from "./panel/App";
 import { PushApp } from "./push/App";
+import { RecentApp } from "./recent/App";
 import { RollbackApp } from "./rollback/App";
+import { TasksApp } from "./tasks/App";
 import { initI18n } from "./shared/i18n";
 import "./shared/theme/variables.css";
 
@@ -34,6 +37,9 @@ initI18n().finally(() => {
     | "commit"
     | "push"
     | "rollback"
+    | "recent"
+    | "tasks"
+    | "favorites"
     | undefined;
 
   createRoot(root).render(
@@ -48,6 +54,12 @@ initI18n().finally(() => {
         <PushApp />
       ) : mode === "rollback" ? (
         <RollbackApp />
+      ) : mode === "recent" ? (
+        <RecentApp />
+      ) : mode === "tasks" ? (
+        <TasksApp />
+      ) : mode === "favorites" ? (
+        <FavoritesApp />
       ) : (
         <PanelApp />
       )}

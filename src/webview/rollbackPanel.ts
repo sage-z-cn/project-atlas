@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { MessageRouter } from "../messages/messageRouter";
-import { getGitWebviewHtml } from "./gitHtml";
+import { getReactWebviewHtml } from "./reactHtml";
 
 export interface RollbackFileInfo {
   path: string;
@@ -45,11 +45,12 @@ export class RollbackPanel {
       },
     );
 
-    this.panel.webview.html = getGitWebviewHtml(
+    this.panel.webview.html = getReactWebviewHtml(
       this.panel.webview,
       this.extensionUri,
       "rollback",
       { files: filesJson },
+      "Git Atlas",
     );
 
     const routerDisposable = this.messageRouter.registerWebview(

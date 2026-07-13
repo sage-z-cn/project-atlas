@@ -2,7 +2,6 @@ import type * as vscode from "vscode";
 import {
   ErrorCode,
   type EventMessage,
-  type EventType,
   type RequestMessage,
   type ResponseMessage,
 } from "./protocol";
@@ -37,7 +36,7 @@ export class MessageRouter {
   }
 
   /** Broadcast an event to all registered webviews */
-  broadcastEvent(event: EventType, data: unknown): void {
+  broadcastEvent(event: string, data: unknown): void {
     const msg: EventMessage = { type: "event", event, data };
     for (const webview of this.webviews) {
       webview.postMessage(msg);

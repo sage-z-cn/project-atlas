@@ -9,7 +9,7 @@ import { registerMergeEditorHandlers } from "./mergeEditorHandlers";
 import { registerShelfHandlers } from "./shelfHandlers";
 import { registerUiHandlers } from "./uiHandlers";
 import { registerRepoHandlers } from "./repoHandlers";
-import { registerI18nHandlers } from "./i18nHandlers";
+import { registerL10nBundleHandler } from "../../messages/l10nHandler";
 import { registerConfigHandlers } from "./configHandlers";
 import { registerAiHandlers } from "./aiHandlers";
 
@@ -32,7 +32,7 @@ export function registerGitHandlers(ctx: GitHandlerContext): void {
   registerShelfHandlers(ctx);
   registerUiHandlers(ctx);
   registerRepoHandlers(ctx);
-  registerI18nHandlers(ctx);
+  registerL10nBundleHandler(ctx.messageRouter, ctx.context);
   registerConfigHandlers(ctx);
   registerAiHandlers(ctx);
 }

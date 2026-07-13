@@ -103,11 +103,13 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
     context.extensionUri,
     messageRouter,
     "panel",
+    "Git Atlas",
   );
   const commitProvider = new ReactViewProvider(
     context.extensionUri,
     messageRouter,
     "commit",
+    "Git Atlas",
   );
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(

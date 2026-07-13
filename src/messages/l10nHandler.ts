@@ -1,28 +1,27 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { GitHandlerContext } from "../gitContext";
+import type { MessageRouter } from "./messageRouter";
 
 /**
- * i18n bridge handler.
+ * i18n bridge handler（子系统无关）。
  *
- * The webview cannot call `vscode.l10n.t()` (it runs in a separate JS context
- * without the VS Code API), so the host reads the l10n bundle JSON from disk
- * and ships it to the webview once on startup. The webview then implements its
- * own `t()` that does plain `bundle[key] ?? key` lookups (see
- * `webview/src/shared/i18n.ts`).
+ * webview 运行在独立 JS 上下文，无法调用 `vscode.l10n.t()`，故由 host 端读取
+ * l10n bundle JSON 一次性下发给 webview；webview 自行实现 `t()` 做
+ * `bundle[key] ?? key` 查表（见 webview/src/shared/i18n.ts）。
  *
- * Locale resolution mirrors VS Code's own l10n convention: `vscode.env.language`
- * holds the active locale (e.g. "zh-cn", "en", "en-US"). English is the source
- * language — bundle keys ARE the English strings — so for an English locale we
- * return an empty bundle and `t()` falls through to the key verbatim. For any
- * other locale we read `l10n/bundle.l10n.{locale}.json`; a missing/unreadable
- * file also falls back to an empty bundle (graceful degradation to English)
- * rather than throwing and blocking the webview from rendering.
+ * locale 解析对齐 VSCode 自身约定：`vscode.env.language` 持有当前 locale
+ * （如 "zh-cn"/"en"/"en-US"）。英文是源语言——bundle 的 key 即英文原文——
+ * 故英文 locale 返回空 bundle，`t()` 直接回退为 key 原文。其他 locale 读取
+ * `l10n/bundle.l10n.{locale}.json`；文件缺失/不可读/非法 JSON 也回退为空
+ * bundle（优雅降级为英文），绝不抛出，避免阻塞 webview 首次渲染。
+ *
+ * 供任意子系统的 MessageRouter 注册：Git / Project / Task 各自调用一次。
  */
-export function registerI18nHandlers(ctx: GitHandlerContext): void {
-  const { messageRouter, context } = ctx;
-
+export function registerL10nBundleHandler(
+  messageRouter: MessageRouter,
+  context: vscode.ExtensionContext,
+): void {
   messageRouter.handle("getL10nBundle", async () => {
     const locale = vscode.env.language; // e.g. "zh-cn", "en", "en-US"
 

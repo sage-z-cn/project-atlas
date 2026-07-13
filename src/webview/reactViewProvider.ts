@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { MessageRouter } from "../messages/messageRouter";
-import { getGitWebviewHtml } from "./gitHtml";
+import { getReactWebviewHtml } from "./reactHtml";
 
 /**
  * React webview 的通用基类。
@@ -14,6 +14,7 @@ export class ReactViewProvider implements vscode.WebviewViewProvider {
     private readonly extensionUri: vscode.Uri,
     private readonly messageRouter: MessageRouter,
     private readonly mode: string,
+    private readonly title: string = "Atlas",
     private readonly extra: Record<string, string> = {},
   ) {}
 
@@ -23,11 +24,12 @@ export class ReactViewProvider implements vscode.WebviewViewProvider {
       enableScripts: true,
       localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "out")],
     };
-    webview.html = getGitWebviewHtml(
+    webview.html = getReactWebviewHtml(
       webview,
       this.extensionUri,
       this.mode,
       this.extra,
+      this.title,
     );
     const disposable = this.messageRouter.registerWebview(webview);
     webviewView.onDidDispose(() => disposable.dispose());

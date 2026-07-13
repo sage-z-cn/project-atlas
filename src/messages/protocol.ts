@@ -1,7 +1,9 @@
 export interface RequestMessage {
   type: "request";
   id: string;
-  command: CommandType;
+  // 宽化为 string：MessageRouter 是子系统通用的，project/task 的命令名不在
+  // git 专属 CommandType union 内。Git 代码仍可传 CommandType（string 子集）。
+  command: string;
   params: Record<string, unknown>;
 }
 
@@ -18,7 +20,9 @@ export interface ResponseMessage {
 
 export interface EventMessage {
   type: "event";
-  event: EventType;
+  // 宽化为 string：broadcastEvent 面向所有子系统，project/task 的事件名不在
+  // git 专属 EventType union 内。Git 代码仍可传 EventType（string 子集）。
+  event: string;
   data: unknown;
 }
 
