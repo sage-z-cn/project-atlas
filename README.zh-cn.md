@@ -15,10 +15,6 @@
 
 ---
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sage-z-cn/project-atlas/master/screenshot/screenshot-zh.png" alt="Project Atlas 侧边栏">
-</p>
-
 ## 功能特性
 
 ### Project Atlas
@@ -78,28 +74,6 @@
 **本地化**
 > 通过 VSCode l10n 系统提供完整中文（zh-cn）支持 —— 扩展宿主端与 React webview 均已本地化。
 
-## 使用说明
-
-安装扩展后，侧边栏和底部面板会出现以下区域：
-
-**Project Atlas** — 项目管理侧边栏，包含两个面板：
-
-**最近** — 显示所有曾经打开过的项目，按最近访问时间排列。工具栏提供添加项目、克隆仓库、清理无效项目等操作。
-
-**收藏** — 显示已收藏的项目和分组。工具栏提供收藏当前工作区、创建分组、展开/折叠所有分组等操作。支持拖拽排序。
-
-**Task Atlas** — 任务运行器侧边栏：
-
-**任务** — 列出 `.vscode/tasks.json` 中的任务和 `package.json` 中的 npm 脚本（自动去重）。点击运行，再次点击停止。支持拖拽排序。任务按项目分组，配置文件变更时自动刷新。
-
-**Git Atlas** — 跨两个位置的 Git 集成：
-
-**Git Log**（底部面板）— 可视化提交历史图，含分支树、车道布局、提交详情、差异导航。通过仓库选择器切换子目录仓库；状态徽标显示待推送/待拉取/未提交计数。
-
-**Commit**（活动栏）— 暂存、提交、推送/拉取、搁置（git stash）与 IDEA 兼容 shelf。工作区变更按目录分组。仓库选择器含状态徽标。
-
-在项目面板中点击项目即可打开。右键点击项目可查看更多操作，如重命名、收藏、拷贝路径、在新窗口打开等。
-
 ## 配置
 
 | 设置项 | 类型 | 默认值 | 说明 |
@@ -112,6 +86,16 @@
 | `taskAtlas.showRecentRuns` | 布尔 | `true` | 在任务视图中显示最近运行区域 |
 | `taskAtlas.maxRecentRuns` | 数字 | `5` | 最近运行保留的最大数量（1–20） |
 | `taskAtlas.showPinned` | 布尔 | `true` | 在任务视图中显示固定任务区域 |
+| `gitAtlas.commitListStyle` | 枚举 | `vscode` | 提交列表显示风格。可选值：`vscode`、`jetbrains` |
+| `gitAtlas.commitBadgeMode` | 枚举 | `current` | 活动栏提交图标更改数量徽标。可选值：`total`（所有仓库总和）、`current`（仅当前仓库）、`off`（不显示） |
+| `gitAtlas.enableGitLogPanel` | 布尔 | `true` | 启用底部面板中的 Git Atlas 面板（Git Log）。即时生效，无需重载 |
+| `gitAtlas.enableCommitPanel` | 布尔 | `true` | 启用活动栏中的提交面板。即时生效，无需重载 |
+| `gitAtlas.aiCommit.apiUrl` | 字符串 | `""` | AI API 基础地址或完整端点（OpenAI 兼容） |
+| `gitAtlas.aiCommit.model` | 字符串 | `""` | AI 模型名称（如 gpt-4o-mini、deepseek-chat） |
+| `gitAtlas.aiCommit.language` | 枚举 | `auto` | 生成提交信息的语言。可选值：`auto`（自动检测）、`en`、`zh`、`follow-locale`（跟随显示语言） |
+| `gitAtlas.aiCommit.maxDiffChars` | 数字 | `8000` | 发送给 AI 的最大 diff 字符数（500–50000），超出截断 |
+| `gitAtlas.aiCommit.customInstructions` | 字符串 | `""` | 追加到 AI 提示词的自定义提交规则 |
+| `gitAtlas.aiCommit.timeout` | 数字 | `30` | AI 生成提交信息的超时时间（秒，5–300） |
 
 ## 快捷键
 

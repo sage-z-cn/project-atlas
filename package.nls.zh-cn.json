@@ -28,7 +28,7 @@
   "command.git-atlas.showFileHistory": "Git Atlas: 显示文件历史",
   "command.git-atlas.editSource": "Git Atlas: 编辑源文件",
 
-  "description": "自动记录项目，快速即达",
+  "description": "项目管理、任务聚合、多仓库 Git，一站搞定。",
   "command.openProject": "打开项目",
   "command.addProject": "添加项目",
   "command.gitClone": "Git 克隆",

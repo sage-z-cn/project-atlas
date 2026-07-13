@@ -28,7 +28,7 @@
   "command.git-atlas.showFileHistory": "Git Atlas: Show File History",
   "command.git-atlas.editSource": "Git Atlas: Edit Source",
 
-  "description": "Auto-record projects, quick access.",
+  "description": "Projects, tasks, and multi-repo git in one place.",
   "command.openProject": "Open Project",
   "command.addProject": "Add Project",
   "command.gitClone": "Git Clone",

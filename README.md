@@ -19,10 +19,6 @@
 
 ---
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/sage-z-cn/project-atlas/master/screenshot/screenshot-en.png" alt="Project Atlas Sidebar">
-</p>
-
 ## Features
 
 ### Project Atlas
@@ -82,28 +78,6 @@
 **Localization**
 > Full Chinese (zh-cn) localization via VSCode's l10n system — both the extension host and the React webview.
 
-## Usage
-
-The extension adds sidebars and a bottom panel to VS Code:
-
-**Project Atlas** — Project management sidebar with two views:
-
-**Recent** — Shows recently opened projects, sorted by last access time. Use the toolbar to add a project manually or clone a Git repository. The overflow menu lets you clean up invalid entries and open settings.
-
-**Favorites** — Displays starred projects, optionally organized into groups. Use the toolbar to add the current workspace, create groups, and expand or collapse all groups. Drag to reorder items.
-
-**Task Atlas** — Task runner sidebar:
-
-**Tasks** — Lists all tasks from `.vscode/tasks.json` and npm scripts from `package.json` (deduplicated). Click to run, click again to stop. Drag to reorder. Tasks are grouped by project and auto-refreshed when config files change.
-
-**Git Atlas** — Git integration across two locations:
-
-**Git Log** (bottom panel) — Visual commit history graph with branch tree, lane layout, commit details, and diff navigation. Switch between sub-directory repos via the repo selector; status badges show ahead/behind/uncommitted counts.
-
-**Commit** (activity bar) — Stage, commit, push/pull, shelve (git stash) and IDEA-compatible shelf. Working tree changes grouped by directory. Repo selector with status badges.
-
-Click any project to open it. Right-click for more options like renaming, toggling favorites, copying path, or opening in a new window.
-
 ## Configuration
 
 | Setting | Type | Default | Description |
@@ -116,6 +90,16 @@ Click any project to open it. Right-click for more options like renaming, toggli
 | `taskAtlas.showRecentRuns` | `boolean` | `true` | Show the recent runs section in the Tasks view |
 | `taskAtlas.maxRecentRuns` | `number` | `5` | Maximum number of recent runs to keep (1–20) |
 | `taskAtlas.showPinned` | `boolean` | `true` | Show the pinned tasks section in the Tasks view |
+| `gitAtlas.commitListStyle` | `vscode` / `jetbrains` | `vscode` | Commit list display style |
+| `gitAtlas.commitBadgeMode` | `total` / `current` / `off` | `current` | Change count badge on the Git Commit activity bar icon |
+| `gitAtlas.enableGitLogPanel` | `boolean` | `true` | Show the Git Atlas panel (Git Log) in the bottom panel |
+| `gitAtlas.enableCommitPanel` | `boolean` | `true` | Show the Commit panel in the activity bar |
+| `gitAtlas.aiCommit.apiUrl` | `string` | `""` | AI API base URL or full endpoint (OpenAI-compatible) |
+| `gitAtlas.aiCommit.model` | `string` | `""` | AI model name (e.g. gpt-4o-mini, deepseek-chat) |
+| `gitAtlas.aiCommit.language` | `auto` / `en` / `zh` / `follow-locale` | `auto` | Language for generated commit messages |
+| `gitAtlas.aiCommit.maxDiffChars` | `number` | `8000` | Max diff characters sent to the AI (500–50000) |
+| `gitAtlas.aiCommit.customInstructions` | `string` | `""` | Custom instructions appended to the AI prompt |
+| `gitAtlas.aiCommit.timeout` | `number` | `30` | Timeout in seconds for AI commit generation (5–300) |
 
 ## Keyboard Shortcuts
 
