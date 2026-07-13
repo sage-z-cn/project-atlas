@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as vscode from "vscode";
 import { NOT_GIT_REPO, requireGit } from "../gitContext";
 import type { GitHandlerContext } from "../gitContext";
@@ -206,10 +207,17 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
         );
       } else {
         // Staged (index) ↔ Working Tree
+        // A deleted file no longer exists on disk, so a real file: URI would
+        // make VSCode fail with a "File not found" read error. Fall back to a
+        // virtual empty document (?ref=empty) as the right side, mirroring how
+        // the commit-history diff path renders deletions.
+        const rightUri = fs.existsSync(worktreeUri.fsPath)
+          ? worktreeUri
+          : vscode.Uri.parse(`${GIT_ATLAS_SCHEME}:/${filePath}?ref=empty`);
         await vscode.commands.executeCommand(
           "vscode.diff",
           indexUri,
-          worktreeUri,
+          rightUri,
           `${filePath} (Staged ↔ Working Tree)`,
         );
       }

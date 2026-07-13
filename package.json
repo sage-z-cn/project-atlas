@@ -549,6 +549,13 @@
           "group": "git@2"
         }
       ],
+      "editor/title": [
+        {
+          "command": "git-atlas.editSource",
+          "when": "isInDiffEditor && resourceScheme == 'git-atlas'",
+          "group": "navigation"
+        }
+      ],
       "editor/title/context": [
         {
           "command": "git-atlas.showFileHistory",
@@ -596,6 +603,12 @@
         "key": "ctrl+shift+f7",
         "mac": "cmd+shift+f7",
         "when": "editorFocus"
+      },
+      {
+        "command": "git-atlas.editSource",
+        "key": "f4",
+        "mac": "f4",
+        "when": "isInDiffEditor && resourceScheme == 'git-atlas'"
       }
     ],
     "configuration": {
