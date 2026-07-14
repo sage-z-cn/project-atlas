@@ -1,0 +1,382 @@
+/* TODO Atlas 面板样式。命名/视觉与 tasks.css 保持一致。 */
+
+.todos-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--vscode-panel-background, var(--vscode-sideBar-background));
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  user-select: none;
+}
+
+/* ── 顶部常驻输入区 ── */
+.todos-add {
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.todos-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.todos-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+@media (min-width: 400px) {
+  .todos-add {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+.todos-segmented {
+  display: inline-flex;
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.todos-seg-btn {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  cursor: pointer;
+  padding: 2px 8px;
+  font-size: 0.85em;
+  height: 22px;
+  border-radius: 0;
+}
+.todos-seg-btn + .todos-seg-btn {
+  border-left: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.08));
+}
+.todos-seg-btn.active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+.todos-select {
+  height: 22px;
+  font-size: 0.85em;
+  background: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  border: 1px solid var(--vscode-dropdown-border, transparent);
+  border-radius: 2px;
+  padding: 0 2px;
+  min-width: 56px;
+}
+.todos-add-btn {
+  flex-shrink: 0;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  cursor: pointer;
+  border-radius: 3px;
+  height: 22px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.todos-add-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+.todos-text-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+  padding: 3px 6px;
+  font-family: inherit;
+  font-size: inherit;
+}
+.todos-text-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  border-color: var(--vscode-focusBorder);
+}
+
+/* ── 扫描中提示（注释段内）── */
+.todos-scanning-inline {
+  padding: 4px 24px;
+  font-size: 0.85em;
+  font-style: italic;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* ── 列表 ── */
+.todos-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.todos-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0;
+  gap: 8px;
+  color: var(--vscode-descriptionForeground);
+}
+.todos-spin {
+  animation: todos-spin 0.8s linear infinite;
+}
+@keyframes todos-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 段头 ── */
+.todos-section-header {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  gap: 4px;
+}
+.todos-section-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.todos-chevron {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vscode-icon-foreground);
+}
+.todos-section-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+}
+.todos-count {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-size: 0.8em;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.todos-empty {
+  padding: 4px 24px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+/* ── scan tag 子分组 ── */
+.todos-scan-tag-header {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px 3px 20px;
+  cursor: pointer;
+  gap: 4px;
+}
+.todos-scan-tag-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+/* ── project repo 子分组 ── */
+.todos-project-repo-header {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px 3px 20px;
+  cursor: pointer;
+  gap: 4px;
+}
+.todos-project-repo-header:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.todos-repo-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* ── 通用行 ── */
+.todos-manual-row,
+.todos-scan-row {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+}
+.todos-manual-row {
+  cursor: default;
+  padding-left: 20px;
+}
+.todos-project-repo .todos-manual-row {
+  padding-left: 36px;
+}
+.todos-scan-row {
+  cursor: pointer;
+  padding-left: 40px;
+}
+.todos-manual-row:hover,
+.todos-scan-row:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.todos-manual-row:hover .todos-actions,
+.todos-scan-row:hover .todos-actions {
+  opacity: 1;
+}
+.todos-manual-row.drag-over {
+  background: var(--vscode-list-focusHighlightForeground);
+  outline: 1px solid var(--vscode-focusBorder);
+  border-radius: 3px;
+}
+.todos-drop-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--vscode-focusBorder);
+  pointer-events: none;
+  z-index: 100;
+}
+.todos-drop-indicator.before { top: 0; }
+.todos-drop-indicator.after { bottom: 0; }
+
+/* ── 右键选中态 ── */
+.todos-manual-row.selected,
+.todos-scan-row.selected {
+  background: var(--vscode-list-hoverBackground);
+}
+
+/* ── checkbox ── */
+.todos-checkbox {
+  flex-shrink: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* ── tag 色块 ── */
+.todos-tag-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+/* ── 文本 ── */
+.todos-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.todos-manual-row.completed .todos-text {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.todos-manual-row.completed {
+  opacity: 0.75;
+}
+.todos-edit-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: 2px;
+  padding: 1px 4px;
+  font-family: inherit;
+  font-size: inherit;
+}
+.todos-scan-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.todos-assignee {
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+.todos-scan-path {
+  flex-shrink: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.82em;
+  opacity: 0.85;
+}
+
+/* ── 操作按钮区 ── */
+.todos-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.todos-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  color: var(--vscode-descriptionForeground);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  width: 20px;
+}
+.todos-action-btn:hover {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground);
+}
+.todos-delete-btn:hover {
+  color: var(--vscode-errorForeground, #f14c4c);
+}
+.todos-copied {
+  color: var(--vscode-notificationsInfoIcon-foreground, #3794ff);
+  font-size: 0.75em;
+  padding-right: 2px;
+}

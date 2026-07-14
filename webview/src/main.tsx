@@ -9,6 +9,7 @@ import { PushApp } from "./push/App";
 import { RecentApp } from "./recent/App";
 import { RollbackApp } from "./rollback/App";
 import { TasksApp } from "./tasks/App";
+import TodosApp from "./todos/App";
 import { initI18n } from "./shared/i18n";
 import "./shared/theme/variables.css";
 
@@ -39,6 +40,7 @@ initI18n().finally(() => {
     | "rollback"
     | "recent"
     | "tasks"
+    | "todos"
     | "favorites"
     | undefined;
 
@@ -58,6 +60,8 @@ initI18n().finally(() => {
         <RecentApp />
       ) : mode === "tasks" ? (
         <TasksApp />
+      ) : mode === "todos" ? (
+        <TodosApp />
       ) : mode === "favorites" ? (
         <FavoritesApp />
       ) : (

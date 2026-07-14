@@ -44,6 +44,11 @@
           "id": "git-atlas",
           "title": "%viewContainer.gitAtlas%",
           "icon": "$(git-branch)"
+        },
+        {
+          "id": "todo-atlas",
+          "title": "%viewContainer.todoAtlas%",
+          "icon": "resources/todo.svg"
         }
       ],
       "activitybar": [
@@ -108,6 +113,14 @@
           "id": "git-atlas.commitBadgeProxy",
           "name": "%view.gitAtlas.commitBadgeProxy%",
           "when": "false"
+        }
+      ],
+      "todo-atlas": [
+        {
+          "id": "todo-atlas.todos",
+          "name": "%view.todos.name%",
+          "icon": "resources/todo.svg",
+          "type": "webview"
         }
       ]
     },
@@ -216,6 +229,26 @@
       {
         "command": "task-atlas.collapseAll",
         "title": "%command.taskAtlas.collapseAll%",
+        "icon": "$(collapse-all)"
+      },
+      {
+        "command": "todo-atlas.refreshTodos",
+        "title": "%command.todoAtlas.refresh%",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "todo-atlas.openSettings",
+        "title": "%command.todoAtlas.openSettings%",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "todo-atlas.expandAll",
+        "title": "%command.todoAtlas.expandAll%",
+        "icon": "$(expand-all)"
+      },
+      {
+        "command": "todo-atlas.collapseAll",
+        "title": "%command.todoAtlas.collapseAll%",
         "icon": "$(collapse-all)"
       },
       {
@@ -456,6 +489,26 @@
           "group": "navigation@4"
         },
         {
+          "command": "todo-atlas.refreshTodos",
+          "when": "view == todo-atlas.todos",
+          "group": "navigation@1"
+        },
+        {
+          "command": "todo-atlas.expandAll",
+          "when": "view == todo-atlas.todos",
+          "group": "navigation@1"
+        },
+        {
+          "command": "todo-atlas.collapseAll",
+          "when": "view == todo-atlas.todos",
+          "group": "navigation@1"
+        },
+        {
+          "command": "todo-atlas.openSettings",
+          "when": "view == todo-atlas.todos",
+          "group": "navigation@1"
+        },
+        {
           "command": "git-atlas.refreshLog",
           "when": "view == git-atlas.gitLog",
           "group": "navigation@1"
@@ -683,6 +736,71 @@
           "type": "boolean",
           "default": true,
           "description": "%config.taskAtlas.showPinned%"
+        },
+        "todoAtlas.scan.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.todoAtlas.scan.enabled%"
+        },
+        "todoAtlas.scan.autoScan": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.todoAtlas.scan.autoScan%"
+        },
+        "todoAtlas.scan.tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "TODO",
+            "FIXME",
+            "XXX",
+            "HACK",
+            "BUG",
+            "NOTE"
+          ],
+          "description": "%config.todoAtlas.scan.tags%"
+        },
+        "todoAtlas.scan.exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/node_modules/**",
+            "**/.git/**",
+            "**/dist/**",
+            "**/out/**",
+            "**/build/**",
+            "**/.vscode-test/**",
+            "**/*.min.js",
+            "**/*.map"
+          ],
+          "description": "%config.todoAtlas.scan.exclude%"
+        },
+        "todoAtlas.scan.debounceMs": {
+          "type": "number",
+          "default": 500,
+          "minimum": 100,
+          "maximum": 3000,
+          "description": "%config.todoAtlas.scan.debounceMs%"
+        },
+        "todoAtlas.showCompleted": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.todoAtlas.showCompleted%"
+        },
+        "todoAtlas.groupBy": {
+          "type": "string",
+          "default": "scope",
+          "enum": [
+            "scope",
+            "tag",
+            "file",
+            "none"
+          ],
+          "description": "%config.todoAtlas.groupBy%"
         },
         "gitAtlas.commitListStyle": {
           "type": "string",

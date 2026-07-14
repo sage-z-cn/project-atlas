@@ -4,10 +4,12 @@ import { ProjectService } from "./services/projectService";
 import { FavoriteService } from "./services/favoriteService";
 import { GroupService } from "./services/groupService";
 import { TaskService } from "./services/taskService";
+import { TodoService } from "./services/todoService";
 import { registerProjectCommands } from "./commands/projectCommands";
 import { registerGroupCommands } from "./commands/groupCommands";
 import { setupProject } from "./setupProject";
 import { setupTask } from "./setupTask";
+import { setupTodo } from "./setupTodo";
 import { setupGit } from "./git/setupGit";
 
 export function activate(context: vscode.ExtensionContext) {
@@ -36,6 +38,13 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Task Atlas 装配（React 化；task router + watcher + view/title 命令）
   setupTask(context, taskService);
+
+  // Todo Atlas 装配（todo router + 扫描 watcher + view/title 命令）
+  const todoService = new TodoService();
+  todoService.initStorage(context.globalState);
+  todoService.initWorkspaceStorage(context.workspaceState);
+  setupTodo(context, todoService);
+  context.subscriptions.push(todoService);
 
   registerProjectCommands(context, projectService, favoriteService, groupService, refreshAll);
   registerGroupCommands(context, groupService, favoriteService, projectService, refreshAll);
