@@ -4,6 +4,14 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.9.0
+- **TODO Atlas**: 新增 TODO 管理子系统，基于文件系统扫描代码注释中的 TODO，支持自定义标签、排除规则、状态标记、分组与筛选
+- **面板开关**: 新增 `todoAtlas.enabled` 配置项，动态控制侧边栏视图显隐
+- **搁置功能**: 提交文件右键菜单分离"Stash"与"Shelve"操作，新增"Shelve Changes"入口并支持自定义名称
+- **暂存入口**: VSCode 风格文件右键菜单新增"暂存更改"选项，支持自定义提交消息
+- **暂存逻辑**: 工具栏暂存按钮在无勾选文件时依次回退使用高亮文件或全部文件
+- 移除工具栏"显示差异"按钮
+
 #### 1.8.1
 - **AI 提交信息**: 支持取消生成、思考模式与空响应重试
 - **提交草稿**: 多仓库提交信息草稿持久化
