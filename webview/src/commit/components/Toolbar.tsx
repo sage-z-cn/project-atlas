@@ -10,7 +10,6 @@ import RefreshIcon from "~icons/codicon/refresh";
 import FetchIcon from "~icons/codicon/repo-fetch";
 import PullIcon from "~icons/codicon/repo-pull";
 import PushIcon from "~icons/codicon/repo-push";
-import DiffIcon from "~icons/codicon/diff";
 import ShelveIcon from "~icons/codicon/git-stash";
 import RollbackIcon from "~icons/codicon/discard";
 import { useCommitStore } from "../../shared/store/commit-store";

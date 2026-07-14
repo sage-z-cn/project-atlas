@@ -77,10 +77,23 @@ export function CommitTab() {
     }, [changes]);
 
   const handleShelveSelected = useCallback(async () => {
+    // Prefer checkbox selection (JetBrains style); the VSCode style has no
+    // checkboxes, so fall back to highlighted files, then to all changes.
+    // Mirrors the onRollback selection logic below.
     const selectedPaths = changes
       .filter((f) => selectedFiles.has(`${f.path}:${f.staged}`))
       .map((f) => f.path);
-    if (selectedPaths.length === 0) return;
+    let paths = [...new Set(selectedPaths)];
+    if (paths.length === 0) {
+      const highlightedPaths = changes
+        .filter((f) => highlightedFiles.has(`${f.path}:${f.staged}`))
+        .map((f) => f.path);
+      paths = [...new Set(highlightedPaths)];
+    }
+    if (paths.length === 0) {
+      paths = [...new Set(changes.map((f) => f.path))];
+    }
+    if (paths.length === 0) return;
     // Name is optional: cancel aborts, empty falls back to the default message.
     const result = (await bridge.request("showInputBox", {
       prompt: t("Enter shelf name (optional):"),
@@ -88,8 +101,8 @@ export function CommitTab() {
     })) as { value: string | null };
     if (result.value === null) return;
     const message = result.value.trim() || t("Shelved changes");
-    await ideaShelveChanges(message, [...new Set(selectedPaths)]);
-  }, [changes, selectedFiles, ideaShelveChanges]);
+    await ideaShelveChanges(message, paths);
+  }, [changes, selectedFiles, highlightedFiles, ideaShelveChanges]);
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent, file: WorkingTreeFile) => {

@@ -12,6 +12,7 @@ import RevealIcon from "~icons/codicon/folder";
 import CopyIcon from "~icons/codicon/copy";
 import MergeIcon from "~icons/codicon/git-merge";
 import HistoryIcon from "~icons/codicon/history";
+import StashIcon from "~icons/codicon/archive";
 
 export interface VscodeFileContextMenuProps {
   x: number;
@@ -32,6 +33,7 @@ export function VscodeFileContextMenu({
     unstageFile,
     rollbackFile,
     showDiff,
+    shelveChanges,
     currentRepoPath,
     highlightedFiles,
     changes,
@@ -168,6 +170,19 @@ export function VscodeFileContextMenu({
     onClose();
   }, [file, rollbackFile, onClose]);
 
+  const handleStash = useCallback(async () => {
+    onClose();
+    const paths = resolvePaths();
+    // Name is optional: cancel aborts, empty falls back to the default message.
+    const result = (await bridge.request("showInputBox", {
+      prompt: t("Enter stash message (optional):"),
+      placeHolder: t("Stashed changes"),
+    })) as { value: string | null };
+    if (result.value === null) return;
+    const message = result.value.trim() || t("Stashed changes");
+    await shelveChanges(message, paths);
+  }, [resolvePaths, shelveChanges, onClose]);
+
   const handleOpenMerge = useCallback(() => {
     bridge.request("openConflictsPanel");
     onClose();
@@ -299,6 +314,18 @@ export function VscodeFileContextMenu({
               <CopyIcon />
             </span>
             <span>{t("Copy Path")}</span>
+          </button>
+
+          <div className="commit-context-menu-separator" />
+          <button
+            type="button"
+            className="commit-context-menu-item"
+            onClick={handleStash}
+          >
+            <span className="commit-context-menu-icon">
+              <StashIcon />
+            </span>
+            <span>{t("Stash Changes...")}</span>
           </button>
 
           {/* Discard (changes only) */}
