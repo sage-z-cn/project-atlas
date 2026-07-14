@@ -4,6 +4,8 @@ import {
   useCommitStore,
   type WorkingTreeFile,
 } from "../../shared/store/commit-store";
+import StashIcon from "~icons/codicon/archive";
+import ShelveIcon from "~icons/codicon/save";
 import { t } from "../../shared/i18n";
 import { CommitFileContextMenu } from "./CommitFileContextMenu";
 import { CommitMessageArea } from "./CommitMessageArea";
@@ -47,6 +49,7 @@ export function CommitTab() {
     y: number;
     files: WorkingTreeFile[];
     dirName: string;
+    isGroup?: boolean;
   } | null>(null);
 
   // Group files: staged (Changes) vs unstaged/untracked (Unversioned Files)
@@ -113,10 +116,15 @@ export function CommitTab() {
   );
 
   const handleDirContextMenu = useCallback(
-    (e: React.MouseEvent, files: WorkingTreeFile[], dirName: string) => {
+    (
+      e: React.MouseEvent,
+      files: WorkingTreeFile[],
+      dirName: string,
+      isGroup?: boolean,
+    ) => {
       e.preventDefault();
       e.stopPropagation();
-      setDirContextMenu({ x: e.clientX, y: e.clientY, files, dirName });
+      setDirContextMenu({ x: e.clientX, y: e.clientY, files, dirName, isGroup });
       setContextMenu(null);
     },
     [],
@@ -284,6 +292,7 @@ export function CommitTab() {
           y={dirContextMenu.y}
           files={dirContextMenu.files}
           dirName={dirContextMenu.dirName}
+          isGroup={dirContextMenu.isGroup}
           onClose={closeDirContextMenu}
         />
       )}
@@ -309,6 +318,7 @@ interface FileGroupProps {
     e: React.MouseEvent,
     files: WorkingTreeFile[],
     dirName: string,
+    isGroup?: boolean,
   ) => void;
   action?: React.ReactNode;
 }
@@ -402,7 +412,15 @@ function FileGroup({
 
   return (
     <div className="commit-group">
-      <div className="commit-group-header" onClick={onToggle}>
+      <div
+        className="commit-group-header"
+        onClick={onToggle}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onDirContextMenu(e, files, label, true);
+        }}
+      >
         <input
           type="checkbox"
           className="commit-group-checkbox"
@@ -494,6 +512,7 @@ function DirectoryTree({
     e: React.MouseEvent,
     files: WorkingTreeFile[],
     dirName: string,
+    isGroup?: boolean,
   ) => void;
 }) {
   const { collapsedDirs, toggleDir } = useCommitStore();
@@ -546,6 +565,7 @@ function DirNodeView({
     e: React.MouseEvent,
     files: WorkingTreeFile[],
     dirName: string,
+    isGroup?: boolean,
   ) => void;
 }) {
   return (
@@ -652,14 +672,17 @@ function DirContextMenu({
   y,
   files,
   dirName,
+  isGroup,
   onClose,
 }: {
   x: number;
   y: number;
   files: WorkingTreeFile[];
   dirName: string;
+  isGroup?: boolean;
   onClose: () => void;
 }) {
+  const { shelveChanges, ideaShelveChanges } = useCommitStore();
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number }>({
     top: y,
@@ -742,6 +765,30 @@ function DirContextMenu({
     onClose();
   }, [files, onClose]);
 
+  const handleStash = useCallback(async () => {
+    onClose();
+    const paths = files.map((f) => f.path);
+    const result = (await bridge.request("showInputBox", {
+      prompt: t("Enter stash message (optional):"),
+      placeHolder: t("Stashed changes"),
+    })) as { value: string | null };
+    if (result.value === null) return;
+    const message = result.value.trim() || t("Stashed changes");
+    await shelveChanges(message, paths);
+  }, [files, shelveChanges, onClose]);
+
+  const handleShelve = useCallback(async () => {
+    onClose();
+    const paths = files.map((f) => f.path);
+    const result = (await bridge.request("showInputBox", {
+      prompt: t("Enter shelf name (optional):"),
+      placeHolder: t("Shelved changes"),
+    })) as { value: string | null };
+    if (result.value === null) return;
+    const message = result.value.trim() || t("Shelved changes");
+    await ideaShelveChanges(message, paths);
+  }, [files, ideaShelveChanges, onClose]);
+
   return (
     <div
       className="commit-context-menu"
@@ -778,12 +825,39 @@ function DirContextMenu({
       <button
         type="button"
         className="commit-context-menu-item"
-        onClick={handleDelete}
+        onClick={handleStash}
       >
-        <DeleteDirIcon />
-        <span>{t("Delete \"{0}\"...", dirName)}</span>
-        <span className="commit-context-menu-shortcut">⌫</span>
+        <span className="commit-context-menu-icon">
+          <StashIcon />
+        </span>
+        <span>{t("Stash Changes...")}</span>
       </button>
+      <button
+        type="button"
+        className="commit-context-menu-item"
+        onClick={handleShelve}
+      >
+        <span className="commit-context-menu-icon">
+          <ShelveIcon />
+        </span>
+        <span>{t("Shelve Changes...")}</span>
+      </button>
+
+      {!isGroup && (
+        <>
+          <div className="commit-context-menu-separator" />
+
+          <button
+            type="button"
+            className="commit-context-menu-item"
+            onClick={handleDelete}
+          >
+            <DeleteDirIcon />
+            <span>{t("Delete \"{0}\"...", dirName)}</span>
+            <span className="commit-context-menu-shortcut">⌫</span>
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -5,11 +5,20 @@ import { useCommitStore } from "../../shared/store/commit-store";
 import { t } from "../../shared/i18n";
 import { VscodeFileGroup } from "./VscodeFileGroup";
 import { VscodeFileContextMenu } from "./VscodeFileContextMenu";
+import { VscodeBatchContextMenu } from "./VscodeBatchContextMenu";
+import type { VscodeGroupType } from "./VscodeFileItem";
 
 interface VscodeContextMenuState {
   x: number;
   y: number;
   file: WorkingTreeFile;
+}
+
+interface VscodeBatchMenuState {
+  x: number;
+  y: number;
+  files: WorkingTreeFile[];
+  groupType: VscodeGroupType;
 }
 
 export function VscodeCommitList() {
@@ -24,6 +33,7 @@ export function VscodeCommitList() {
   const [contextMenu, setContextMenu] = useState<VscodeContextMenuState | null>(
     null,
   );
+  const [batchMenu, setBatchMenu] = useState<VscodeBatchMenuState | null>(null);
 
   // VSCode-style grouping (untracked folded into Changes):
   //   Merge Changes (conflicted) -> Staged Changes -> Changes (rest, incl untracked)
@@ -49,6 +59,24 @@ export function VscodeCommitList() {
 
   const closeContextMenu = () => setContextMenu(null);
 
+  const handleGroupContextMenu = (
+    e: React.MouseEvent,
+    files: WorkingTreeFile[],
+    groupType: VscodeGroupType,
+  ) => {
+    setBatchMenu({ x: e.clientX, y: e.clientY, files, groupType });
+  };
+
+  const handleDirContextMenu = (
+    e: React.MouseEvent,
+    files: WorkingTreeFile[],
+    groupType: VscodeGroupType,
+  ) => {
+    setBatchMenu({ x: e.clientX, y: e.clientY, files, groupType });
+  };
+
+  const closeBatchMenu = () => setBatchMenu(null);
+
   return (
     <>
       {conflicted.length > 0 && (
@@ -61,6 +89,8 @@ export function VscodeCommitList() {
           highlightedFiles={highlightedFiles}
           onToggle={() => toggleGroup("conflicts")}
           onContextMenu={handleContextMenu}
+          onGroupContextMenu={handleGroupContextMenu}
+          onDirContextMenu={handleDirContextMenu}
         />
       )}
       {staged.length > 0 && (
@@ -73,6 +103,8 @@ export function VscodeCommitList() {
           highlightedFiles={highlightedFiles}
           onToggle={() => toggleGroup("staged")}
           onContextMenu={handleContextMenu}
+          onGroupContextMenu={handleGroupContextMenu}
+          onDirContextMenu={handleDirContextMenu}
         />
       )}
       {unstaged.length > 0 && (
@@ -85,6 +117,8 @@ export function VscodeCommitList() {
           highlightedFiles={highlightedFiles}
           onToggle={() => toggleGroup("changes")}
           onContextMenu={handleContextMenu}
+          onGroupContextMenu={handleGroupContextMenu}
+          onDirContextMenu={handleDirContextMenu}
         />
       )}
 
@@ -94,6 +128,15 @@ export function VscodeCommitList() {
           y={contextMenu.y}
           file={contextMenu.file}
           onClose={closeContextMenu}
+        />
+      )}
+      {batchMenu && (
+        <VscodeBatchContextMenu
+          x={batchMenu.x}
+          y={batchMenu.y}
+          files={batchMenu.files}
+          groupType={batchMenu.groupType}
+          onClose={closeBatchMenu}
         />
       )}
     </>

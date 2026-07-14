@@ -29,6 +29,16 @@ export interface VscodeFileGroupProps {
     e: React.MouseEvent,
     file: WorkingTreeFile,
   ) => void;
+  onGroupContextMenu: (
+    e: React.MouseEvent,
+    files: WorkingTreeFile[],
+    groupType: VscodeGroupType,
+  ) => void;
+  onDirContextMenu: (
+    e: React.MouseEvent,
+    files: WorkingTreeFile[],
+    groupType: VscodeGroupType,
+  ) => void;
 }
 
 export function VscodeFileGroup({
@@ -40,6 +50,8 @@ export function VscodeFileGroup({
   highlightedFiles,
   onToggle,
   onContextMenu,
+  onGroupContextMenu,
+  onDirContextMenu,
 }: VscodeFileGroupProps) {
   const { collapsedDirs, toggleDir, unstageAll, stageAll, rollbackFiles } =
     useCommitStore();
@@ -51,7 +63,15 @@ export function VscodeFileGroup({
 
   return (
     <div className="vscode-scm-group">
-      <div className="vscode-scm-group-header" onClick={onToggle}>
+      <div
+        className="vscode-scm-group-header"
+        onClick={onToggle}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onGroupContextMenu(e, files, groupType);
+        }}
+      >
         <span className={`vscode-scm-chevron ${expanded ? "" : "collapsed"}`}>
           <ChevronIcon />
         </span>
@@ -124,6 +144,7 @@ export function VscodeFileGroup({
               toggleDir={toggleDir}
               highlightedFiles={highlightedFiles}
               onContextMenu={onContextMenu}
+              onDirContextMenu={onDirContextMenu}
             />
           ) : (
             files.map((file) => {
@@ -163,6 +184,7 @@ function VscodeDirNodeView({
   toggleDir,
   highlightedFiles,
   onContextMenu,
+  onDirContextMenu,
 }: {
   node: DirNode;
   depth: number;
@@ -173,6 +195,11 @@ function VscodeDirNodeView({
   onContextMenu: (
     e: React.MouseEvent,
     file: WorkingTreeFile,
+  ) => void;
+  onDirContextMenu: (
+    e: React.MouseEvent,
+    files: WorkingTreeFile[],
+    groupType: VscodeGroupType,
   ) => void;
 }) {
   const { stageFiles, unstageFiles, rollbackFiles } = useCommitStore();
@@ -190,6 +217,11 @@ function VscodeDirNodeView({
                 className="vscode-dir-row"
                 style={{ paddingLeft: `${12 + depth * 16}px` }}
                 onClick={() => toggleDir(child.fullPath)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onDirContextMenu(e, collectDirFiles(child), groupType);
+                }}
               >
                 <span
                   className={`vscode-scm-chevron ${isCollapsed ? "collapsed" : ""}`}
@@ -260,6 +292,7 @@ function VscodeDirNodeView({
                   toggleDir={toggleDir}
                   highlightedFiles={highlightedFiles}
                   onContextMenu={onContextMenu}
+                  onDirContextMenu={onDirContextMenu}
                 />
               )}
             </div>

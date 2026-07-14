@@ -61,6 +61,20 @@ export function setupTodo(
 ): void {
   const messageRouter = new MessageRouter();
 
+  // 面板开关：setContext 控制 view 显隐（package.json views when: todoAtlas.enabled）
+  const updatePanelVisible = (): void => {
+    const enabled = vscode.workspace
+      .getConfiguration("todoAtlas")
+      .get<boolean>("enabled", false);
+    void vscode.commands.executeCommand("setContext", "todoAtlas.enabled", enabled);
+  };
+  updatePanelVisible();
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("todoAtlas.enabled")) updatePanelVisible();
+    }),
+  );
+
   registerL10nBundleHandler(messageRouter, context);
 
   const ctx: TodoHandlerContext = { messageRouter, context, todoService };

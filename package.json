@@ -120,7 +120,8 @@
           "id": "todo-atlas.todos",
           "name": "%view.todos.name%",
           "icon": "resources/todo.svg",
-          "type": "webview"
+          "type": "webview",
+          "when": "todoAtlas.enabled"
         }
       ]
     },
@@ -736,6 +737,11 @@
           "type": "boolean",
           "default": true,
           "description": "%config.taskAtlas.showPinned%"
+        },
+        "todoAtlas.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.todoAtlas.enabled%"
         },
         "todoAtlas.scan.enabled": {
           "type": "boolean",

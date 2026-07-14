@@ -18,6 +18,7 @@
   "command.todoAtlas.openSettings": "TODO Atlas Settings",
   "command.todoAtlas.expandAll": "Expand All",
   "command.todoAtlas.collapseAll": "Collapse All",
+  "config.todoAtlas.enabled": "Enable the TODO Atlas panel.",
   "config.todoAtlas.scan.enabled": "Enable scanning source files for TODO/FIXME comments.",
   "config.todoAtlas.scan.autoScan": "Automatically scan on window focus and file save. Disable to scan only via manual button.",
   "config.todoAtlas.scan.tags": "Tags to scan for in source comments.",
