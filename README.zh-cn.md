@@ -74,6 +74,23 @@
 **本地化**
 > 通过 VSCode l10n 系统提供完整中文（zh-cn）支持 —— 扩展宿主端与 React webview 均已本地化。
 
+### TODO Atlas
+
+**手动 TODO**
+> 底部面板创建全局（跨工作区）或项目级 TODO。勾选标记完成、双击内联编辑、复制、拖拽排序、删除，创建/完成时间显示在 tooltip 中。
+
+**注释扫描**
+> 扫描源码中的 `TODO` / `FIXME` / `XXX` / `HACK` / `BUG` / `NOTE` 注释，按标签分组，点击跳转源码。支持 `TODO(name)` 指派人提取。扫描结果缓存到 workspace state，重开时即时显示。
+
+**多仓库分组**
+> 多仓库工作区的项目级 TODO 按子仓库分组（复用 Git Atlas 仓库识别），根目录的 TODO 直接显示在项目段下。
+
+**右键菜单与行内操作**
+> 每行右键菜单（手动项：标记完成/复制/编辑/删除；扫描项：跳转源码/复制）+ 悬停操作按钮。
+
+**面板开关**
+> 默认关闭。通过设置中的 `todoAtlas.enabled` 开启，即时显隐，无需重载。
+
 ## 配置
 
 | 设置项 | 类型 | 默认值 | 说明 |
@@ -96,6 +113,14 @@
 | `gitAtlas.aiCommit.maxDiffChars` | 数字 | `8000` | 发送给 AI 的最大 diff 字符数（500–50000），超出截断 |
 | `gitAtlas.aiCommit.customInstructions` | 字符串 | `""` | 追加到 AI 提示词的自定义提交规则 |
 | `gitAtlas.aiCommit.timeout` | 数字 | `30` | AI 生成提交信息的超时时间（秒，5–300） |
+| `todoAtlas.enabled` | 布尔 | `false` | 在底部面板显示 TODO Atlas 面板（即时生效，无需重载） |
+| `todoAtlas.scan.enabled` | 布尔 | `true` | 启用扫描源码文件中的 TODO/FIXME 注释 |
+| `todoAtlas.scan.autoScan` | 布尔 | `false` | 窗口聚焦和保存文件时自动扫描（关闭后仅靠重新扫描按钮触发） |
+| `todoAtlas.scan.tags` | 数组 | `["TODO","FIXME","XXX","HACK","BUG","NOTE"]` | 扫描的注释标签列表 |
+| `todoAtlas.scan.exclude` | 数组 | `["**/node_modules/**","**/.git/**","**/dist/**","**/out/**","**/build/**","**/.vscode-test/**","**/*.min.js","**/*.map"]` | 扫描时排除的 glob 模式 |
+| `todoAtlas.scan.debounceMs` | 数字 | `500` | 保存文件时增量重扫的防抖时间（毫秒，100–3000） |
+| `todoAtlas.showCompleted` | 布尔 | `true` | 在列表中显示已完成的 TODO |
+| `todoAtlas.groupBy` | 枚举 | `scope` | 视图中 TODO 的分组方式。可选值：`scope`（按范围）、`tag`（按标签）、`file`（按文件）、`none`（不分组） |
 
 ## 快捷键
 

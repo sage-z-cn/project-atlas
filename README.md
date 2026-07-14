@@ -78,6 +78,23 @@
 **Localization**
 > Full Chinese (zh-cn) localization via VSCode's l10n system — both the extension host and the React webview.
 
+### TODO Atlas
+
+**Manual TODOs**
+> Create global (cross-workspace) or project-level TODOs from the bottom panel. Checkbox to toggle complete, inline edit (double-click), copy, drag to reorder, and delete — with creation/completion timestamps shown in tooltip.
+
+**Comment Scanning**
+> Scans source files for `TODO` / `FIXME` / `XXX` / `HACK` / `BUG` / `NOTE` comments. Results are grouped by tag, click to jump to source. Supports `TODO(name)` assignee extraction. Scan results are cached to workspace state for instant display on reopen.
+
+**Multi-repo Grouping**
+> Project-level TODOs under multi-repo workspaces are grouped per sub-repo (reuses Git Atlas repo detection); root-level TODOs appear directly under the Project section.
+
+**Right-click Menu & Inline Actions**
+> Per-row context menu (toggle complete / copy / edit / delete for manual items; jump to source / copy for scanned) plus hover action buttons.
+
+**Panel Toggle**
+> Disabled by default. Enable via `todoAtlas.enabled` in settings — shows/hides instantly without reload.
+
 ## Configuration
 
 | Setting | Type | Default | Description |
@@ -100,6 +117,14 @@
 | `gitAtlas.aiCommit.maxDiffChars` | `number` | `8000` | Max diff characters sent to the AI (500–50000) |
 | `gitAtlas.aiCommit.customInstructions` | `string` | `""` | Custom instructions appended to the AI prompt |
 | `gitAtlas.aiCommit.timeout` | `number` | `30` | Timeout in seconds for AI commit generation (5–300) |
+| `todoAtlas.enabled` | `boolean` | `false` | Show the TODO Atlas panel in the bottom panel (instant, no reload) |
+| `todoAtlas.scan.enabled` | `boolean` | `true` | Enable scanning source files for TODO/FIXME comments |
+| `todoAtlas.scan.autoScan` | `boolean` | `false` | Automatically scan on window focus and file save (use rescan button otherwise) |
+| `todoAtlas.scan.tags` | `array` | `["TODO","FIXME","XXX","HACK","BUG","NOTE"]` | Tags to scan for in source comments |
+| `todoAtlas.scan.exclude` | `array` | `["**/node_modules/**","**/.git/**","**/dist/**","**/out/**","**/build/**","**/.vscode-test/**","**/*.min.js","**/*.map"]` | Glob patterns to exclude from scanning |
+| `todoAtlas.scan.debounceMs` | `number` | `500` | Debounce (ms) for incremental rescans on file save (100–3000) |
+| `todoAtlas.showCompleted` | `boolean` | `true` | Show completed TODOs in the list |
+| `todoAtlas.groupBy` | `scope` / `tag` / `file` / `none` | `scope` | How to group TODOs in the view |
 
 ## Keyboard Shortcuts
 
