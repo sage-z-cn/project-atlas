@@ -98,17 +98,6 @@ export function Toolbar({
       </Tooltip>
 
       <div className="commit-toolbar-separator" />
-
-      {/* Local changes group: view -> shelve -> rollback (by severity) */}
-      <Tooltip text={t("Show Diff")}>
-        <button
-          type="button"
-          className="commit-toolbar-btn"
-          disabled={!hasChanges}
-        >
-          <DiffIcon />
-        </button>
-      </Tooltip>
       <Tooltip text={t("Shelve Changes")}>
         <button
           type="button"
