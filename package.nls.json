@@ -42,6 +42,8 @@
   "command.git-atlas.openMergeEditorFromSCM": "Open in Git Atlas Merge Editor",
   "command.git-atlas.showFileHistory": "Git Atlas: Show File History",
   "command.git-atlas.editSource": "Git Atlas: Edit Source",
+  "command.git-atlas.openGitLog": "Open Git Log",
+  "command.git-atlas.openCommitPanel": "Open Commit Panel",
 
   "description": "Projects, tasks, and multi-repo git in one place.",
   "command.openProject": "Open Project",

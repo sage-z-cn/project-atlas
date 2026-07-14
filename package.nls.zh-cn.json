@@ -42,6 +42,8 @@
   "command.git-atlas.openMergeEditorFromSCM": "在 Git Atlas 合并编辑器中打开",
   "command.git-atlas.showFileHistory": "Git Atlas: 显示文件历史",
   "command.git-atlas.editSource": "Git Atlas: 编辑源文件",
+  "command.git-atlas.openGitLog": "打开 Git Log",
+  "command.git-atlas.openCommitPanel": "打开提交面板",
 
   "description": "项目管理、任务聚合、多仓库 Git，一站搞定。",
   "command.openProject": "打开项目",

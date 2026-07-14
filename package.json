@@ -297,6 +297,16 @@
         "icon": "$(history)"
       },
       {
+        "command": "git-atlas.openGitLog",
+        "title": "%command.git-atlas.openGitLog%",
+        "icon": "$(history)"
+      },
+      {
+        "command": "git-atlas.openCommitPanel",
+        "title": "%command.git-atlas.openCommitPanel%",
+        "icon": "$(git-commit)"
+      },
+      {
         "command": "git-atlas.editSource",
         "title": "%command.git-atlas.editSource%",
         "icon": "$(go-to-file)"
@@ -410,6 +420,14 @@
         },
         {
           "command": "git-atlas.editSource",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.openGitLog",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.openCommitPanel",
           "when": "false"
         }
       ],
@@ -528,6 +546,16 @@
           "command": "git-atlas.openConflicts",
           "when": "view == git-atlas.gitLog && gitAtlas.hasConflicts",
           "group": "navigation@4"
+        },
+        {
+          "command": "git-atlas.openGitLog",
+          "when": "view == git-atlas.commitPanel && gitAtlas.gitLogEnabled",
+          "group": "navigation@1"
+        },
+        {
+          "command": "git-atlas.openCommitPanel",
+          "when": "view == git-atlas.gitLog && gitAtlas.commitEnabled",
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [

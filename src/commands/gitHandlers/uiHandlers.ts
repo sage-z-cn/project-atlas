@@ -129,14 +129,6 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
     return { success: true };
   });
 
-  // Navigate from a webview (e.g. the Commit panel's "History" tab) to the
-  // Git Log view. Uses the auto-generated `<viewId>.focus` command which both
-  // reveals and focuses the git-atlas.gitLog view in the sidebar.
-  messageRouter.handle("openGitLogPanel", async () => {
-    await vscode.commands.executeCommand("git-atlas.gitLog.focus");
-    return { success: true };
-  });
-
   messageRouter.handle("toggleFavorite", async () => {
     // Favorites are UI-only, handled in webview localStorage (per-repo). Host
     // side is a no-op; kept registered so the protocol contract stays symmetric.

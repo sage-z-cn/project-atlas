@@ -5,7 +5,7 @@ import { GIT_ATLAS_SCHEME } from "../webview/gitContentProvider";
 import { getScmResourcePath } from "../utils/ideaPatch";
 
 /**
- * Register the 10 `git-atlas.*` commands declared in package.json.
+ * Register the 12 `git-atlas.*` commands declared in package.json.
  *
  * Extracted from reference project extension.ts (the `vscode.commands.
  * registerCommand` block inside activate). Command ids use the `git-atlas.*`
@@ -114,6 +114,14 @@ export function registerGitCommands(
         });
       },
     ),
+    vscode.commands.registerCommand("git-atlas.openGitLog", async () => {
+      // Reveal the bottom-panel Git Log view from the Commit panel toolbar.
+      await vscode.commands.executeCommand("git-atlas.gitLog.focus");
+    }),
+    vscode.commands.registerCommand("git-atlas.openCommitPanel", async () => {
+      // Reveal the activity-bar Commit panel from the Git Log toolbar.
+      await vscode.commands.executeCommand("git-atlas.commitPanel.focus");
+    }),
     vscode.commands.registerCommand("git-atlas.editSource", async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) return;
