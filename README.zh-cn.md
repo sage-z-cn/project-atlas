@@ -104,7 +104,7 @@
 | `taskAtlas.maxRecentRuns` | 数字 | `5` | 最近运行保留的最大数量（1–20） |
 | `taskAtlas.showPinned` | 布尔 | `true` | 在任务视图中显示固定任务区域 |
 | `gitAtlas.commitListStyle` | 枚举 | `vscode` | 提交列表显示风格。可选值：`vscode`、`jetbrains` |
-| `gitAtlas.commitBadgeMode` | 枚举 | `current` | 活动栏提交图标更改数量徽标。可选值：`total`（所有仓库总和）、`current`（仅当前仓库）、`off`（不显示） |
+| `gitAtlas.commitBadgeMode` | 枚举 | `total` | 活动栏提交图标更改数量徽标。可选值：`total`（所有仓库总和）、`current`（仅当前仓库）、`off`（不显示） |
 | `gitAtlas.enableGitLogPanel` | 布尔 | `true` | 启用底部面板中的 Git Atlas 面板（Git Log）。即时生效，无需重载 |
 | `gitAtlas.enableCommitPanel` | 布尔 | `true` | 启用活动栏中的提交面板。即时生效，无需重载 |
 | `gitAtlas.aiCommit.apiUrl` | 字符串 | `""` | AI API 基础地址或完整端点（OpenAI 兼容） |

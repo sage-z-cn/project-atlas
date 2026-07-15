@@ -26,7 +26,7 @@ export function registerConfigHandlers(ctx: GitHandlerContext): void {
     );
     const commitBadgeMode = config.get<CommitBadgeMode>(
       "commitBadgeMode",
-      "current",
+      "total",
     );
     const skipPushConfirmation = config.get<boolean>(
       "skipPushConfirmation",

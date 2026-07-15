@@ -108,7 +108,7 @@
 | `taskAtlas.maxRecentRuns` | `number` | `5` | Maximum number of recent runs to keep (1–20) |
 | `taskAtlas.showPinned` | `boolean` | `true` | Show the pinned tasks section in the Tasks view |
 | `gitAtlas.commitListStyle` | `vscode` / `jetbrains` | `vscode` | Commit list display style |
-| `gitAtlas.commitBadgeMode` | `total` / `current` / `off` | `current` | Change count badge on the Git Commit activity bar icon |
+| `gitAtlas.commitBadgeMode` | `total` / `current` / `off` | `total` | Change count badge on the Git Commit activity bar icon |
 | `gitAtlas.enableGitLogPanel` | `boolean` | `true` | Show the Git Atlas panel (Git Log) in the bottom panel |
 | `gitAtlas.enableCommitPanel` | `boolean` | `true` | Show the Commit panel in the activity bar |
 | `gitAtlas.aiCommit.apiUrl` | `string` | `""` | AI API base URL or full endpoint (OpenAI-compatible) |

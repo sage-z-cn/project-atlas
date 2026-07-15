@@ -846,7 +846,7 @@
         },
         "gitAtlas.commitBadgeMode": {
           "type": "string",
-          "default": "current",
+          "default": "total",
           "enum": [
             "total",
             "current",

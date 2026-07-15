@@ -203,7 +203,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   showUnversioned: true,
   collapsedDirs: new Set<string>(),
   commitListStyle: "vscode",
-  commitBadgeMode: "current",
+  commitBadgeMode: "total",
   /** 提交并推送时是否跳过推送确认面板直接推送（默认 true）。 */
   skipPushConfirmation: true,
   aiGenerating: false,
