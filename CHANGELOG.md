@@ -4,6 +4,11 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.10.0
+- **搜索筛选**: 将搜索与筛选逻辑移至服务端处理，提升大数据量下的响应性能
+- **右键菜单**: 提取通用右键菜单组件，统一各面板的菜单交互逻辑
+- 修复窗口重载后无法恢复差异/合并编辑器的问题（调整 provider 注册顺序）
+
 #### 1.9.2
 - **仓库菜单**: 新增仓库右键菜单，支持复制仓库名称、在集成终端打开及在资源管理器中显示
 - **文件菜单**: 文件右键菜单新增复制绝对路径与在 VSCode 资源管理器中定位
