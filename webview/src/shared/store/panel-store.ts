@@ -12,11 +12,16 @@ import type {
   TagInfo,
 } from "../types/git";
 
-interface PanelFilter {
+export interface PanelFilter {
   searchQuery: string;
   branch: string;
   author: string;
+  /** One of "", "today", "7days", "30days", "90days", "custom". */
   dateRange: string;
+  /** YYYY-MM-DD start, only meaningful when dateRange === "custom". */
+  customDateFrom: string;
+  /** YYYY-MM-DD end (inclusive), only meaningful when dateRange === "custom". */
+  customDateTo: string;
   file: string;
 }
 
@@ -155,20 +160,45 @@ function loadFavoritesForRepo(repoPath: string): string[] {
   }
 }
 
-/** Map the relative dateRange UI option to a git `--since` expression. */
-function dateRangeToSince(dateRange: string): string | undefined {
-  switch (dateRange) {
+/**
+ * Map the date filter to git `--since` / `--until` expressions.
+ *
+ * Preset options only set `since` (relative). Custom range sets both:
+ * - `since` = the start date (resolves to that day 00:00:00).
+ * - `until` = "<to> 23:59:59" so the end day is fully inclusive (a bare
+ *   YYYY-MM-DD would resolve to 00:00:00 and drop that day's later commits).
+ */
+function dateRangeToSinceUntil(
+  filter: Pick<PanelFilter, "dateRange" | "customDateFrom" | "customDateTo">,
+): { since?: string; until?: string } {
+  switch (filter.dateRange) {
     case "today":
-      return "midnight";
+      return { since: "midnight" };
     case "7days":
-      return "7 days ago";
+      return { since: "7 days ago" };
     case "30days":
-      return "30 days ago";
+      return { since: "30 days ago" };
     case "90days":
-      return "90 days ago";
+      return { since: "90 days ago" };
+    case "custom": {
+      if (!filter.customDateFrom || !filter.customDateTo) return {};
+      return {
+        since: filter.customDateFrom,
+        until: `${filter.customDateTo} 23:59:59`,
+      };
+    }
     default:
-      return undefined;
+      return {};
   }
+}
+
+/** Whether the date filter currently has any effect (custom needs both dates). */
+function isDateRangeActive(filter: PanelFilter): boolean {
+  if (!filter.dateRange) return false;
+  if (filter.dateRange === "custom") {
+    return !!(filter.customDateFrom && filter.customDateTo);
+  }
+  return true;
 }
 
 function filterCommits(
@@ -286,7 +316,15 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   favoriteBranches: [],
   currentEmail: null,
 
-  filter: { searchQuery: "", branch: "", author: "", dateRange: "", file: "" },
+  filter: {
+    searchQuery: "",
+    branch: "",
+    author: "",
+    dateRange: "",
+    customDateFrom: "",
+    customDateTo: "",
+    file: "",
+  },
   pendingSelectionFromFilter: [],
   collapsedSequenceIds: new Set(),
   collapsedIntermediates: new Map(),
@@ -385,6 +423,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     const start = Date.now();
     try {
       const { filter } = get();
+      const { since, until } = dateRangeToSinceUntil(filter);
       const [graphResult, branches, tags, identity] = await Promise.all([
         bridge.request("getGraphData", {
           maxCount: 200,
@@ -392,7 +431,8 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
           file: filter.file || undefined,
           search: filter.searchQuery || undefined,
           author: filter.author || undefined,
-          since: dateRangeToSince(filter.dateRange),
+          since,
+          until,
           repoPath,
         }) as Promise<{
           graphData: { commits: Commit[]; lanes: Record<string, LaneInfo> };
@@ -517,6 +557,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
 
     set({ loading: true });
     try {
+      const { since, until } = dateRangeToSinceUntil(filter);
       const result = (await bridge.request("loadMoreLog", {
         skip: commits.length,
         count: 200,
@@ -525,7 +566,8 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         file: filter.file || undefined,
         search: filter.searchQuery || undefined,
         author: filter.author || undefined,
-        since: dateRangeToSince(filter.dateRange),
+        since,
+        until,
         repoPath,
       })) as {
         graphData: { commits: Commit[]; lanes: Record<string, LaneInfo> };
@@ -678,24 +720,28 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         partial.searchQuery !== current.searchQuery) ||
       (partial.author !== undefined && partial.author !== current.author) ||
       (partial.dateRange !== undefined &&
-        partial.dateRange !== current.dateRange);
+        partial.dateRange !== current.dateRange) ||
+      (partial.customDateFrom !== undefined &&
+        partial.customDateFrom !== current.customDateFrom) ||
+      (partial.customDateTo !== undefined &&
+        partial.customDateTo !== current.customDateTo);
 
     if (!branchOrFileChanged && !searchFilterChanged) return;
 
     // All filter changes require a backend re-fetch: search / author / dateRange
-    // now run server-side (--grep / --author / --since) so the FULL history is
-    // searchable, not just the currently-loaded page.
+    // now run server-side (--grep / --author / --since / --until) so the FULL
+    // history is searchable, not just the currently-loaded page.
     // Remember selection only when clearing a search/author/dateRange filter
     // (branch/file changes reshuffle the commit set entirely).
     const wasFiltered = !!(
       current.searchQuery ||
       current.author ||
-      current.dateRange
+      isDateRangeActive(current)
     );
     const willBeFiltered = !!(
       next.searchQuery ||
       next.author ||
-      next.dateRange
+      isDateRangeActive(next)
     );
     const preserveSelection =
       searchFilterChanged && wasFiltered && !willBeFiltered;

@@ -1,0 +1,33 @@
+/*
+ * Native <input type="date"> theme adaptation.
+ *
+ * VSCode injects data-vscode-theme-kind onto <body> ("light" | "dark" |
+ * "high-contrast" | "hc-light" | "hc-dark"). The color-scheme CSS property tells
+ * the browser to render native form controls (calendar picker indicator, the
+ * dropdown calendar, placeholder text) in the matching palette — otherwise the
+ * date control renders with a hardcoded light chrome that clashes with dark
+ * themes and renders the calendar icon nearly invisible.
+ */
+.date-input {
+  color-scheme: light;
+}
+
+[data-vscode-theme-kind="dark"] .date-input,
+[data-vscode-theme-kind="hc-dark"] .date-input {
+  color-scheme: dark;
+}
+
+[data-vscode-theme-kind="light"] .date-input,
+[data-vscode-theme-kind="hc-light"] .date-input {
+  color-scheme: light;
+}
+
+/* Keep the calendar icon readable against the input background. */
+.date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.date-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}

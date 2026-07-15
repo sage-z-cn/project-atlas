@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tooltip } from "../../shared/components/Tooltip";
 import "../../shared/components/Tooltip.css";
+import "./DateFilter.css";
 import { t } from "../../shared/i18n";
 import { usePanelStore } from "../../shared/store/panel-store";
+import type { PanelFilter } from "../../shared/store/panel-store";
 
 export function Toolbar() {
   const setFilter = usePanelStore((s) => s.setFilter);
@@ -81,12 +83,23 @@ export function Toolbar() {
 
   const handleSelectDate = (range: string) => {
     setShowDateDropdown(false);
-    setFilter({ dateRange: range });
+    // Switching to a preset clears any custom dates so they don't leak back
+    // when the user later re-enters the custom view.
+    setFilter({ dateRange: range, customDateFrom: "", customDateTo: "" });
   };
 
   const handleClearDate = () => {
     setShowDateDropdown(false);
-    setFilter({ dateRange: "" });
+    setFilter({ dateRange: "", customDateFrom: "", customDateTo: "" });
+  };
+
+  const handleApplyCustomDate = (from: string, to: string) => {
+    setShowDateDropdown(false);
+    setFilter({
+      dateRange: "custom",
+      customDateFrom: from,
+      customDateTo: to,
+    });
   };
 
   const handleSelectBranch = (branch: string) => {
@@ -105,6 +118,19 @@ export function Toolbar() {
     "30days": t("Last 30 days"),
     "90days": t("Last 90 days"),
   };
+  const customDateLabel = t("Custom Range");
+
+  // The date filter is only "active" (shown as filtered, with a clear button)
+  // when it actually constrains results — custom mode needs both dates filled.
+  const dateActive =
+    !!filter.dateRange &&
+    (filter.dateRange !== "custom" ||
+      (!!filter.customDateFrom && !!filter.customDateTo));
+  const dateActiveValue = !filter.dateRange
+    ? undefined
+    : filter.dateRange === "custom"
+      ? customDateLabel
+      : dateLabels[filter.dateRange];
 
   return (
     <div
@@ -180,10 +206,8 @@ export function Toolbar() {
       <div style={{ position: "relative" }}>
         <FilterButton
           label={t("Date")}
-          active={!!filter.dateRange}
-          activeValue={
-            filter.dateRange ? dateLabels[filter.dateRange] : undefined
-          }
+          active={dateActive}
+          activeValue={dateActiveValue}
           onClick={() => {
             setShowDateDropdown(!showDateDropdown);
             setShowUserDropdown(false);
@@ -192,15 +216,14 @@ export function Toolbar() {
           onClear={handleClearDate}
         />
         {showDateDropdown && (
-          <SearchableDropdown
-            items={["today", "7days", "30days", "90days"]}
-            activeItem={filter.dateRange}
-            placeholder={t("Select date range...")}
-            onSelect={handleSelectDate}
-            onClear={filter.dateRange ? handleClearDate : undefined}
-            clearLabel={t("All time")}
+          <DateFilterDropdown
+            filter={filter}
+            dateLabels={dateLabels}
+            customDateLabel={customDateLabel}
+            onSelectPreset={handleSelectDate}
+            onApplyCustom={handleApplyCustomDate}
+            onClear={dateActive ? handleClearDate : undefined}
             onClose={() => setShowDateDropdown(false)}
-            labelMap={dateLabels}
           />
         )}
       </div>
@@ -701,6 +724,229 @@ function SearchableDropdown({
         )}
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DateFilterDropdown — preset ranges + an inline custom-range picker, all in
+// a single flat panel: presets on top, a divider, then the custom date inputs.
+// The custom dates are kept as a local draft and only committed on Apply, so
+// typing/picking doesn't trigger a refetch per keystroke.
+// ---------------------------------------------------------------------------
+
+function DateFilterDropdown({
+  filter,
+  dateLabels,
+  customDateLabel,
+  onSelectPreset,
+  onApplyCustom,
+  onClear,
+  onClose,
+}: {
+  filter: PanelFilter;
+  dateLabels: Record<string, string>;
+  customDateLabel: string;
+  onSelectPreset: (range: string) => void;
+  onApplyCustom: (from: string, to: string) => void;
+  onClear?: () => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Local draft — only committed to the store on Apply.
+  const [from, setFrom] = useState(filter.customDateFrom);
+  const [to, setTo] = useState(filter.customDateTo);
+
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const handleScroll = (e: Event) => {
+      if (
+        ref.current &&
+        e.target instanceof Node &&
+        !ref.current.contains(e.target)
+      ) {
+        onClose();
+      }
+    };
+    const handleBlur = () => onClose();
+    document.addEventListener("mousedown", handleMouseDown, true);
+    document.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown, true);
+      document.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [onClose]);
+
+  const presets = ["today", "7days", "30days", "90days"];
+  const bothFilled = !!from && !!to;
+  // Lexical YYYY-MM-DD comparison is also chronological — safe to use > here.
+  const invalidRange = bothFilled && from > to;
+  const canApply = bothFilled && !invalidRange;
+
+  const handleApply = () => {
+    if (!canApply) return;
+    onApplyCustom(from, to);
+  };
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "absolute",
+        top: "100%",
+        left: 0,
+        marginTop: 4,
+        zIndex: 9999,
+        background: "var(--vscode-menu-background, #1e1e1e)",
+        border: "1px solid var(--vscode-menu-border, #454545)",
+        borderRadius: 4,
+        padding: "4px 0",
+        minWidth: 220,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {onClear && (
+          <DropdownItem
+            label={t("All time")}
+            active={false}
+            onClick={onClear}
+          />
+        )}
+        {presets.map((p) => (
+          <DropdownItem
+            key={p}
+            label={dateLabels[p]}
+            active={p === filter.dateRange}
+            onClick={() => onSelectPreset(p)}
+          />
+        ))}
+      </div>
+
+      <div
+        style={{
+          borderTop: "1px solid var(--vscode-menu-border, #454545)",
+          margin: "4px 0",
+        }}
+      />
+
+      <div
+        style={{
+          padding: "4px 12px 10px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        <div
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            opacity: 0.6,
+          }}
+        >
+          {customDateLabel}
+        </div>
+        <DateField
+          label={t("Start Date")}
+          value={from}
+          onChange={setFrom}
+          invalid={invalidRange}
+        />
+        <DateField
+          label={t("End Date")}
+          value={to}
+          onChange={setTo}
+          invalid={invalidRange}
+        />
+
+        {invalidRange && (
+          <div
+            style={{
+              fontSize: "11px",
+              color: "var(--vscode-errorForeground, #f48771)",
+              lineHeight: 1.3,
+            }}
+          >
+            {t("Start date must be on or before end date")}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={handleApply}
+          disabled={!canApply}
+          style={{
+            marginTop: 2,
+            padding: "5px 12px",
+            fontSize: "12px",
+            border: "none",
+            borderRadius: 3,
+            cursor: canApply ? "pointer" : "default",
+            background: "var(--vscode-button-background, #0e639c)",
+            color: "var(--vscode-button-foreground, #fff)",
+            opacity: canApply ? 1 : 0.5,
+            transition: "opacity 0.1s",
+          }}
+        >
+          {t("Apply")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DateField({
+  label,
+  value,
+  onChange,
+  invalid,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  invalid: boolean;
+}) {
+  const border = invalid
+    ? "var(--vscode-errorForeground, #f48771)"
+    : "var(--vscode-input-border, #3c3c3c)";
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      <span style={{ fontSize: "11px", opacity: 0.7 }}>{label}</span>
+      <input
+        type="date"
+        className="date-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          padding: "4px 8px",
+          fontSize: "12px",
+          border: `1px solid ${border}`,
+          background: "var(--vscode-input-background, #3c3c3c)",
+          color: "var(--vscode-input-foreground, #ccc)",
+          borderRadius: 3,
+          outline: "none",
+          boxSizing: "border-box",
+        }}
+        onFocus={(e) => {
+          if (!invalid) {
+            (e.target as HTMLElement).style.borderColor =
+              "var(--vscode-focusBorder, #3574f0)";
+          }
+        }}
+        onBlur={(e) => {
+          if (!invalid) {
+            (e.target as HTMLElement).style.borderColor =
+              "var(--vscode-input-border, #3c3c3c)";
+          }
+        }}
+      />
+    </label>
   );
 }
 
