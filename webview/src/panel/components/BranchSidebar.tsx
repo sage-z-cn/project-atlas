@@ -10,7 +10,6 @@ import IconAdd from "~icons/codicon/add";
 import IconUpdate from "~icons/codicon/repo-pull";
 import IconDelete from "~icons/codicon/trash";
 import IconCompare from "~icons/codicon/git-compare";
-import IconSearch from "~icons/codicon/search";
 import IconFetch from "~icons/codicon/repo-fetch";
 import IconStar from "~icons/codicon/star-full";
 import IconLocate from "~icons/codicon/target";
@@ -34,10 +33,6 @@ export function BranchSidebar({
     (s) => s.toggleBranchGroupByDirectory,
   );
   const toggleFavorite = usePanelStore((s) => s.toggleFavorite);
-  const toggleShowMyBranchesOnly = usePanelStore(
-    (s) => s.toggleShowMyBranchesOnly,
-  );
-  const showMyBranchesOnly = usePanelStore((s) => s.showMyBranchesOnly);
 
   const handleNewBranch = useCallback(() => {
     if (onNewBranch) {
@@ -64,10 +59,6 @@ export function BranchSidebar({
       bridge.request("compareWithCurrent", { branchName: selectedBranch });
     }
   }, [selectedBranch]);
-
-  const handleShowMyBranches = useCallback(() => {
-    toggleShowMyBranchesOnly();
-  }, [toggleShowMyBranchesOnly]);
 
   const handleFetch = useCallback(() => {
     bridge.request("fetchAll");
@@ -161,15 +152,6 @@ export function BranchSidebar({
           disabled={!selectedBranch}
         >
           <IconCompare />
-        </button>
-      </Tooltip>
-      <Tooltip text={t("Show My Branches")}>
-        <button
-          type="button"
-          className={`branch-sidebar-btn${showMyBranchesOnly ? " active" : ""}`}
-          onClick={handleShowMyBranches}
-        >
-          <IconSearch />
         </button>
       </Tooltip>
       <Tooltip text={t("Navigate Log to Selected Branch Head")}>

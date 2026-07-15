@@ -242,7 +242,6 @@
   "Show Details": "显示详情",
   "Show Diff": "显示差异",
   "Show in Git Log": "在 Git 日志中显示",
-  "Show My Branches": "显示我的分支",
   "Show Tags": "显示标签",
   "Skip Cherry-pick (git cherry-pick --skip)": "跳过拣选 (git cherry-pick --skip)",
   "Staged": "已暂存",
@@ -374,5 +373,9 @@
   "Pushed tag '{0}'": "已推送标签 '{0}'",
   "Deleted tag '{0}'": "已删除标签 '{0}'",
   "Push tags": "推送标签",
-  "Commit and Push with Tags": "提交并推送(含标签)"
+  "Commit and Push with Tags": "提交并推送(含标签)",
+  "Copy Commit Message": "拷贝提交信息",
+  "Copy Absolute Path": "复制绝对路径",
+  "Copy Repo Name": "复制仓库名称",
+  "Open in Integrated Terminal": "在集成终端中打开"
 }

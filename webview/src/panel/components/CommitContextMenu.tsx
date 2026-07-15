@@ -209,6 +209,18 @@ export function CommitContextMenu({
     }
   };
 
+  const handleCopyMessage = async () => {
+    onClose();
+    try {
+      const message = commit.body
+        ? `${commit.subject}\n\n${commit.body}`
+        : commit.subject;
+      await bridge.request("copyToClipboard", { text: message });
+    } catch (err) {
+      console.error("Copy failed:", err);
+    }
+  };
+
   const handleCherryPick = async () => {
     onClose();
     try {
@@ -354,6 +366,11 @@ export function CommitContextMenu({
     icon?: React.ReactNode;
     disabled?: boolean;
   }[] = [
+    {
+      label: t("Copy Commit Message"),
+      action: handleCopyMessage,
+      icon: <IconCopy />,
+    },
     {
       label: t("Copy Revision Number"),
       action: handleCopyHash,

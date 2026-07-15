@@ -317,8 +317,6 @@ export function BranchTree({
   const branchGroupByDirectory = usePanelStore((s) => s.branchGroupByDirectory);
   const showTags = usePanelStore((s) => s.showTags);
   const favoriteBranches = usePanelStore((s) => s.favoriteBranches);
-  const showMyBranchesOnly = usePanelStore((s) => s.showMyBranchesOnly);
-  const currentEmail = usePanelStore((s) => s.currentEmail);
 
   const containerRef = usePreventSelect();
 
@@ -456,9 +454,7 @@ export function BranchTree({
     (b) =>
       !b.isRemote &&
       (!searchQuery ||
-        b.name.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (!showMyBranchesOnly ||
-        (!!b.authorEmail && b.authorEmail === currentEmail)),
+        b.name.toLowerCase().includes(searchQuery.toLowerCase())),
   );
   const remoteBranches = branches.filter(
     (b) =>

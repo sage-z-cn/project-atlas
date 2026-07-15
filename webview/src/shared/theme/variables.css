@@ -331,6 +331,25 @@ button.branch-sidebar-btn:hover:not(:disabled) {
   background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
 }
 
+/* Toggled-ON state for the "Group By Directory" toolbar toggle. Mirrors the
+ * .repo-chip.active convention: solid accent fill (--button-bg) + accent
+ * foreground (--button-fg) at full opacity, which reads as a checked chip and
+ * is unmistakably distinct from the muted at-rest (opacity 0.6) and faint
+ * disabled (opacity 0.25) states. */
+button.branch-sidebar-btn.active {
+  opacity: 1;
+  background: var(--button-bg);
+  color: var(--button-fg);
+}
+
+/* The generic hover rule above (specificity 0,3,1) would otherwise override
+ * the accent fill on an active button. This higher-specificity rule keeps the
+ * filled look on hover, lifting to the accent's hover variant — so ON stays
+ * visually ON even while hovered. */
+button.branch-sidebar-btn.active:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground, var(--button-bg));
+}
+
 button.branch-sidebar-btn:disabled {
   opacity: 0.25;
   cursor: default;

@@ -82,8 +82,6 @@ interface PanelStore {
   favoriteBranches: string[];
   /** Current git user email (from getUserIdentity), null until resolved. */
   currentEmail: string | null;
-  /** When true, BranchTree only shows local branches whose tip author matches currentEmail. */
-  showMyBranchesOnly: boolean;
 
   filter: PanelFilter;
   /** Hashes to restore after clearing a filter */
@@ -133,7 +131,6 @@ interface PanelStore {
   /** Directly replace the favorite list (used on repo switch to load persisted state). */
   setFavoriteBranches: (list: string[]) => void;
   setCurrentEmail: (email: string | null) => void;
-  toggleShowMyBranchesOnly: () => void;
   refresh: () => Promise<void>;
 }
 
@@ -311,13 +308,6 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   })(),
   favoriteBranches: [],
   currentEmail: null,
-  showMyBranchesOnly: (() => {
-    try {
-      return localStorage.getItem("showMyBranchesOnly") === "true";
-    } catch {
-      return false;
-    }
-  })(),
 
   filter: { searchQuery: "", branch: "", author: "", dateRange: "", file: "" },
   pendingSelectionFromFilter: [],
@@ -846,16 +836,6 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
 
   setCurrentEmail(email) {
     set({ currentEmail: email });
-  },
-
-  toggleShowMyBranchesOnly() {
-    const next = !get().showMyBranchesOnly;
-    try {
-      localStorage.setItem("showMyBranchesOnly", String(next));
-    } catch {
-      // ignore
-    }
-    set({ showMyBranchesOnly: next });
   },
 
   toggleSequenceCollapse(sequenceId: string, intermediates: string[]) {

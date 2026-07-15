@@ -138,14 +138,4 @@ export function registerBranchHandlers(ctx: GitHandlerContext): void {
       return { success: true };
     }),
   );
-
-  messageRouter.handle(
-    "showMyBranches",
-    requireGit(ctx, async () => {
-      // "Show My Branches" is now a pure front-end toggle (see
-      // toggleShowMyBranchesOnly in panel-store). Kept as a no-op so the
-      // CommandType stays valid without breaking older webview bundles.
-      return { success: true };
-    }),
-  );
 }

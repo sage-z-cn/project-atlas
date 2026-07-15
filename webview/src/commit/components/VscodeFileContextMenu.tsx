@@ -153,6 +153,14 @@ export function VscodeFileContextMenu({
     onClose();
   }, [file.path, onClose]);
 
+  const handleRevealVscode = useCallback(() => {
+    bridge.request("revealInExplorer", {
+      filePath: file.path,
+      repoPath: currentRepoPath,
+    });
+    onClose();
+  }, [file.path, currentRepoPath, onClose]);
+
   const handleCopyRelative = useCallback(() => {
     navigator.clipboard.writeText(file.path).catch(() => {});
     onClose();
@@ -250,6 +258,16 @@ export function VscodeFileContextMenu({
           <button
             type="button"
             className="commit-context-menu-item"
+            onClick={handleCopyPath}
+          >
+            <span className="commit-context-menu-icon">
+              <CopyIcon />
+            </span>
+            <span>{t("Copy Absolute Path")}</span>
+          </button>
+          <button
+            type="button"
+            className="commit-context-menu-item"
             onClick={handleCopyRelative}
           >
             <span className="commit-context-menu-icon">
@@ -300,15 +318,35 @@ export function VscodeFileContextMenu({
           <button
             type="button"
             className="commit-context-menu-item"
-            onClick={handleReveal}
+            onClick={handleRevealVscode}
           >
             <span className="commit-context-menu-icon">
               <RevealIcon />
             </span>
             <span>{t("Reveal in Explorer")}</span>
           </button>
+          <button
+            type="button"
+            className="commit-context-menu-item"
+            onClick={handleReveal}
+          >
+            <span className="commit-context-menu-icon">
+              <RevealIcon />
+            </span>
+            <span>{t("Reveal in File Explorer")}</span>
+          </button>
 
           <div className="commit-context-menu-separator" />
+          <button
+            type="button"
+            className="commit-context-menu-item"
+            onClick={handleCopyPath}
+          >
+            <span className="commit-context-menu-icon">
+              <CopyIcon />
+            </span>
+            <span>{t("Copy Absolute Path")}</span>
+          </button>
           <button
             type="button"
             className="commit-context-menu-item"
@@ -318,16 +356,6 @@ export function VscodeFileContextMenu({
               <CopyIcon />
             </span>
             <span>{t("Copy Relative Path")}</span>
-          </button>
-          <button
-            type="button"
-            className="commit-context-menu-item"
-            onClick={handleCopyPath}
-          >
-            <span className="commit-context-menu-icon">
-              <CopyIcon />
-            </span>
-            <span>{t("Copy Path")}</span>
           </button>
 
           <div className="commit-context-menu-separator" />

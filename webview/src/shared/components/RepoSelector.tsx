@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useCommitStore } from "../store/commit-store";
 import { usePanelStore } from "../store/panel-store";
 import type { RepoInfo, RepoStatus } from "../types/git";
@@ -5,6 +6,7 @@ import { t } from "../i18n";
 import RepoIcon from "~icons/codicon/repo";
 import RepoSelectedIcon from "~icons/codicon/repo-selected";
 import BranchIcon from "~icons/codicon/git-branch";
+import { RepoContextMenu } from "./RepoContextMenu";
 import "./RepoSelector.css";
 
 interface Props {
@@ -93,6 +95,26 @@ function RepoSelectorBody({
   repoStatuses,
   orientation,
 }: BodyProps) {
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    repo: RepoInfo;
+  } | null>(null);
+
+  const openMenu = (e: React.MouseEvent, repo: RepoInfo) => {
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY, repo });
+  };
+
+  const menuEl = menu && (
+    <RepoContextMenu
+      x={menu.x}
+      y={menu.y}
+      repo={menu.repo}
+      onClose={() => setMenu(null)}
+    />
+  );
+
   // No repos: nothing to render.
   if (repos.length === 0) return null;
 
@@ -103,12 +125,17 @@ function RepoSelectorBody({
     const repo = repos[0];
     return (
       <div className={`repo-selector ${orientation} readonly`}>
-        <div className="repo-chip" title={repo.path}>
+        <div
+          className="repo-chip"
+          title={repo.path}
+          onContextMenu={(e) => openMenu(e, repo)}
+        >
           <RepoSelectedIcon width={14} height={14} />
           <span className="repo-name">{repo.name}</span>
           <RepoBranch status={repoStatuses[repo.path]} />
           <RepoBadges status={repoStatuses[repo.path]} />
         </div>
+        {menuEl}
       </div>
     );
   }
@@ -124,6 +151,7 @@ function RepoSelectorBody({
           }`}
           title={repo.path}
           onClick={() => void switchRepo(repo.path)}
+          onContextMenu={(e) => openMenu(e, repo)}
         >
           {repo.path === currentRepoPath ? (
             <RepoSelectedIcon width={14} height={14} />
@@ -135,6 +163,7 @@ function RepoSelectorBody({
           <RepoBadges status={repoStatuses[repo.path]} />
         </button>
       ))}
+      {menuEl}
     </div>
   );
 }

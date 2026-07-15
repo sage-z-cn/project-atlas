@@ -102,19 +102,47 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
     return { success: true };
   });
 
+  // Reveal a file in the OS file manager (Windows Explorer / Finder / etc.).
+  // `filePath` is repo-relative; when omitted the repo root itself is revealed
+  // (used by the repo-chip context menu). Multi-repo: resolve the owning repo
+  // root for the absolute path.
   messageRouter.handle("revealInSystemExplorer", async (params) => {
-    const filePath = params.filePath as string;
-    if (!filePath || !ctx.workspaceRoot) return { success: false };
-    // Multi-repo: resolve the owning repo root for the absolute path.
+    const filePath = params.filePath as string | undefined;
+    if (!ctx.workspaceRoot) return { success: false };
     const repoRoot =
       (params?.repoPath as string) ||
       ctx.registry.getCurrentRepoPath() ||
       ctx.workspaceRoot;
-    const absPath = vscode.Uri.joinPath(
-      vscode.Uri.file(repoRoot),
-      filePath,
-    );
+    const absPath = filePath
+      ? vscode.Uri.joinPath(vscode.Uri.file(repoRoot), filePath)
+      : vscode.Uri.file(repoRoot);
     await vscode.commands.executeCommand("revealFileInOS", absPath);
+    return { success: true };
+  });
+
+  // Reveal a file (or the repo root when `filePath` is omitted) in VSCode's
+  // built-in Explorer view. Mirrors revealInSystemExplorer's path resolution.
+  messageRouter.handle("revealInExplorer", async (params) => {
+    const filePath = params.filePath as string | undefined;
+    if (!ctx.workspaceRoot) return { success: false };
+    const repoRoot =
+      (params?.repoPath as string) ||
+      ctx.registry.getCurrentRepoPath() ||
+      ctx.workspaceRoot;
+    const absPath = filePath
+      ? vscode.Uri.joinPath(vscode.Uri.file(repoRoot), filePath)
+      : vscode.Uri.file(repoRoot);
+    await vscode.commands.executeCommand("revealInExplorer", absPath);
+    return { success: true };
+  });
+
+  // Open an integrated terminal at the repo root.
+  messageRouter.handle("openInTerminal", async (params) => {
+    const repoPath =
+      (params?.repoPath as string) || ctx.registry.getCurrentRepoPath();
+    if (!repoPath) return { success: false };
+    const terminal = vscode.window.createTerminal({ cwd: repoPath });
+    terminal.show();
     return { success: true };
   });
 
