@@ -30,7 +30,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onFileSystem:git-atlas"
   ],
   "main": "./out/extension.js",
   "l10n": "./l10n",
@@ -38,6 +39,12 @@
     "webview"
   ],
   "contributes": {
+    "fileSystemProviders": [
+      {
+        "scheme": "git-atlas",
+        "label": "%fileSystemProvider.gitAtlas%"
+      }
+    ],
     "viewsContainers": {
       "panel": [
         {

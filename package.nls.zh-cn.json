@@ -1,5 +1,6 @@
 {
   "displayName": "Project Atlas",
+  "fileSystemProvider.gitAtlas": "Git Atlas",
   "viewContainer.title": "Project Atlas",
   "view.projects.name": "项目",
   "view.recent.name": "最近",

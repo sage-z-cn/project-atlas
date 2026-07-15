@@ -63,36 +63,44 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   // RepoRegistry 内部为每个 repo 创建 GitService + GitWatcher，
   // setupGit 不再手动遍历创建 service / watcher。
   const registry = new RepoRegistry(messageRouter, context);
-  await registry.init(allWorkspaceRoots);
-  context.subscriptions.push(registry);
 
   // c. GitContentProvider / DiffEditorManager
   //
-  // 两者都持有 RepoRegistry 而非启动时的单一 GitService 快照：内容读取
-  // 按 git-atlas URI 中的 repo 参数（或当前 repo）动态解析，切换/多 repo
-  // 场景下虚拟文档始终命中正确的仓库。
-  let diffManager: DiffEditorManager | null = null;
+  // provider 必须在 registry.init() 之前、无条件同步注册：两者都持有
+  // RepoRegistry（而非启动时的单一 GitService 快照），内容读取按 git-atlas
+  // URI 中的 repo 参数（或当前 repo）动态解析，切换/多 repo 场景下虚拟文档
+  // 始终命中正确的仓库。
+  //
+  // 关键：窗口重启恢复 git-atlas: diff 编辑器时，编辑器恢复走 FileSystem
+  // 路径，FileService.withProvider 会通过 onWillActivateFileSystemProvider
+  // 钩子触发 activateByEvent('onFileSystem:git-atlas') 并 join 等待扩展激活
+  // （package.json 已显式声明该激活事件——注意 contributes.fileSystemProviders
+  // 并不会自动生成它，见 vscode#164701；不声明则 activateByEvent 命中失败、
+  // joiner 空 resolve，provider 仍缺失 → 报"无法打开编辑器"，见 vscode#48665）。
+  // 激活触发后：activate 是同步函数、setupGit 以 void 调用，执行到下方
+  // registerFileSystemProvider 时同步完成，activate 返回即 provider 就绪，
+  // joiner 的 promise 随之 resolve，恢复链路继续读取。注意 provider 注册不能
+  // 依赖 getCurrent()（init 未完成时为空也不能跳过），provider 自身在 repo 未
+  // 就绪时返回空内容、不会抛错，待 init 完成、repo 就绪后内容即可正常读取。
+  const contentProvider = new GitContentProvider(registry);
+  contentProvider.setExternalContentMap(shelfDiffContent);
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      GIT_ATLAS_SCHEME,
+      contentProvider,
+    ),
+    vscode.workspace.registerFileSystemProvider(
+      GIT_ATLAS_SCHEME,
+      contentProvider,
+      { isReadonly: true },
+    ),
+  );
 
-  if (registry.getCurrent()) {
-    // 注册虚拟文档/文件系统 provider（git-atlas:/<path>?ref=<hash>&repo=<root>）
-    // 同时注册 TextDocumentContentProvider（文本 diff）和 FileSystemProvider
-    // （二进制文件如图片），与参考项目一致。
-    const contentProvider = new GitContentProvider(registry);
-    contentProvider.setExternalContentMap(shelfDiffContent);
-    context.subscriptions.push(
-      vscode.workspace.registerTextDocumentContentProvider(
-        GIT_ATLAS_SCHEME,
-        contentProvider,
-      ),
-      vscode.workspace.registerFileSystemProvider(
-        GIT_ATLAS_SCHEME,
-        contentProvider,
-        { isReadonly: true },
-      ),
-    );
+  const diffManager = new DiffEditorManager(registry);
 
-    diffManager = new DiffEditorManager(registry);
-  }
+  // b. 处理 workspace folders → RepoRegistry（异步扫盘，不阻塞 provider 注册）
+  await registry.init(allWorkspaceRoots);
+  context.subscriptions.push(registry);
 
   // d. 注册 WebviewViewProvider
   //    gitLog → panel 模式；commitPanel → commit 模式

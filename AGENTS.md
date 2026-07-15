@@ -7,6 +7,11 @@ One extension shipping **three** feature sets, each with its own subsystem:
 
 All three subsystems render through the **same** React 19 webview app (`webview/`) and communicate over one formal request/response/event protocol (`MessageRouter`).
 
+## Agent Working Rules
+
+- **Never ask whether to compile, package, or install.** The user verifies changes themselves. After making edits, report what changed and the build/lint status you already ran — do not offer to run `npm run build-and-install`, `npm run pack`, or any install step, and do not ask permission to do so.
+- **Never question whether the user correctly verified a change.** If a change "doesn't work", take it at face value and investigate the root cause. Do not ask the user to confirm they reloaded / restarted / reinstalled, or imply the failure might be a verification mistake on their end.
+
 ## Commands
 
 ```bash
