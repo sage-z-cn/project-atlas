@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { t } from "../shared/i18n";
-import { useClampedPosition } from "../shared/hooks/useClampedPosition";
+import { ContextMenu, type ContextMenuEntry } from "../shared/components/ContextMenu";
 import { useTaskStore, type TaskItemDto } from "../shared/store/task-store";
 import IconNpm from "~icons/devicon/npm";
 import IconTerminal from "~icons/codicon/terminal";
@@ -109,22 +109,17 @@ export function TasksApp() {
               </>
             )}
 
-            {rootProject.tasks.length > 0 &&
-              (hasSubProjects ? (
-                <ProjectSection
-                  label={rootLabel}
-                  expanded={expandedProjects.has(rootProject.relativePath)}
-                  onToggle={() =>
-                    useTaskStore.getState().toggleProject(rootProject.relativePath)
-                  }
-                  tasks={rootProject.tasks}
-                  setMenu={setMenu}
-                />
-              ) : (
-                rootProject.tasks.map((task) => (
-                  <TaskRow key={task.id} task={task} setMenu={setMenu} />
-                ))
-              ))}
+            {rootProject.tasks.length > 0 && (
+              <ProjectSection
+                label={rootLabel}
+                expanded={expandedProjects.has(rootProject.relativePath)}
+                onToggle={() =>
+                  useTaskStore.getState().toggleProject(rootProject.relativePath)
+                }
+                tasks={rootProject.tasks}
+                setMenu={setMenu}
+              />
+            )}
 
             {hasSubProjects && rootProject.tasks.length > 0 && (
               <div className="tasks-separator" />
@@ -177,7 +172,7 @@ function TaskSection({
       {expanded && (
         <div>
           {tasks.map((task) => (
-            <TaskRow key={task.id} task={task} showPath={showPath} setMenu={setMenu} />
+            <TaskRow key={task.id} task={task} showPath={showPath} indent setMenu={setMenu} />
           ))}
         </div>
       )}
@@ -212,7 +207,7 @@ function ProjectSection({
       {expanded && (
         <div>
           {tasks.map((task) => (
-            <TaskRow key={task.id} task={task} inProject setMenu={setMenu} />
+            <TaskRow key={task.id} task={task} indent setMenu={setMenu} />
           ))}
         </div>
       )}
@@ -225,12 +220,12 @@ type DropPos = "before" | "after" | null;
 
 function TaskRow({
   task,
-  inProject,
+  indent,
   showPath,
   setMenu,
 }: {
   task: TaskItemDto;
-  inProject?: boolean;
+  indent?: boolean;
   showPath?: boolean;
   setMenu: (m: { x: number; y: number; task: TaskItemDto; inRecent: boolean } | null) => void;
 }) {
@@ -291,7 +286,7 @@ function TaskRow({
       }}
     >
       {dropPos === "before" && <div className="tasks-drop-indicator before" />}
-      {inProject && <span className="tasks-project-indent" />}
+      {indent && <span className="tasks-indent" />}
       <span className="tasks-item-icon">
         {task.source === "npm" ? (
           <IconNpm width={16} height={16} />
@@ -350,61 +345,28 @@ function TaskContextMenu({
   const isPinned = pinnedIds.has(task.id);
   const store = useTaskStore.getState();
 
-  const { ref, pos } = useClampedPosition(menu.x, menu.y);
-  const style: CSSProperties = { left: pos.x, top: pos.y };
-
   const runItem = running
-    ? { action: "stop", label: t("Stop"), Icon: IconStop, run: () => store.stop(task.id) }
-    : { action: "run", label: t("Run"), Icon: IconPlay, run: () => store.run(task.id) };
+    ? { label: t("Stop"), Icon: IconStop, run: () => store.stop(task.id) }
+    : { label: t("Run"), Icon: IconPlay, run: () => store.run(task.id) };
 
-  return (
-    <div className="context-menu" ref={ref} style={style} onClick={(e) => e.stopPropagation()}>
-      <div
-        className="context-menu-item"
-        onClick={() => {
-          void runItem.run();
-          onClose();
-        }}
-      >
-        <runItem.Icon width={14} height={14} />
-        <span>{runItem.label}</span>
-      </div>
-      <div className="context-menu-separator" />
-      {isPinned ? (
-        <div
-          className="context-menu-item"
-          onClick={() => {
-            void store.unpin(task.id);
-            onClose();
-          }}
-        >
-          <IconPinned width={14} height={14} />
-          <span>{t("Unpin")}</span>
-        </div>
-      ) : (
-        <div
-          className="context-menu-item"
-          onClick={() => {
-            void store.pin(task.id);
-            onClose();
-          }}
-        >
-          <IconPin width={14} height={14} />
-          <span>{t("Pin")}</span>
-        </div>
-      )}
-      {inRecent && (
-        <div
-          className="context-menu-item"
-          onClick={() => {
-            void store.removeRecent(task.id);
-            onClose();
-          }}
-        >
-          <IconClose width={14} height={14} />
-          <span>{t("Remove from recent")}</span>
-        </div>
-      )}
-    </div>
-  );
+  const items: ContextMenuEntry[] = [
+    { key: "run", label: runItem.label, icon: runItem.Icon, onSelect: runItem.run },
+    { key: "sep1", separator: true },
+    isPinned
+      ? { key: "pin", label: t("Unpin"), icon: IconPinned, onSelect: () => store.unpin(task.id) }
+      : { key: "pin", label: t("Pin"), icon: IconPin, onSelect: () => store.pin(task.id) },
+  ];
+  if (inRecent) {
+    items.push(
+      { key: "sep2", separator: true },
+      {
+        key: "remove",
+        label: t("Remove from recent"),
+        icon: IconClose,
+        onSelect: () => store.removeRecent(task.id),
+      },
+    );
+  }
+
+  return <ContextMenu x={menu.x} y={menu.y} items={items} onClose={onClose} />;
 }

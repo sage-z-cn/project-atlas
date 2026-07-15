@@ -78,7 +78,7 @@
 }
 .tasks-drop-indicator.before { top: 0; }
 .tasks-drop-indicator.after { bottom: 0; }
-.tasks-project-indent {
+.tasks-indent {
   flex-shrink: 0;
   width: 14px;
 }

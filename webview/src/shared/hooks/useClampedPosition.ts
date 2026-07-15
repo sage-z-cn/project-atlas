@@ -26,7 +26,8 @@ export function useClampedPosition(x: number, y: number): {
     const vh = window.innerHeight;
     let nx = x;
     let ny = y;
-    if (x + w > vw - pad) nx = vw - w - pad;
+    // 右溢出时向左展开（菜单右边对齐鼠标），避免贴视口右边与鼠标脱节
+    if (x + w > vw - pad) nx = x - w;
     if (y + h > vh - pad) ny = vh - h - pad;
     if (nx < pad) nx = pad;
     if (ny < pad) ny = pad;

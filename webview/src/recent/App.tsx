@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "../shared/i18n";
+import { ContextMenu, type ContextMenuEntry } from "../shared/components/ContextMenu";
 import { ProjectIcon } from "../shared/components/ProjectIcon";
 import { useRubberBand } from "../shared/hooks/useRubberBand";
-import { useClampedPosition } from "../shared/hooks/useClampedPosition";
 import {
   useRecentStore,
   type RecentItemDto,
@@ -203,9 +203,10 @@ export function RecentApp() {
         )}
       </div>
       {menu && (
-        <ContextMenu
+        <RecentContextMenu
           menu={menu}
           multiSelect={selectedIds.size > 1}
+          onClose={() => setMenu(null)}
           onAction={(action) => {
             const ids = selectedIds.size > 0 ? [...selectedIds] : [menu.targetId];
             runAction(action, ids);
@@ -280,36 +281,27 @@ function ProjectRow({
   );
 }
 
-function ContextMenu({
+function RecentContextMenu({
   menu,
   multiSelect,
   onAction,
+  onClose,
 }: {
   menu: MenuState;
   multiSelect: boolean;
   onAction: (action: RecentAction) => void;
+  onClose: () => void;
 }) {
-  const { ref, pos } = useClampedPosition(menu.x, menu.y);
-  const style: CSSProperties = { left: pos.x, top: pos.y };
-  return (
-    <div className="context-menu" ref={ref} style={style}>
-      {PROJECT_MENU.map((mi, idx) =>
-        "sep" in mi ? (
-          <div key={`sep-${idx}`} className="context-menu-separator" />
-        ) : (
-          <div
-            key={mi.action}
-            className={`context-menu-item${multiSelect && !mi.multi ? " disabled" : ""}`}
-            onClick={() => {
-              if (multiSelect && !mi.multi) return;
-              onAction(mi.action);
-            }}
-          >
-            <mi.Icon width={14} height={14} />
-            <span>{t(mi.label)}</span>
-          </div>
-        ),
-      )}
-    </div>
+  const items: ContextMenuEntry[] = PROJECT_MENU.map((mi, idx) =>
+    "sep" in mi
+      ? { key: `sep-${idx}`, separator: true }
+      : {
+          key: mi.action,
+          label: t(mi.label),
+          icon: mi.Icon,
+          disabled: multiSelect && !mi.multi,
+          onSelect: () => onAction(mi.action),
+        },
   );
+  return <ContextMenu x={menu.x} y={menu.y} items={items} onClose={onClose} />;
 }

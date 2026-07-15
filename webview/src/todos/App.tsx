@@ -1,8 +1,8 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { t } from "../shared/i18n";
 import { useTodoStore } from "../shared/store/todo-store";
 import type { TodoItemDto, TodoScope, TodoTag, WorkspaceFolderInfo } from "../shared/types/todo";
-import { useClampedPosition } from "../shared/hooks/useClampedPosition";
+import { ContextMenu, type ContextMenuEntry } from "../shared/components/ContextMenu";
 import IconChevronDown from "~icons/codicon/chevron-down";
 import IconChevronRight from "~icons/codicon/chevron-right";
 import IconPlus from "~icons/codicon/add";
@@ -704,19 +704,7 @@ function TodoContextMenu({
 }): React.JSX.Element {
   const { item, type, onEdit } = menu;
   const store = useTodoStore.getState();
-  const { ref, pos } = useClampedPosition(menu.x, menu.y);
-  const style: CSSProperties = { left: pos.x, top: pos.y };
   const completed = item.status === "completed";
-
-  useEffect(() => {
-    const handler = (e: MouseEvent): void => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onClose, ref]);
 
   const copyText =
     type === "scan"
@@ -731,85 +719,36 @@ function TodoContextMenu({
     }
   };
 
-  return (
-    <div
-      className="context-menu"
-      ref={ref}
-      style={style}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {type === "scan" ? (
-        <>
-          <div
-            className="context-menu-item"
-            onClick={() => {
-              void store.jumpTo(item.id);
-              onClose();
-            }}
-          >
-            <IconGoToFile width={14} height={14} />
-            <span>{t("Jump to Source")}</span>
-          </div>
-          <div className="context-menu-separator" />
-          <div
-            className="context-menu-item"
-            onClick={() => {
-              void handleCopy();
-              onClose();
-            }}
-          >
-            <IconCopy width={14} height={14} />
-            <span>{t("Copy")}</span>
-          </div>
-        </>
-      ) : (
-        <>
-          <div
-            className="context-menu-item"
-            onClick={() => {
-              void store.toggle(item.id);
-              onClose();
-            }}
-          >
-            <IconCheck width={14} height={14} />
-            <span>
-              {completed ? t("Mark as Incomplete") : t("Mark as Complete")}
-            </span>
-          </div>
-          <div className="context-menu-separator" />
-          <div
-            className="context-menu-item"
-            onClick={() => {
-              void handleCopy();
-              onClose();
-            }}
-          >
-            <IconCopy width={14} height={14} />
-            <span>{t("Copy")}</span>
-          </div>
-          <div
-            className="context-menu-item"
-            onClick={() => {
-              onEdit?.();
-              onClose();
-            }}
-          >
-            <IconEdit width={14} height={14} />
-            <span>{t("Edit")}</span>
-          </div>
-          <div className="context-menu-separator" />
-          <div
-            className="context-menu-item"
-            onClick={() => {
-              void store.remove(item.id);
-              onClose();
-            }}
-          >
-            <IconTrash width={14} height={14} />
-            <span>{t("Delete")}</span>
-          </div>
-        </>
-      )}
-    </div>
-  );
+  const items: ContextMenuEntry[] =
+    type === "scan"
+      ? [
+          {
+            key: "jump",
+            label: t("Jump to Source"),
+            icon: IconGoToFile,
+            onSelect: () => void store.jumpTo(item.id),
+          },
+          { key: "sep1", separator: true },
+          { key: "copy", label: t("Copy"), icon: IconCopy, onSelect: () => void handleCopy() },
+        ]
+      : [
+          {
+            key: "toggle",
+            label: completed ? t("Mark as Incomplete") : t("Mark as Complete"),
+            icon: IconCheck,
+            onSelect: () => void store.toggle(item.id),
+          },
+          { key: "sep1", separator: true },
+          { key: "copy", label: t("Copy"), icon: IconCopy, onSelect: () => void handleCopy() },
+          { key: "edit", label: t("Edit"), icon: IconEdit, onSelect: () => onEdit?.() },
+          { key: "sep2", separator: true },
+          {
+            key: "delete",
+            label: t("Delete"),
+            icon: IconTrash,
+            onSelect: () => void store.remove(item.id),
+          },
+        ];
+
+  return <ContextMenu x={menu.x} y={menu.y} items={items} onClose={onClose} />;
 }

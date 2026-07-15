@@ -49,7 +49,8 @@ export function RepoContextMenu({
         top = above >= 4 ? above : Math.max(4, viewportH - rect.height - 4);
       }
       if (left + rect.width > viewportW) {
-        left = Math.max(4, viewportW - rect.width - 4);
+        // 右溢出时向左展开（菜单右边对齐鼠标），与 useClampedPosition 行为一致
+        left = Math.max(4, x - rect.width);
       }
       setPosition({ top, left });
     });

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { t } from "../shared/i18n";
 import { bridge } from "../shared/bridge";
-import { useClampedPosition } from "../shared/hooks/useClampedPosition";
+import { ContextMenu, type ContextMenuEntry } from "../shared/components/ContextMenu";
 import { ProjectIcon } from "../shared/components/ProjectIcon";
 import { useFavoritesStore, type TreeNodeDto, type FavoriteAction } from "../shared/store/favorites-store";
 import IconChevronDown from "~icons/codicon/chevron-down";
@@ -360,45 +360,28 @@ function FavoritesContextMenu({
   const { node } = menu;
   const selectedIds = useFavoritesStore.getState().selectedIds;
   const multiSelect = selectedIds.size > 1;
-  const { ref, pos } = useClampedPosition(menu.x, menu.y);
-  const style: CSSProperties = { left: pos.x, top: pos.y };
 
-  const items = node.type === "group" ? GROUP_MENU : PROJECT_MENU;
+  const menuDef = node.type === "group" ? GROUP_MENU : PROJECT_MENU;
+  const ids = selectedIds.size > 0 ? [...selectedIds] : [node.id];
 
-  const runProject = (action: FavoriteAction): void => {
-    const ids = selectedIds.size > 0 ? [...selectedIds] : [node.id];
-    void useFavoritesStore.getState().executeProjectAction(action, ids);
-    onClose();
-  };
-  const runGroup = async (action: "addSubGroup" | "renameGroup" | "deleteGroup"): Promise<void> => {
-    const ids = selectedIds.size > 0 ? [...selectedIds] : [node.id];
-    try {
-      await bridge.request(action, action === "addSubGroup" ? { id: node.id } : { ids });
-    } catch (err) {
-      console.error(`${action} failed:`, err);
-    }
-    onClose();
-  };
+  const items: ContextMenuEntry[] = menuDef.map((mi) => ({
+    key: mi.action,
+    label: t(mi.label),
+    icon: mi.Icon,
+    disabled: multiSelect && !mi.multi,
+    onSelect: () => {
+      if (node.type === "group") {
+        const action = mi.action as "addSubGroup" | "renameGroup" | "deleteGroup";
+        bridge
+          .request(action, action === "addSubGroup" ? { id: node.id } : { ids })
+          .catch((err) => console.error(`${action} failed:`, err));
+      } else {
+        void useFavoritesStore
+          .getState()
+          .executeProjectAction(mi.action as FavoriteAction, ids);
+      }
+    },
+  }));
 
-  return (
-    <div className="context-menu" ref={ref} style={style} onClick={(e) => e.stopPropagation()}>
-      {items.map((mi) => (
-        <div
-          key={mi.action}
-          className={`context-menu-item${multiSelect && !mi.multi ? " disabled" : ""}`}
-          onClick={() => {
-            if (multiSelect && !mi.multi) return;
-            if (node.type === "group") {
-              void runGroup(mi.action as "addSubGroup" | "renameGroup" | "deleteGroup");
-            } else {
-              runProject(mi.action as FavoriteAction);
-            }
-          }}
-        >
-          <mi.Icon width={14} height={14} />
-          <span>{t(mi.label)}</span>
-        </div>
-      ))}
-    </div>
-  );
+  return <ContextMenu x={menu.x} y={menu.y} items={items} onClose={onClose} />;
 }
