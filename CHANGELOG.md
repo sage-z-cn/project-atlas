@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.11.0
+- **Blame 定位**: 添加代码行悬停定位提交功能
+- **日期筛选**: 日期过滤器新增自定义日期范围选择
+
 #### 1.10.0
 - **搜索筛选**: 将搜索与筛选逻辑移至服务端处理，提升大数据量下的响应性能
 - **右键菜单**: 提取通用右键菜单组件，统一各面板的菜单交互逻辑
