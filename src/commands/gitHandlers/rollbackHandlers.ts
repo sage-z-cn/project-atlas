@@ -190,11 +190,15 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
         vscode.Uri.file(repoRoot),
         filePath,
       );
+      // Tag virtual URIs with the owning repo so GitContentProvider resolves
+      // the right GitService in multi-repo workspaces.
+      const repoQuery = `&repo=${encodeURIComponent(repoRoot)}`;
+      const fileName = filePath.split(/[/\\]/).pop() ?? filePath;
       const indexUri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=:0`,
+        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=:0${repoQuery}`,
       );
       const headUri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=HEAD`,
+        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=HEAD${repoQuery}`,
       );
 
       if (staged) {
@@ -203,7 +207,7 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
           "vscode.diff",
           headUri,
           indexUri,
-          `${filePath} (HEAD ↔ Staged)`,
+          `${fileName} (HEAD ↔ Staged)`,
         );
       } else {
         // Staged (index) ↔ Working Tree
@@ -213,12 +217,14 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
         // the commit-history diff path renders deletions.
         const rightUri = fs.existsSync(worktreeUri.fsPath)
           ? worktreeUri
-          : vscode.Uri.parse(`${GIT_ATLAS_SCHEME}:/${filePath}?ref=empty`);
+          : vscode.Uri.parse(
+              `${GIT_ATLAS_SCHEME}:/${filePath}?ref=empty${repoQuery}`,
+            );
         await vscode.commands.executeCommand(
           "vscode.diff",
           indexUri,
           rightUri,
-          `${filePath} (Staged ↔ Working Tree)`,
+          `${fileName} (Staged ↔ Working Tree)`,
         );
       }
       return { success: true };
@@ -227,11 +233,12 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
 
   messageRouter.handle(
     "openFileAtRevision",
-    requireGit(ctx, async (_gitService, params) => {
+    requireGit(ctx, async (gitService, params) => {
       const filePath = params.filePath as string;
       const ref = params.ref as string;
+      const repoQuery = `&repo=${encodeURIComponent(gitService.cwd)}`;
       const uri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=${ref}`,
+        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=${ref}${repoQuery}`,
       );
       await vscode.window.showTextDocument(uri, { preview: true });
       return { success: true };

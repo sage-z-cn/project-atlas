@@ -1,11 +1,17 @@
 import * as vscode from "vscode";
-import type { GitService } from "../git/gitService";
+import type { RepoRegistry } from "../git/repoRegistry";
 
 export const GIT_ATLAS_SCHEME = "git-atlas";
 
 /**
  * Provides virtual file content for git file revisions.
- * Uri format: git-atlas:/<filePath>?ref=<commitHash>
+ * Uri format: git-atlas:/<filePath>?ref=<commitHash>&repo=<repoPath>
+ *
+ * `repo` is optional and points at the owning repository root. When present
+ * the provider resolves the matching GitService from the registry; otherwise
+ * it falls back to the currently-selected repo. This is required for
+ * multi-repo workspaces where a single bound GitService cannot serve every
+ * diff (the original implementation captured a startup-time snapshot).
  *
  * Implements both TextDocumentContentProvider (for text diff) and
  * FileSystemProvider (for binary files like images).
@@ -20,10 +26,26 @@ export class GitContentProvider
   >();
   readonly onDidChangeFile = this._onDidChangeFile.event;
 
-  constructor(private readonly gitService: GitService) {}
+  constructor(private readonly registry: RepoRegistry) {}
 
   setExternalContentMap(map: Map<string, string>): void {
     this.externalContent = map;
+  }
+
+  /**
+   * Resolve the GitService that owns a virtual document URI.
+   *
+   * Prefers an explicit `repo` query param (absolute repo root, produced by
+   * the handlers that build diff URIs). Falls back to the currently-selected
+   * repo so legacy URIs without a `repo` param keep working.
+   */
+  private resolveGitService(uri: vscode.Uri) {
+    const repo = new URLSearchParams(uri.query).get("repo");
+    if (repo) {
+      const svc = this.registry.getService(repo);
+      if (svc) return svc;
+    }
+    return this.registry.getCurrent();
   }
 
   // ─── TextDocumentContentProvider ──────────────────────────────────
@@ -42,7 +64,11 @@ export class GitContentProvider
     if (!ref || !filePath) {
       return "";
     }
-    return this.gitService.getFileContent(ref, filePath);
+    const gitService = this.resolveGitService(uri);
+    if (!gitService) {
+      return "";
+    }
+    return gitService.getFileContent(ref, filePath);
   }
 
   // ─── FileSystemProvider (for binary files) ────────────────────────
@@ -72,7 +98,11 @@ export class GitContentProvider
     if (!ref || !filePath) {
       return new Uint8Array(0);
     }
-    const buffer = await this.gitService.getFileContentBuffer(ref, filePath);
+    const gitService = this.resolveGitService(uri);
+    if (!gitService) {
+      return new Uint8Array(0);
+    }
+    const buffer = await gitService.getFileContentBuffer(ref, filePath);
     return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
   }
 

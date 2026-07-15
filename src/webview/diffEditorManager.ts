@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { GitService } from "../git/gitService";
+import type { RepoRegistry } from "../git/repoRegistry";
 import type { DiffFile } from "../git/types";
 import { GIT_ATLAS_SCHEME } from "./gitContentProvider";
 
@@ -11,7 +11,7 @@ export class DiffEditorManager {
   private diffBaseRef?: string;
   private diffCherryPickHashes?: string[];
 
-  constructor(private readonly gitService: GitService) {}
+  constructor(private readonly registry: RepoRegistry) {}
 
   /** Set the file list for diff navigation */
   setDiffFileList(
@@ -95,6 +95,9 @@ export class DiffEditorManager {
     baseRef?: string,
     cherryPickHashes?: string[],
   ): Promise<void> {
+    const gitService = this.registry.getCurrent();
+    if (!gitService) return;
+
     const status = fileMeta?.status ?? "modified";
     const oldPath = fileMeta?.oldPath ?? filePath;
     const newPath = fileMeta?.newPath ?? filePath;
@@ -104,24 +107,32 @@ export class DiffEditorManager {
     let rightRef: string = commit;
 
     if (cherryPickHashes && cherryPickHashes.length > 1) {
-      const range = await this.gitService.findFileRange(
+      const range = await gitService.findFileRange(
         cherryPickHashes,
         newPath || oldPath,
       );
       if (range) {
         rightRef = range.newest;
-        const parents = await this.gitService.getCommitParents(range.oldest);
+        const parents = await gitService.getCommitParents(range.oldest);
         leftRef = parents[0] ?? "";
       } else {
-        const parents = await this.gitService.getCommitParents(commit);
+        const parents = await gitService.getCommitParents(commit);
         leftRef = parents[0] ?? "";
       }
     } else if (baseRef) {
       leftRef = baseRef;
     } else {
-      const parents = await this.gitService.getCommitParents(commit);
+      const parents = await gitService.getCommitParents(commit);
       leftRef = parents[0] ?? "";
     }
+
+    // Tag every virtual URI with the owning repo so GitContentProvider resolves
+    // the correct GitService (multi-repo safe). Falls back to current repo when
+    // no repo is selected.
+    const repoPath = this.registry.getCurrentRepoPath();
+    const repoQuery = repoPath
+      ? `&repo=${encodeURIComponent(repoPath)}`
+      : "";
 
     // Build URIs based on file status
     let leftUri: vscode.Uri;
@@ -130,35 +141,35 @@ export class DiffEditorManager {
     switch (status) {
       case "added":
         leftUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=empty`,
+          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=empty${repoQuery}`,
         );
         rightUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${rightRef}`,
+          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${rightRef}${repoQuery}`,
         );
         break;
       case "deleted":
         leftUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${oldPath}?ref=${leftRef}`,
+          `${GIT_ATLAS_SCHEME}:/${oldPath}?ref=${leftRef}${repoQuery}`,
         );
         rightUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${oldPath}?ref=empty`,
+          `${GIT_ATLAS_SCHEME}:/${oldPath}?ref=empty${repoQuery}`,
         );
         break;
       case "renamed":
       case "copied":
         leftUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${oldPath}?ref=${leftRef}`,
+          `${GIT_ATLAS_SCHEME}:/${oldPath}?ref=${leftRef}${repoQuery}`,
         );
         rightUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${rightRef}`,
+          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${rightRef}${repoQuery}`,
         );
         break;
       default: // modified
         leftUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${leftRef}`,
+          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${leftRef}${repoQuery}`,
         );
         rightUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${rightRef}`,
+          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${rightRef}${repoQuery}`,
         );
         break;
     }

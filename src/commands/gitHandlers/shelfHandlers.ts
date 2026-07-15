@@ -58,23 +58,25 @@ export function registerShelfHandlers(ctx: GitHandlerContext): void {
 
   messageRouter.handle(
     "showShelfFileDiff",
-    requireGit(ctx, async (_gitService, params) => {
+    requireGit(ctx, async (gitService, params) => {
       if (!ctx.workspaceRoot) return NOT_GIT_REPO;
       const stashId = params.stashId as string;
       const filePath = params.filePath as string;
 
+      const repoQuery = `&repo=${encodeURIComponent(gitService.cwd)}`;
+      const fileName = filePath.split(/[/\\]/).pop() ?? filePath;
       // Show diff between the stash version and the parent (before stash)
       const stashUri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=${stashId}`,
+        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=${stashId}${repoQuery}`,
       );
       const parentUri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=${stashId}^`,
+        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=${stashId}^${repoQuery}`,
       );
       await vscode.commands.executeCommand(
         "vscode.diff",
         parentUri,
         stashUri,
-        `${filePath} (Shelved: ${stashId})`,
+        `${fileName} (Shelved: ${stashId})`,
       );
       return { success: true };
     }),

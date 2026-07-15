@@ -68,18 +68,16 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
 
   // c. GitContentProvider / DiffEditorManager
   //
-  // TODO: 切换 repo 时 GitContentProvider 适配，后续优化。
-  // 当前绑定到启动时的 registry.getCurrent()。diff 视图的虚拟文档读取
-  // 仍走初始 repo；切换 repo 后需要重建或改为延迟从 registry 取。
-  const gitService = registry.getCurrent();
-
+  // 两者都持有 RepoRegistry 而非启动时的单一 GitService 快照：内容读取
+  // 按 git-atlas URI 中的 repo 参数（或当前 repo）动态解析，切换/多 repo
+  // 场景下虚拟文档始终命中正确的仓库。
   let diffManager: DiffEditorManager | null = null;
 
-  if (gitService) {
-    // 注册虚拟文档/文件系统 provider（git-atlas:/<path>?ref=<hash>）
+  if (registry.getCurrent()) {
+    // 注册虚拟文档/文件系统 provider（git-atlas:/<path>?ref=<hash>&repo=<root>）
     // 同时注册 TextDocumentContentProvider（文本 diff）和 FileSystemProvider
     // （二进制文件如图片），与参考项目一致。
-    const contentProvider = new GitContentProvider(gitService);
+    const contentProvider = new GitContentProvider(registry);
     contentProvider.setExternalContentMap(shelfDiffContent);
     context.subscriptions.push(
       vscode.workspace.registerTextDocumentContentProvider(
@@ -93,8 +91,7 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
       ),
     );
 
-    // TODO: 切换 repo 时 DiffEditor 适配，后续优化。
-    diffManager = new DiffEditorManager(gitService);
+    diffManager = new DiffEditorManager(registry);
   }
 
   // d. 注册 WebviewViewProvider

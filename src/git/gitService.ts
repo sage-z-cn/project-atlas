@@ -47,7 +47,7 @@ const LOG_FORMAT = [
 export class GitService {
   readonly cache = new GitCache();
 
-  constructor(private readonly cwd: string) {}
+  constructor(readonly cwd: string) {}
 
   private async execGit(
     args: string[],
