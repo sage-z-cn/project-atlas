@@ -122,6 +122,73 @@ export class GitService {
     return commits;
   }
 
+  /**
+   * Resolve the commit hash that last touched `relativePath` at the given
+   * 1-based line, via a single-line `git blame --line-porcelain`.
+   *
+   * Returns the 40-char SHA, or null when the line is uncommitted (git emits an
+   * all-zero SHA), the path has no history, or the content is unblameable
+   * (binary). Throws on git failure — callers (the BlameHoverProvider) catch.
+   *
+   * Not cached: VSCode debounces hover on the same position, and a single-line
+   * blame is cheap (~tens of ms). The provider keeps its own last-line cache.
+   */
+  async blameLine(relativePath: string, line: number): Promise<string | null> {
+    const output = await this.execGit(
+      ["blame", `-L${line},${line}`, "--line-porcelain", "--", relativePath],
+      1024 * 1024,
+    );
+    // --line-porcelain: each chunk begins with "<40-hex-sha> <orig-line> <final-line>".
+    const nl = output.indexOf("\n");
+    const header = nl === -1 ? output : output.slice(0, nl);
+    const hash = header.split(" ", 1)[0];
+    if (!hash || /^0+$/.test(hash)) return null; // all-zero SHA = uncommitted
+    return /^[0-9a-f]{7,40}$/i.test(hash) ? hash : null;
+  }
+
+  /**
+   * Find the 0-based row index of `hash` in `git log --all --date-order` output
+   * — the exact ordering getLog() uses for the unfiltered graph, so this index
+   * maps 1:1 to a `--skip` value.
+   *
+   * Used by locateCommitInLog to jump DIRECTLY to the page containing a commit
+   * instead of paging from the top: every `git log --skip=N` is O(N) (git walks
+   * past N commits), so paging to a commit thousands back is O(N²) and effectively
+   * never finishes for big repos. One full walk here is O(N) total.
+   *
+   * Returns -1 when the hash isn't reachable from any ref (--all) — e.g. an
+   * orphaned/gc'd commit. `hash` may be full or short; output rows are full.
+   */
+  async findCommitOffset(hash: string): Promise<number> {
+    // Override the default 10MB cap: --format=%H emits ~41 bytes/commit, so the
+    // default throws at ~255k commits — exactly the big-repo case this jump
+    // exists for. 256MB covers ~6M commits (well past Linux-class repos). The
+    // buffer grows on demand, so small repos pay nothing.
+    const output = await this.execGit(
+      ["log", "--all", "--date-order", "--format=%H"],
+      256 * 1024 * 1024,
+    );
+    const target = hash.trim().toLowerCase();
+    if (!target) return -1;
+    let lineStart = 0;
+    let idx = 0;
+    while (lineStart < output.length) {
+      const nl = output.indexOf("\n", lineStart);
+      const lineEnd = nl === -1 ? output.length : nl;
+      const line = output.slice(lineStart, lineEnd).trim().toLowerCase();
+      if (
+        line &&
+        (line === target || line.startsWith(target) || target.startsWith(line))
+      ) {
+        return idx;
+      }
+      idx++;
+      if (nl === -1) break;
+      lineStart = nl + 1;
+    }
+    return -1;
+  }
+
   async getGraphTopology(
     options: LogOptions = {},
     prevSnapshot?: LaneSnapshot,
@@ -138,13 +205,19 @@ export class GitService {
     // hidden parents frees the lane after a stub so lanes recycle (typically
     // collapsing to a single column). branch-only filters are excluded because
     // a single branch's history is a contiguous ancestry path (no gaps).
-    const breakHiddenParents = !!(
-      options.search ||
-      options.file ||
-      options.author ||
-      options.since ||
-      options.until
-    );
+    // breakHiddenParents: when the commit list is filtered or is a jumped-to
+    // window (locateCommitInLog), parent chains have gaps — invisible parents
+    // must be "broken" so the lane allocator recycles their lanes instead of
+    // reserving one per missing parent (which collapses into a staircase).
+    const breakHiddenParents =
+      options.breakHiddenParents ??
+      !!(
+        options.search ||
+        options.file ||
+        options.author ||
+        options.since ||
+        options.until
+      );
     return computeGraphLayout(commits, prevSnapshot, breakHiddenParents);
   }
 

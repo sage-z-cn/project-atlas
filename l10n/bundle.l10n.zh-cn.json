@@ -13,6 +13,7 @@
   "Select Clone Target Directory": "选择克隆目标目录",
   "Cloning {0}...": "正在克隆 {0}...",
   "Git clone failed: {0}": "Git 克隆失败：{0}",
+  "Locate in Git Atlas": "在 Git Atlas 中定位",
   "Open": "打开",
   "Remove": "移除",
   "Delete": "删除",

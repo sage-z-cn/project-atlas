@@ -57,6 +57,13 @@ export interface GitHandlerContext {
   workspaceRoot: string | undefined;
   /** Temporary storage for shelf diff content (base/modified virtual URIs). */
   shelfDiffContent: Map<string, string>;
+  /**
+   * Single-slot stash for a focus-commit request that arrived while the Git Log
+   * webview wasn't mounted yet (the first blame-link click opens the panel, so
+   * its focusCommit broadcast has no listener). The webview consumes + clears
+   * this on initRepo. `{ hash: null }` when empty.
+   */
+  pendingFocus: { hash: string | null };
 }
 
 /**

@@ -211,13 +211,35 @@ export function CommitList({
     );
     if (idx >= 0) {
       virtualizer.scrollToIndex(idx, { align: "start" });
-      // Clear the one-shot trigger once the row is found and scrolled to.
+      // Select the target so the diff panel follows — but only when it isn't
+      // already the focused commit, to avoid a redundant file-list refetch for
+      // navigateToHead (which pre-selects in the store).
+      const target = visibleCommits[idx].hash;
+      if (usePanelStore.getState().selectedCommitHash !== target) {
+        void selectCommit(target, "single", allVisibleCommitHashes);
+      }
       usePanelStore.setState({ scrollTargetHash: null });
+      return;
     }
-    // If not found, keep the trigger so it retries when visibleCommits updates
-    // (e.g. after a filter change loads the target commit's history). A new
-    // navigation will overwrite the value, so a stale target never blocks it.
-  }, [scrollTargetHash, visibleCommits, virtualizer]);
+    // Target not yet loaded: page in more history and retry when visibleCommits
+    // updates. hasMore/loading guard prevents runaway paging; a commit that is
+    // unreachable (orphaned / on a hidden ref) stops at hasMore === false.
+    if (hasMore && !loading) {
+      loadMore();
+    }
+    // Keep the trigger so the effect re-runs after loadMore mutates
+    // visibleCommits. A newer navigation overwrites scrollTargetHash, so a
+    // stale target never blocks a fresh one.
+  }, [
+    scrollTargetHash,
+    visibleCommits,
+    virtualizer,
+    hasMore,
+    loading,
+    loadMore,
+    selectCommit,
+    allVisibleCommitHashes,
+  ]);
 
   const handleScroll = useCallback(() => {
     const el = parentRef.current;

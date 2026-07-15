@@ -93,6 +93,14 @@ export interface LogOptions {
   file?: string;
   since?: string;
   until?: string;
+  /**
+   * Force "break hidden parents" in graph layout. Defaults to auto (true when
+   * any filter is active). Set explicitly to true for jumped-to history windows
+   * (locateCommitInLog) where the page is a slice of --all and parents sitting
+   * on adjacent pages must be treated as broken stubs so lanes recycle instead
+   * of collapsing into a staircase.
+   */
+  breakHiddenParents?: boolean;
 }
 
 export interface MergeState {

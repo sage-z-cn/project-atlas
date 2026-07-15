@@ -184,5 +184,27 @@ export function registerGitCommands(
         preview: false,
       });
     }),
+    vscode.commands.registerCommand(
+      "git-atlas.locateCommit",
+      async (hash?: string, repoPath?: string) => {
+        if (!hash || typeof hash !== "string") return;
+        // Switch to the owning repo (the hover resolves it from the file's
+        // path) so the log loads the history that contains this commit.
+        if (repoPath && repoPath !== ctx.registry.getCurrentRepoPath()) {
+          await ctx.registry.setCurrent(repoPath); // broadcasts repoChanged
+        }
+        // Stash BEFORE revealing the panel: the first click opens the panel
+        // webview, which isn't mounted yet and can't receive the focusCommit
+        // broadcast. The webview drains this on initRepo. Subsequent clicks
+        // (webview already live) are handled directly by the broadcast below.
+        ctx.pendingFocus.hash = hash;
+        // Reveal the Git Log panel.
+        await vscode.commands.executeCommand("git-atlas.gitLog.focus");
+        // Tell the panel to scroll to + select the commit. The store clears
+        // any active filter first and pages in more history if the commit sits
+        // beyond the loaded window.
+        ctx.messageRouter.broadcastEvent("focusCommit", { hash });
+      },
+    ),
   );
 }

@@ -110,6 +110,8 @@ export type CommandType =
   | "fetchAll"
   | "toggleFavorite"
   | "navigateToHead"
+  | "locateCommitInLog"
+  | "consumePendingFocus"
   | "toggleBranchGroupByDirectory"
   | "setSingleClickAction"
   | "toggleShowTags"
@@ -149,7 +151,8 @@ export type EventType =
   | "repoChanged"
   | "reposChanged"
   | "gitConfigChanged"
-  | "aiConfigChanged";
+  | "aiConfigChanged"
+  | "focusCommit";
 
 export interface RemoteBranchGroup {
   remote: string;

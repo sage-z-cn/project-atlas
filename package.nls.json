@@ -94,7 +94,9 @@
   "config.gitAtlas.aiCommit.enableThinking": "Enable the model's thinking/reasoning mode when generating commit messages. The request field is auto-selected by provider/model (DeepSeek, GLM, Kimi, Qwen, MiMo); for unknown providers no thinking field is sent. Off by default.",
   "config.gitAtlas.enableGitLogPanel": "Enable the Git Atlas panel (Git Log) in the bottom panel. Takes effect immediately, no reload required.",
   "config.gitAtlas.enableCommitPanel": "Enable the Commit panel in the activity bar. Takes effect immediately, no reload required.",
+  "config.gitAtlas.enableBlameHover": "Show a \"Locate in Git Atlas\" link in the editor hover for every line inside a git repo. Clicking opens the Git Log scrolled to that line's commit.",
   "config.gitAtlas.skipPushConfirmation": "When using Commit and Push, push directly without opening the push confirmation panel. The tag-aware variant always opens the panel regardless of this setting.",
   "command.git-atlas.setAiApiKey": "Git Atlas: Set AI API Key",
-  "command.git-atlas.clearAiApiKey": "Git Atlas: Clear AI API Key"
+  "command.git-atlas.clearAiApiKey": "Git Atlas: Clear AI API Key",
+  "command.git-atlas.locateCommit": "Git Atlas: Locate Commit"
 }

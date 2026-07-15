@@ -325,6 +325,10 @@
       {
         "command": "git-atlas.clearAiApiKey",
         "title": "%command.git-atlas.clearAiApiKey%"
+      },
+      {
+        "command": "git-atlas.locateCommit",
+        "title": "%command.git-atlas.locateCommit%"
       }
     ],
     "menus": {
@@ -435,6 +439,10 @@
         },
         {
           "command": "git-atlas.openCommitPanel",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.locateCommit",
           "when": "false"
         }
       ],
@@ -875,6 +883,11 @@
           "type": "boolean",
           "default": true,
           "description": "%config.gitAtlas.enableCommitPanel%"
+        },
+        "gitAtlas.enableBlameHover": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.gitAtlas.enableBlameHover%"
         },
         "gitAtlas.skipPushConfirmation": {
           "type": "boolean",

@@ -17,6 +17,7 @@ import { registerGitHandlers } from "../commands/gitHandlers";
 import { registerGitCommands } from "../commands/gitCommands";
 import { registerAiCommands } from "../commands/aiCommands";
 import { registerCommitViewBadge } from "./commitViewBadge";
+import { BlameHoverProvider } from "./blameHoverProvider";
 import type { GitHandlerContext } from "../commands/gitContext";
 
 /**
@@ -59,6 +60,12 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
 
   // 临时存储 shelf diff 内容（base/modified 虚拟 URI → 文本）
   const shelfDiffContent = new Map<string, string>();
+
+  // Single-slot stash for a focus-commit request that lands before the Git Log
+  // webview is mounted (the first blame-link click opens the panel, so its
+  // focusCommit broadcast has no listener yet). The webview drains it via the
+  // consumePendingFocus request on initRepo.
+  const pendingFocus: { hash: string | null } = { hash: null };
 
   // RepoRegistry 内部为每个 repo 创建 GitService + GitWatcher，
   // setupGit 不再手动遍历创建 service / watcher。
@@ -159,6 +166,7 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
     rollbackPanel,
     workspaceRoot,
     shelfDiffContent,
+    pendingFocus,
   };
 
   // g. 注册 handler（MessageRouter）和 command（VSCode commands）
@@ -175,6 +183,16 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   );
 
   registerGitCommands(context, ctx);
+
+  // Hover provider: appends a "Locate in Git Atlas" link to the editor hover
+  // for every line inside a known git repo (next to VSCode's built-in blame).
+  // See src/git/blameHoverProvider.ts.
+  context.subscriptions.push(
+    vscode.languages.registerHoverProvider(
+      { scheme: "file" },
+      new BlameHoverProvider(registry),
+    ),
+  );
 
   registerAiCommands(ctx);
 

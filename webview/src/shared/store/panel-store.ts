@@ -137,6 +137,12 @@ interface PanelStore {
   setFavoriteBranches: (list: string[]) => void;
   setCurrentEmail: (email: string | null) => void;
   refresh: () => Promise<void>;
+  /**
+   * Jump the Git Log to the page containing `hash`, select + scroll to it.
+   * Shared by the focusCommit event (webview already live) and initRepo's
+   * pending-focus consume (first-click case where the broadcast was lost).
+   */
+  focusCommitByHash: (hash: string) => void;
 }
 
 interface SelectionSnapshot {
@@ -390,6 +396,19 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       get().fetchInitialData(),
       get().fetchRepoStatuses(),
     ]);
+    // Drain a focus request stashed before this webview was mounted (the first
+    // blame-link click opens the panel, so its focusCommit broadcast had no
+    // listener). Subsequent clicks arrive via the live focusCommit event.
+    try {
+      const pending = (await bridge.request("consumePendingFocus")) as {
+        hash?: string | null;
+      } | null;
+      if (pending?.hash) {
+        get().focusCommitByHash(pending.hash);
+      }
+    } catch (err) {
+      console.error("consumePendingFocus failed:", err);
+    }
   },
 
   async fetchRepoStatuses() {
@@ -929,6 +948,104 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     set({ collapsedSequenceIds: new Set(), collapsedIntermediates: new Map() });
     await get().fetchInitialData();
   },
+
+  focusCommitByHash(hash: string) {
+    // Clear any stashed pending focus on the host. This call is reached either
+    // from the live focusCommit event (webview mounted → stash obsolete) or
+    // from initRepo's consume (already drained). Either way the stash must not
+    // survive to a future remount and re-trigger a stale focus.
+    void bridge.request("consumePendingFocus").catch(() => {});
+    const repoPath = get().currentRepoPath;
+    // Jump DIRECTLY to the page containing the commit. Paging from the top one
+    // chunk at a time is O(N²) (every `git log --skip=N` walks past N commits),
+    // so an old commit effectively never arrives. The host computes the
+    // commit's offset in --all --date-order (one O(N) walk) and returns that
+    // single page; we replace the list and scroll to the target.
+    const mySeq = get().repoSeq + 1;
+    set({
+      repoSeq: mySeq,
+      loading: true,
+      scrollTargetHash: null,
+      // Clear filters so the returned page (computed against --all) matches.
+      filter: {
+        searchQuery: "",
+        branch: "",
+        author: "",
+        dateRange: "",
+        customDateFrom: "",
+        customDateTo: "",
+        file: "",
+      },
+      collapsedSequenceIds: new Set(),
+      collapsedIntermediates: new Map(),
+    });
+    void (async () => {
+      try {
+        const result = (await bridge.request("locateCommitInLog", {
+          hash,
+          repoPath,
+        })) as {
+          found?: boolean;
+          commits?: Commit[];
+          lanes?: Record<string, LaneInfo>;
+          snapshot?: LaneSnapshot;
+          targetHash?: string;
+          hasMore?: boolean;
+        } | null;
+        // ★ Race guard: a repo switch / newer focus invalidated this request.
+        if (get().repoSeq !== mySeq) return;
+        if (!result?.found || !result.commits?.length) {
+          // Commit not reachable from --all (orphaned / gc'd): fall back to a
+          // normal load so the panel isn't left empty.
+          set({ loading: false });
+          void get().fetchInitialData();
+          return;
+        }
+        const commits = result.commits;
+        const visible = filterCommits(commits, get().collapsedIntermediates);
+        const target = commits.find(
+          (c) =>
+            c.hash === result.targetHash ||
+            c.hash.startsWith(result.targetHash!) ||
+            result.targetHash!.startsWith(c.hash),
+        );
+        const targetHash = target?.hash ?? result.targetHash!;
+        set({
+          commits,
+          visibleCommits: visible,
+          graphLayout: result.lanes ?? {},
+          laneSnapshot: result.snapshot ?? null,
+          hasMore: result.hasMore ?? false,
+          loading: false,
+          selectedCommitHash: targetHash,
+          selectedCommitHashes: [targetHash],
+          lastSelectedCommitHash: targetHash,
+          rangeOldest: targetHash,
+          rangeNewest: targetHash,
+          scrollTargetHash: targetHash,
+          commitFiles: [],
+          selectedFilePath: null,
+        });
+        // Load the target's files for the diff panel (best-effort, seq-guarded).
+        try {
+          const files = (await bridge.request("getCommitRangeFiles", {
+            hashes: [targetHash],
+            repoPath,
+          })) as DiffFile[] | null;
+          if (get().repoSeq !== mySeq) return;
+          set({ commitFiles: files ?? [] });
+        } catch (err) {
+          console.error("focusCommit file fetch failed:", err);
+        }
+      } catch (err) {
+        console.error("focusCommit locateCommitInLog failed:", err);
+        if (get().repoSeq === mySeq) {
+          set({ loading: false });
+          void get().fetchInitialData();
+        }
+      }
+    })();
+  },
 }));
 
 // Listen for git state changes + multi-repo events.
@@ -1011,6 +1128,11 @@ bridge.onEvent((event, data) => {
       return;
     }
     usePanelStore.getState().refresh();
+    return;
+  }
+  if (event === "focusCommit") {
+    const { hash } = (data ?? {}) as { hash?: string };
+    if (hash) usePanelStore.getState().focusCommitByHash(hash);
     return;
   }
   if (event === "showFileHistory") {

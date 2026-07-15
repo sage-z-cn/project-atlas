@@ -62,6 +62,48 @@ export function registerQueryHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
+  // Jump directly to the page containing a commit (used by the blame hover
+  // "Locate in Git Atlas" link). Computes the commit's row index in
+  // --all --date-order (one O(N) walk via findCommitOffset) and loads that
+  // single page, instead of forcing the webview to page from the top one
+  // O(N) `--skip` at a time (which is O(N²) for an old commit and effectively
+  // never finishes). Graph is computed standalone for the window with
+  // breakHiddenParents so parents on adjacent pages don't staircase.
+  messageRouter.handle(
+    "locateCommitInLog",
+    requireGit(ctx, async (gitService, params) => {
+      const hash = (params.hash as string)?.trim();
+      if (!hash) return { found: false };
+      const offset = await gitService.findCommitOffset(hash);
+      if (offset < 0) return { found: false };
+      const PAGE = 200;
+      const skip = Math.max(0, Math.floor(offset / PAGE) * PAGE);
+      const result = await gitService.getGraphTopology(
+        { maxCount: PAGE, skip, breakHiddenParents: true },
+        undefined,
+      );
+      return {
+        found: true,
+        commits: result.graphData.commits,
+        lanes: result.graphData.lanes,
+        snapshot: result.snapshot,
+        targetHash: hash,
+        skip,
+        hasMore: result.graphData.commits.length >= PAGE,
+      };
+    }),
+  );
+
+  // Drain a focus-commit request stashed by the locateCommit command for the
+  // case where the Git Log webview wasn't mounted yet when the blame link was
+  // clicked (first click opens the panel → focusCommit broadcast lost). The
+  // webview calls this on initRepo and clears the slot.
+  messageRouter.handle("consumePendingFocus", async () => {
+    const hash = ctx.pendingFocus.hash;
+    ctx.pendingFocus.hash = null;
+    return { hash };
+  });
+
   messageRouter.handle(
     "getBranches",
     requireGit(ctx, async (gitService) => {
