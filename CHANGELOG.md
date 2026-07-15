@@ -4,6 +4,11 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.9.2
+- **仓库菜单**: 新增仓库右键菜单，支持复制仓库名称、在集成终端打开及在资源管理器中显示
+- **文件菜单**: 文件右键菜单新增复制绝对路径与在 VSCode 资源管理器中定位
+- **提交菜单**: 提交记录右键菜单新增复制提交信息
+
 #### 1.9.1
 - **提交徽章**: 默认模式更改为 total
 - **多仓库**: 支持工作区的虚拟文档解析
