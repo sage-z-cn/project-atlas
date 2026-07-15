@@ -4,6 +4,12 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.9.1
+- **提交徽章**: 默认模式更改为 total
+- **多仓库**: 支持工作区的虚拟文档解析
+- **视图导航**: 提交面板与 git log 视图间新增导航按钮
+- **TODO Atlas**: 移除 scan.enabled 配置项并调整自动扫描逻辑
+
 #### 1.9.0
 - **TODO Atlas**: 新增 TODO 管理子系统，基于文件系统扫描代码注释中的 TODO，支持自定义标签、排除规则、状态标记、分组与筛选
 - **面板开关**: 新增 `todoAtlas.enabled` 配置项，动态控制侧边栏视图显隐
