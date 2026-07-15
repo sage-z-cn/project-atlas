@@ -27,6 +27,7 @@ export function registerQueryHandlers(ctx: GitHandlerContext): void {
         search: params.search as string | undefined,
         author: params.author as string | undefined,
         file: params.file as string | undefined,
+        since: params.since as string | undefined,
       };
       const snapshot = params.snapshot as LaneSnapshot | undefined;
       return gitService.getGraphTopology(options, snapshot);
@@ -52,6 +53,7 @@ export function registerQueryHandlers(ctx: GitHandlerContext): void {
         search: params.search as string | undefined,
         author: params.author as string | undefined,
         file: params.file as string | undefined,
+        since: params.since as string | undefined,
       };
       const snapshot = params.snapshot as LaneSnapshot | undefined;
       return gitService.getGraphTopology(options, snapshot);

@@ -99,7 +99,7 @@ export class GitService {
       args.push(`--author=${options.author}`);
     }
     if (options.search) {
-      args.push(`--grep=${options.search}`);
+      args.push("-i", "--fixed-strings", `--grep=${options.search}`);
     }
     if (options.since) {
       args.push(`--since=${options.since}`);

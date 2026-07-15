@@ -155,56 +155,33 @@ function loadFavoritesForRepo(repoPath: string): string[] {
   }
 }
 
+/** Map the relative dateRange UI option to a git `--since` expression. */
+function dateRangeToSince(dateRange: string): string | undefined {
+  switch (dateRange) {
+    case "today":
+      return "midnight";
+    case "7days":
+      return "7 days ago";
+    case "30days":
+      return "30 days ago";
+    case "90days":
+      return "90 days ago";
+    default:
+      return undefined;
+  }
+}
+
 function filterCommits(
   commits: Commit[],
-  filter: PanelFilter,
   collapsedIntermediates: Map<string, string[]>,
 ): Commit[] {
   const hiddenSet = new Set<string>();
   for (const hashes of collapsedIntermediates.values()) {
     for (const h of hashes) hiddenSet.add(h);
   }
-
-  // Compute date cutoff for dateRange filter
-  let dateCutoff: Date | null = null;
-  if (filter.dateRange) {
-    const now = new Date();
-    if (filter.dateRange === "today") {
-      dateCutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    } else if (filter.dateRange === "7days") {
-      dateCutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    } else if (filter.dateRange === "30days") {
-      dateCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    } else if (filter.dateRange === "90days") {
-      dateCutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-    }
-  }
-
-  return commits.filter((c) => {
-    if (hiddenSet.has(c.hash)) return false;
-
-    if (filter.searchQuery) {
-      const q = filter.searchQuery.toLowerCase();
-      if (
-        !c.subject.toLowerCase().includes(q) &&
-        !c.body.toLowerCase().includes(q)
-      ) {
-        return false;
-      }
-    }
-    if (filter.author) {
-      if (!c.authorName.toLowerCase().includes(filter.author.toLowerCase())) {
-        return false;
-      }
-    }
-    if (dateCutoff) {
-      const commitDate = new Date(c.authorDate);
-      if (commitDate < dateCutoff) {
-        return false;
-      }
-    }
-    return true;
-  });
+  // search / author / dateRange are now applied server-side (--grep / --author /
+  // --since) so the full history is searchable, not just the loaded page.
+  return commits.filter((c) => !hiddenSet.has(c.hash));
 }
 
 function deriveSelectionFromVisible(
@@ -413,6 +390,9 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
           maxCount: 200,
           branch: filter.branch || undefined,
           file: filter.file || undefined,
+          search: filter.searchQuery || undefined,
+          author: filter.author || undefined,
+          since: dateRangeToSince(filter.dateRange),
           repoPath,
         }) as Promise<{
           graphData: { commits: Commit[]; lanes: Record<string, LaneInfo> };
@@ -441,7 +421,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
 
       const { pendingSelectionFromFilter, collapsedIntermediates } = get();
 
-      const visible = filterCommits(commits, filter, collapsedIntermediates);
+      const visible = filterCommits(commits, collapsedIntermediates);
 
       // Check if we need to restore selection from a cleared filter
       if (pendingSelectionFromFilter.length > 0) {
@@ -543,6 +523,9 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         snapshot: laneSnapshot,
         branch: filter.branch || undefined,
         file: filter.file || undefined,
+        search: filter.searchQuery || undefined,
+        author: filter.author || undefined,
+        since: dateRangeToSince(filter.dateRange),
         repoPath,
       })) as {
         graphData: { commits: Commit[]; lanes: Record<string, LaneInfo> };
@@ -557,11 +540,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         const allCommits = [...commits, ...newCommits];
         set({
           commits: allCommits,
-          visibleCommits: filterCommits(
-            allCommits,
-            get().filter,
-            get().collapsedIntermediates,
-          ),
+          visibleCommits: filterCommits(allCommits, get().collapsedIntermediates),
           graphLayout: { ...get().graphLayout, ...result.graphData.lanes },
           laneSnapshot: result.snapshot,
           hasMore: newCommits.length >= 200,
@@ -688,47 +667,48 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   },
 
   setFilter(partial: Partial<PanelFilter>) {
-    const { filter: current, selectedCommitHashes, commits } = get();
+    const { filter: current, selectedCommitHashes } = get();
     const next = { ...current, ...partial };
 
-    // Branch or file filter changes require a backend re-fetch
-    if (
+    const branchOrFileChanged =
       (partial.branch !== undefined && partial.branch !== current.branch) ||
-      (partial.file !== undefined && partial.file !== current.file)
-    ) {
-      set({
-        filter: next,
-        pendingSelectionFromFilter: [],
-        collapsedSequenceIds: new Set(),
-        collapsedIntermediates: new Map(),
-      });
-      get().fetchInitialData();
-      return;
-    }
+      (partial.file !== undefined && partial.file !== current.file);
+    const searchFilterChanged =
+      (partial.searchQuery !== undefined &&
+        partial.searchQuery !== current.searchQuery) ||
+      (partial.author !== undefined && partial.author !== current.author) ||
+      (partial.dateRange !== undefined &&
+        partial.dateRange !== current.dateRange);
 
-    // Search/author filter: client-side only
+    if (!branchOrFileChanged && !searchFilterChanged) return;
+
+    // All filter changes require a backend re-fetch: search / author / dateRange
+    // now run server-side (--grep / --author / --since) so the FULL history is
+    // searchable, not just the currently-loaded page.
+    // Remember selection only when clearing a search/author/dateRange filter
+    // (branch/file changes reshuffle the commit set entirely).
     const wasFiltered = !!(
       current.searchQuery ||
       current.author ||
       current.dateRange
     );
-    const isNowFiltered = !!(next.searchQuery || next.author || next.dateRange);
-    const visible = filterCommits(commits, next, get().collapsedIntermediates);
+    const willBeFiltered = !!(
+      next.searchQuery ||
+      next.author ||
+      next.dateRange
+    );
+    const preserveSelection =
+      searchFilterChanged && wasFiltered && !willBeFiltered;
 
-    if (wasFiltered && !isNowFiltered) {
-      // Clearing filter → save current selection for restoration
-      set({
-        filter: next,
-        visibleCommits: visible,
-        pendingSelectionFromFilter: selectedCommitHashes,
-      });
-    } else {
-      set({
-        filter: next,
-        visibleCommits: visible,
-        pendingSelectionFromFilter: [],
-      });
-    }
+    set({
+      filter: next,
+      pendingSelectionFromFilter: preserveSelection
+        ? selectedCommitHashes
+        : [],
+      collapsedSequenceIds: new Set(),
+      collapsedIntermediates: new Map(),
+    });
+    get().fetchInitialData();
   },
 
   selectBranch(
@@ -841,7 +821,6 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   toggleSequenceCollapse(sequenceId: string, intermediates: string[]) {
     const {
       commits,
-      filter,
       collapsedSequenceIds,
       collapsedIntermediates,
       selectedCommitHashes,
@@ -859,7 +838,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       nextMap.set(sequenceId, intermediates);
     }
 
-    const nextVisible = filterCommits(commits, filter, nextMap);
+    const nextVisible = filterCommits(commits, nextMap);
     const nextSelection = deriveSelectionFromVisible(
       nextVisible,
       selectedCommitHashes,
