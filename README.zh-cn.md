@@ -114,8 +114,7 @@
 | `gitAtlas.aiCommit.customInstructions` | 字符串 | `""` | 追加到 AI 提示词的自定义提交规则 |
 | `gitAtlas.aiCommit.timeout` | 数字 | `30` | AI 生成提交信息的超时时间（秒，5–300） |
 | `todoAtlas.enabled` | 布尔 | `false` | 在底部面板显示 TODO Atlas 面板（即时生效，无需重载） |
-| `todoAtlas.scan.enabled` | 布尔 | `true` | 启用扫描源码文件中的 TODO/FIXME 注释 |
-| `todoAtlas.scan.autoScan` | 布尔 | `false` | 窗口聚焦和保存文件时自动扫描（关闭后仅靠重新扫描按钮触发） |
+| `todoAtlas.scan.autoScan` | 布尔 | `false` | 启动时、窗口聚焦和保存文件时自动扫描（关闭后仅靠重新扫描按钮触发） |
 | `todoAtlas.scan.tags` | 数组 | `["TODO","FIXME","XXX","HACK","BUG","NOTE"]` | 扫描的注释标签列表 |
 | `todoAtlas.scan.exclude` | 数组 | `["**/node_modules/**","**/.git/**","**/dist/**","**/out/**","**/build/**","**/.vscode-test/**","**/*.min.js","**/*.map"]` | 扫描时排除的 glob 模式 |
 | `todoAtlas.scan.debounceMs` | 数字 | `500` | 保存文件时增量重扫的防抖时间（毫秒，100–3000） |

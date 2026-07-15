@@ -56,7 +56,7 @@
 
 **IDEA-style Commit Panel**
 > An activity-bar commit panel with Changes / Staged / Unversioned groups, directory tree, amend, recent commit messages, and commit-and-push split button. Includes git stash (Shelf) and IDEA-compatible shelf (`.idea/shelf/`) with patch import/export.
-123
+
 **Multi-repo Support**
 > Workspaces with sub-directory git repos get a repo selector in both the Git Log and Commit views. Switch the active repo with one click; status badges (↑ahead / ↓behind / ●uncommitted) update in real time.
 
@@ -118,8 +118,7 @@
 | `gitAtlas.aiCommit.customInstructions` | `string` | `""` | Custom instructions appended to the AI prompt |
 | `gitAtlas.aiCommit.timeout` | `number` | `30` | Timeout in seconds for AI commit generation (5–300) |
 | `todoAtlas.enabled` | `boolean` | `false` | Show the TODO Atlas panel in the bottom panel (instant, no reload) |
-| `todoAtlas.scan.enabled` | `boolean` | `true` | Enable scanning source files for TODO/FIXME comments |
-| `todoAtlas.scan.autoScan` | `boolean` | `false` | Automatically scan on window focus and file save (use rescan button otherwise) |
+| `todoAtlas.scan.autoScan` | `boolean` | `false` | Automatically scan on startup, window focus, and file save (use rescan button otherwise) |
 | `todoAtlas.scan.tags` | `array` | `["TODO","FIXME","XXX","HACK","BUG","NOTE"]` | Tags to scan for in source comments |
 | `todoAtlas.scan.exclude` | `array` | `["**/node_modules/**","**/.git/**","**/dist/**","**/out/**","**/build/**","**/.vscode-test/**","**/*.min.js","**/*.map"]` | Glob patterns to exclude from scanning |
 | `todoAtlas.scan.debounceMs` | `number` | `500` | Debounce (ms) for incremental rescans on file save (100–3000) |

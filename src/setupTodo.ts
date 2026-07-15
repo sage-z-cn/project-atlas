@@ -15,7 +15,8 @@ import type { TodoService } from "./services/todoService";
  *
  * Todo 有独立的 MessageRouter + 自有 todoService.onDidChange（不经 StorageService）。
  * 装配内容：l10n handler、todo handlers（8 个命令）、ReactViewProvider(mode:"todos")、
- * onDidChange→广播、文本保存/变更 watcher（debounce 重扫，仅当 scan.enabled && scan.autoScan）、
+ * onDidChange→广播、文本保存/变更 watcher（debounce 重扫，仅当 scan.autoScan）、
+ * 启动时 autoScan 后台扫描一次、
  * todoAtlas 配置监听、窗口聚焦重扫、4 个 view/title 命令。
  *
  * 事件契约（webview 端用相同字符串监听）：
@@ -100,11 +101,17 @@ export function setupTodo(
 
   // 配置读取助手
   const scanCfg = () => vscode.workspace.getConfiguration("todoAtlas.scan");
-  const isAutoScanEnabled = () =>
-    scanCfg().get<boolean>("enabled", true) && scanCfg().get<boolean>("autoScan", false);
+  const isAutoScanEnabled = () => scanCfg().get<boolean>("autoScan", false);
+
+  // 启动时 autoScan → 后台扫描一次 + 广播（建立基线，不必等首次打开面板/窗口聚焦）。
+  if (isAutoScanEnabled()) {
+    void todoService.scanTodos(true).then(() => {
+      messageRouter.broadcastEvent(TODO_EVENTS.changed, {});
+    });
+  }
 
   // watcher：保存/编辑源码文件 → debounce 重扫 + 广播。
-  // 仅当 scan.enabled && scan.autoScan 为 true 时注册（避免 autoScan 关闭时
+  // 仅当 scan.autoScan 为 true 时注册（避免 autoScan 关闭时
   // onDidChangeTextDocument 的每次按键开销）。切换配置需重载窗口生效。
   if (isAutoScanEnabled()) {
     const debounceMs = scanCfg().get<number>("debounceMs", 500);

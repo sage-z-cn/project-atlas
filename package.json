@@ -771,11 +771,6 @@
           "default": false,
           "description": "%config.todoAtlas.enabled%"
         },
-        "todoAtlas.scan.enabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "%config.todoAtlas.scan.enabled%"
-        },
         "todoAtlas.scan.autoScan": {
           "type": "boolean",
           "default": false,

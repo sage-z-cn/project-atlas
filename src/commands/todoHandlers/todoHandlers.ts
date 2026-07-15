@@ -97,28 +97,26 @@ export function registerTodoHandlers(ctx: TodoHandlerContext): void {
     const { global, project } = todoService.getManualTodos(
       folders.map((f) => f.uri),
     );
-    const scanEnabled = vscode.workspace
+    const autoScan = vscode.workspace
       .getConfiguration("todoAtlas.scan")
-      .get<boolean>("enabled", true);
+      .get<boolean>("autoScan", false);
     let scanned: TodoItem[] = [];
     let scanning = false;
-    if (scanEnabled) {
-      const cached = todoService.getCachedScanTodos();
-      if (cached !== undefined) {
-        scanned = cached;
-        // 持久化缓存未校验（重开 VSCode）：后台 force 重扫校验，完成广播
-        if (!todoService.isScanVerified()) {
-          void todoService.scanTodos(true).then(() => {
-            messageRouter.broadcastEvent(TODO_EVENTS.changed, {});
-          });
-        }
-      } else {
-        // 首次：后台扫描，完成后广播刷新（手动 TODO 已先返回）
-        scanning = true;
-        void todoService.scanTodos().then(() => {
+    const cached = todoService.getCachedScanTodos();
+    if (cached !== undefined) {
+      scanned = cached;
+      // 持久化缓存未校验（重开 VSCode）：仅 autoScan 时后台 force 重扫校验，完成广播
+      if (autoScan && !todoService.isScanVerified()) {
+        void todoService.scanTodos(true).then(() => {
           messageRouter.broadcastEvent(TODO_EVENTS.changed, {});
         });
       }
+    } else if (autoScan) {
+      // 首次且 autoScan：后台扫描，完成后广播刷新（手动 TODO 已先返回）
+      scanning = true;
+      void todoService.scanTodos().then(() => {
+        messageRouter.broadcastEvent(TODO_EVENTS.changed, {});
+      });
     }
     return {
       globalManual: global.map(toDto),
