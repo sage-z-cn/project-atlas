@@ -4,6 +4,12 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.11.1
+- **AI 提交**: 增强提交日志记录与思考模式控制
+- **提交面板**: VSCode 风格下支持自动暂存全部更改
+- **Shelf**: 移除 idea patch 支持，重构 shelf 处理逻辑
+- **列配置**: 提取列配置至 store 并持久化到本地存储
+
 #### 1.11.0
 - **Blame 定位**: 添加代码行悬停定位提交功能
 - **日期筛选**: 日期过滤器新增自定义日期范围选择
