@@ -17,6 +17,7 @@ export function CommitMessageArea() {
     setAmend,
     commit,
     commitAndPush,
+    stageAll,
     loading,
     selectedFiles,
     commitListStyle,
@@ -40,24 +41,43 @@ export function CommitMessageArea() {
 
   // Submit-button enablement follows the active list style:
   //  - JetBrains: files are picked via checkboxes → require selectedFiles.
-  //  - VSCode: files are staged via +/- → require at least one staged file.
+  //  - VSCode: files are staged via +/-. When nothing is staged yet but the
+  //    working tree has changes, we keep the button clickable so the commit
+  //    handler can prompt "stage all?". Fully-empty tree disables it.
   //  - amend (either style): rewrites the last commit → only needs a message,
   //    no new files required.
   const hasFiles = amend
     ? true
     : commitListStyle === "vscode"
-      ? changes.some((f) => f.staged)
+      ? changes.length > 0
       : selectedFiles.size > 0;
   const canCommit = commitMessage.trim().length > 0 && hasFiles && !loading;
 
+  // VSCode 风格下若无已暂存文件但工作区有更改，弹窗确认是否全部暂存后提交。
+  // 返回 true 表示可以继续提交（已有暂存 / 已确认并暂存 / 非 vscode 风格 / amend）。
+  const ensureStagedForVscode = useCallback(async (): Promise<boolean> => {
+    if (commitListStyle !== "vscode" || amend) return true;
+    if (changes.some((f) => f.staged)) return true;
+    if (changes.length === 0) return false;
+    const result = (await bridge.request("showConfirmMessage", {
+      message: t("There are no staged changes. Stage all changes and commit?"),
+      confirmLabel: t("Stage All and Commit"),
+    })) as { confirmed?: boolean };
+    if (!result?.confirmed) return false;
+    await stageAll();
+    return true;
+  }, [commitListStyle, amend, changes, stageAll]);
+
   const handleCommit = useCallback(async () => {
     if (!canCommit) return;
+    if (!(await ensureStagedForVscode())) return;
     await commit();
-  }, [canCommit, commit]);
+  }, [canCommit, commit, ensureStagedForVscode]);
 
   const handleCommitAndPush = useCallback(async () => {
     if (!canCommit) return;
     setShowDropdown(false);
+    if (!(await ensureStagedForVscode())) return;
     // 跳过确认面板 → 直接提交并推送；否则提交后打开推送确认面板
     if (skipPushConfirmation) {
       await commitAndPush();
@@ -65,14 +85,15 @@ export function CommitMessageArea() {
     }
     await commit();
     await bridge.request("openPushPanel");
-  }, [canCommit, commit, commitAndPush, skipPushConfirmation]);
+  }, [canCommit, commit, commitAndPush, skipPushConfirmation, ensureStagedForVscode]);
 
   const handleCommitAndPushWithTags = useCallback(async () => {
     if (!canCommit) return;
     setShowDropdown(false);
+    if (!(await ensureStagedForVscode())) return;
     await commit();
     await bridge.request("openPushPanel", { withTags: true });
-  }, [canCommit, commit]);
+  }, [canCommit, commit, ensureStagedForVscode]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
