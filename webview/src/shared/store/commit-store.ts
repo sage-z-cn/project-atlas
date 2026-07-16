@@ -42,6 +42,16 @@ interface CommitStore {
    */
   repoSeq: number;
   /**
+   * Monotonic counter bumped every time commit / commitAndPush clears the
+   * commit message (and on repoChanged). Long-running async producers that
+   * write back into commitMessage (AI generate, amend load) capture this value
+   * before awaiting and, after the await, drop their result when it changed —
+   * i.e. a commit landed in the meantime. Without this, an AI request
+   * resolving after a successful commit would re-fill the textarea with the
+   * just-committed message.
+   */
+  commitEpoch: number;
+  /**
    * Per-repo ahead/behind/dirty counts keyed by normalized repo path, backing
    * the RepoSelector chip badges. Refreshed by fetchRepoStatuses on init,
    * repoChanged, and every gitStateChanged.
@@ -172,6 +182,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   currentRepoPath: null,
   repos: [],
   repoSeq: 0,
+  commitEpoch: 0,
   repoStatuses: {},
 
   changes: [],
@@ -357,11 +368,14 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     set({ amend });
     if (amend) {
       // Load last commit message
+      const startEpoch = get().commitEpoch;
       void (async () => {
         try {
           const result = (await bridge.request("getAmendMessage", {
             repoPath: get().currentRepoPath,
           })) as { message: string };
+          // Drop if a commit cleared the message while this was in flight.
+          if (get().commitEpoch !== startEpoch) return;
           if (result?.message) {
             get().setCommitMessage(result.message);
           }
@@ -507,7 +521,11 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         filePaths: filesToStage,
         repoPath: get().currentRepoPath,
       });
-      set({ commitMessage: "", amend: false });
+      set({
+        commitMessage: "",
+        amend: false,
+        commitEpoch: get().commitEpoch + 1,
+      });
       flushDraftSave(get().currentRepoPath, "");
       await get().fetchChanges();
       return true;
@@ -542,7 +560,11 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       )) as { pushed?: boolean; pushError?: string };
       // The commit itself succeeded (the request resolved), so clear the
       // message and draft regardless of whether the push went through.
-      set({ commitMessage: "", amend: false });
+      set({
+        commitMessage: "",
+        amend: false,
+        commitEpoch: get().commitEpoch + 1,
+      });
       flushDraftSave(get().currentRepoPath, "");
       await get().fetchChanges();
       // A rejected push must not stay silent: surface the error to the user.
@@ -562,7 +584,11 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       // 用 err.name 而非 message 文本判定（翻译后 message 不含 "timed out"）。
       const isTimeout = err instanceof Error && err.name === "BridgeTimeout";
       if (isTimeout) {
-        set({ commitMessage: "", amend: false });
+        set({
+          commitMessage: "",
+          amend: false,
+          commitEpoch: get().commitEpoch + 1,
+        });
         flushDraftSave(get().currentRepoPath, "");
         await get().fetchChanges();
       }
@@ -732,6 +758,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 
   async generateCommitMessage() {
     const mySeq = get().repoSeq;
+    const startEpoch = get().commitEpoch;
     const { commitListStyle, selectedFiles, changes } = get();
     if (changes.length === 0) return;
 
@@ -747,6 +774,9 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       )) as { message?: string; source?: string; status?: string };
 
       if (mySeq !== get().repoSeq) return;
+      // A commit landed while the AI request was in flight — the textarea was
+      // cleared; do not re-fill it with the just-committed message.
+      if (get().commitEpoch !== startEpoch) return;
 
       if (result?.status === "not_git_repo") {
         bridge.request("showErrorNotification", {
@@ -876,6 +906,7 @@ bridge.onEvent((event, data) => {
     flushDraftSave(state.currentRepoPath, state.commitMessage);
     useCommitStore.setState({
       repoSeq: state.repoSeq + 1,
+      commitEpoch: state.commitEpoch + 1,
       currentRepoPath: repoPath ?? state.currentRepoPath,
       changes: [],
       selectedFiles: new Set(),

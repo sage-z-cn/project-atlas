@@ -51,7 +51,10 @@ export function CommitMessageArea() {
     : commitListStyle === "vscode"
       ? changes.length > 0
       : selectedFiles.size > 0;
-  const canCommit = commitMessage.trim().length > 0 && hasFiles && !loading;
+  // Disable commit while AI is generating: a late-resolving AI request would
+  // otherwise re-fill the textarea after the commit cleared it (race fix).
+  const canCommit =
+    commitMessage.trim().length > 0 && hasFiles && !loading && !aiGenerating;
 
   // VSCode 风格下若无已暂存文件但工作区有更改，弹窗确认是否全部暂存后提交。
   // 返回 true 表示可以继续提交（已有暂存 / 已确认并暂存 / 非 vscode 风格 / amend）。
