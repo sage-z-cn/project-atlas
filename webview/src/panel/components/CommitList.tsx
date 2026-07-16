@@ -8,7 +8,6 @@ import { usePanelStore } from "../../shared/store/panel-store";
 import type { Commit } from "../../shared/types/git";
 import { CommitContextMenu } from "./CommitContextMenu";
 import {
-  type ColumnWidths,
   CommitRow,
   ROW_HEIGHT,
   type VisibleColumns,
@@ -17,12 +16,6 @@ import { CreateBranchDialog } from "./CreateBranchDialog";
 
 const COLUMN_WIDTH = 16;
 const GRAPH_PADDING = 8;
-
-const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
-  author: 100,
-  date: 130,
-  hash: 70,
-};
 
 export function CommitList({
   onScroll,
@@ -39,16 +32,12 @@ export function CommitList({
   const selectCommit = usePanelStore((s) => s.selectCommit);
 
   const parentRef = useRef<HTMLDivElement>(null);
-  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(
-    DEFAULT_COLUMN_WIDTHS,
-  );
+  const columnWidths = usePanelStore((s) => s.columnWidths);
   const visibleColumns = usePanelStore((s) => s.visibleColumns);
   const [headerMenu, setHeaderMenu] = useState<{
     x: number;
     y: number;
   } | null>(null);
-  const columnWidthsRef = useRef(columnWidths);
-  columnWidthsRef.current = columnWidths;
 
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -278,7 +267,7 @@ export function CommitList({
       e.preventDefault();
       e.stopPropagation();
       const startX = e.clientX;
-      const startWidth = columnWidthsRef.current[column];
+      const startWidth = usePanelStore.getState().columnWidths[column];
       setResizing(column);
 
       // Prevent text selection during drag
@@ -291,13 +280,15 @@ export function CommitList({
           column === "author" ? 40 : column === "date" ? 60 : 50,
           startWidth + diff,
         );
-        setColumnWidths((prev) => ({ ...prev, [column]: newWidth }));
+        usePanelStore.getState().setColumnWidth(column, newWidth);
       };
 
       const onMouseUp = () => {
         setResizing(null);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        // Flush the debounced column-width write to localStorage now that drag ended
+        usePanelStore.getState().persistColumnWidths();
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
       };

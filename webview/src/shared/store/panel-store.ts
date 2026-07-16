@@ -12,6 +12,59 @@ import type {
   TagInfo,
 } from "../types/git";
 
+const COLUMN_WIDTHS_KEY = "gitAtlas.columnWidths";
+const VISIBLE_COLUMNS_KEY = "gitAtlas.visibleColumns";
+const DEFAULT_COLUMN_WIDTHS = { author: 100, date: 130, hash: 70 };
+const DEFAULT_VISIBLE_COLUMNS = { author: true, date: true, hash: true };
+
+let columnWidthSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function loadColumnWidths(): { author: number; date: number; hash: number } {
+  try {
+    const raw = localStorage.getItem(COLUMN_WIDTHS_KEY);
+    if (!raw) return { ...DEFAULT_COLUMN_WIDTHS };
+    const parsed = JSON.parse(raw) as Partial<{
+      author?: number;
+      date?: number;
+      hash?: number;
+    }>;
+    return {
+      author:
+        typeof parsed.author === "number"
+          ? parsed.author
+          : DEFAULT_COLUMN_WIDTHS.author,
+      date: typeof parsed.date === "number" ? parsed.date : DEFAULT_COLUMN_WIDTHS.date,
+      hash: typeof parsed.hash === "number" ? parsed.hash : DEFAULT_COLUMN_WIDTHS.hash,
+    };
+  } catch {
+    return { ...DEFAULT_COLUMN_WIDTHS };
+  }
+}
+
+function loadVisibleColumns(): { author: boolean; date: boolean; hash: boolean } {
+  try {
+    const raw = localStorage.getItem(VISIBLE_COLUMNS_KEY);
+    if (!raw) return { ...DEFAULT_VISIBLE_COLUMNS };
+    const parsed = JSON.parse(raw) as Partial<{
+      author?: boolean;
+      date?: boolean;
+      hash?: boolean;
+    }>;
+    return {
+      author:
+        typeof parsed.author === "boolean"
+          ? parsed.author
+          : DEFAULT_VISIBLE_COLUMNS.author,
+      date:
+        typeof parsed.date === "boolean" ? parsed.date : DEFAULT_VISIBLE_COLUMNS.date,
+      hash:
+        typeof parsed.hash === "boolean" ? parsed.hash : DEFAULT_VISIBLE_COLUMNS.hash,
+    };
+  } catch {
+    return { ...DEFAULT_VISIBLE_COLUMNS };
+  }
+}
+
 export interface PanelFilter {
   searchQuery: string;
   branch: string;
@@ -73,6 +126,8 @@ interface PanelStore {
   scrollTargetHash: string | null;
   /** Column visibility for the commit list */
   visibleColumns: { author: boolean; date: boolean; hash: boolean };
+  /** Column widths (px) for the commit list author/date/hash columns */
+  columnWidths: { author: number; date: number; hash: number };
   /** When multiple commits are selected, stores the oldest/newest for range diff */
   rangeOldest: string | null;
   rangeNewest: string | null;
@@ -128,6 +183,8 @@ interface PanelStore {
   ) => void;
   setHoveredColumn: (column: number | null) => void;
   toggleColumnVisibility: (column: "author" | "date" | "hash") => void;
+  setColumnWidth: (column: "author" | "date" | "hash", width: number) => void;
+  persistColumnWidths: () => void;
   toggleSequenceCollapse: (sequenceId: string, intermediates: string[]) => void;
   toggleBranchGroupByDirectory: () => void;
   toggleShowTags: () => void;
@@ -290,7 +347,8 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   commitFiles: [],
   selectedFilePath: null,
   scrollTargetHash: null,
-  visibleColumns: { author: true, date: true, hash: true },
+  visibleColumns: loadVisibleColumns(),
+  columnWidths: loadColumnWidths(),
   rangeOldest: null,
   rangeNewest: null,
   selectedBranches: [],
@@ -817,12 +875,47 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   },
 
   toggleColumnVisibility(column: "author" | "date" | "hash") {
-    set((state) => ({
-      visibleColumns: {
+    set((state) => {
+      const next = {
         ...state.visibleColumns,
         [column]: !state.visibleColumns[column],
-      },
+      };
+      try {
+        localStorage.setItem(VISIBLE_COLUMNS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return { visibleColumns: next };
+    });
+  },
+
+  setColumnWidth(column: "author" | "date" | "hash", width: number) {
+    set((state) => ({
+      columnWidths: { ...state.columnWidths, [column]: width },
     }));
+    // Debounced persistence — column drag fires many updates; throttle disk writes
+    if (columnWidthSaveTimer) clearTimeout(columnWidthSaveTimer);
+    columnWidthSaveTimer = setTimeout(() => {
+      columnWidthSaveTimer = null;
+      try {
+        localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(get().columnWidths));
+      } catch {
+        // ignore
+      }
+    }, 300);
+  },
+
+  persistColumnWidths() {
+    // Flush any pending debounced write immediately (call on drag end)
+    if (columnWidthSaveTimer) {
+      clearTimeout(columnWidthSaveTimer);
+      columnWidthSaveTimer = null;
+    }
+    try {
+      localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(get().columnWidths));
+    } catch {
+      // ignore
+    }
   },
 
   toggleBranchGroupByDirectory() {
