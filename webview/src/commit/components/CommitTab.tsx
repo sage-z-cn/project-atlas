@@ -5,7 +5,6 @@ import {
   type WorkingTreeFile,
 } from "../../shared/store/commit-store";
 import StashIcon from "~icons/codicon/archive";
-import ShelveIcon from "~icons/codicon/save";
 import { t } from "../../shared/i18n";
 import { CommitFileContextMenu } from "./CommitFileContextMenu";
 import { CommitMessageArea } from "./CommitMessageArea";
@@ -35,7 +34,6 @@ export function CommitTab() {
     highlightFile,
     showDiff,
     fetchChanges,
-    ideaShelveChanges,
   } = useCommitStore();
 
   const [contextMenu, setContextMenu] = useState<{
@@ -79,34 +77,6 @@ export function CommitTab() {
       };
     }, [changes]);
 
-  const handleShelveSelected = useCallback(async () => {
-    // Prefer checkbox selection (JetBrains style); the VSCode style has no
-    // checkboxes, so fall back to highlighted files, then to all changes.
-    // Mirrors the onRollback selection logic below.
-    const selectedPaths = changes
-      .filter((f) => selectedFiles.has(`${f.path}:${f.staged}`))
-      .map((f) => f.path);
-    let paths = [...new Set(selectedPaths)];
-    if (paths.length === 0) {
-      const highlightedPaths = changes
-        .filter((f) => highlightedFiles.has(`${f.path}:${f.staged}`))
-        .map((f) => f.path);
-      paths = [...new Set(highlightedPaths)];
-    }
-    if (paths.length === 0) {
-      paths = [...new Set(changes.map((f) => f.path))];
-    }
-    if (paths.length === 0) return;
-    // Name is optional: cancel aborts, empty falls back to the default message.
-    const result = (await bridge.request("showInputBox", {
-      prompt: t("Enter shelf name (optional):"),
-      placeHolder: t("Shelved changes"),
-    })) as { value: string | null };
-    if (result.value === null) return;
-    const message = result.value.trim() || t("Shelved changes");
-    await ideaShelveChanges(message, paths);
-  }, [changes, selectedFiles, highlightedFiles, ideaShelveChanges]);
-
   const handleContextMenu = useCallback(
     (e: React.MouseEvent, file: WorkingTreeFile) => {
       setContextMenu({ x: e.clientX, y: e.clientY, file });
@@ -148,7 +118,6 @@ export function CommitTab() {
           fetchChanges();
           bridge.request("refreshGitState");
         }}
-        onShelve={handleShelveSelected}
         onRollback={() => {
           // Use highlighted files (click/focus selection), not checkbox selection
           const highlightedPaths = changes
@@ -682,7 +651,7 @@ function DirContextMenu({
   isGroup?: boolean;
   onClose: () => void;
 }) {
-  const { shelveChanges, ideaShelveChanges } = useCommitStore();
+  const { shelveChanges } = useCommitStore();
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number }>({
     top: y,
@@ -777,18 +746,6 @@ function DirContextMenu({
     await shelveChanges(message, paths);
   }, [files, shelveChanges, onClose]);
 
-  const handleShelve = useCallback(async () => {
-    onClose();
-    const paths = files.map((f) => f.path);
-    const result = (await bridge.request("showInputBox", {
-      prompt: t("Enter shelf name (optional):"),
-      placeHolder: t("Shelved changes"),
-    })) as { value: string | null };
-    if (result.value === null) return;
-    const message = result.value.trim() || t("Shelved changes");
-    await ideaShelveChanges(message, paths);
-  }, [files, ideaShelveChanges, onClose]);
-
   return (
     <div
       className="commit-context-menu"
@@ -831,16 +788,6 @@ function DirContextMenu({
           <StashIcon />
         </span>
         <span>{t("Stash Changes...")}</span>
-      </button>
-      <button
-        type="button"
-        className="commit-context-menu-item"
-        onClick={handleShelve}
-      >
-        <span className="commit-context-menu-icon">
-          <ShelveIcon />
-        </span>
-        <span>{t("Shelve Changes...")}</span>
       </button>
 
       {!isGroup && (

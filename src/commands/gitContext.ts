@@ -20,9 +20,9 @@ export const NOT_GIT_REPO = { status: "not_git_repo" as const, data: null };
  *
  * Replaces the closed-over locals that the reference project's `activate()`
  * function captured (messageRouter, gitService, diffManager, mergeManager,
- * conflictsManager, pushPanel, rollbackPanel, workspaceRoot,
- * shelfDiffContent). Keeping these behind a single object lets handlers be
- * extracted into independent modules without recreating the closure graph.
+ * conflictsManager, pushPanel, rollbackPanel, workspaceRoot). Keeping these
+ * behind a single object lets handlers be extracted into independent modules
+ * without recreating the closure graph.
  *
  * Multi-repo (phase A): the `registry` field owns every GitService / watcher
  * and tracks the currently-selected repo. `gitService` is kept as a getter
@@ -55,8 +55,6 @@ export interface GitHandlerContext {
   pushPanel: PushPanel;
   rollbackPanel: RollbackPanel;
   workspaceRoot: string | undefined;
-  /** Temporary storage for shelf diff content (base/modified virtual URIs). */
-  shelfDiffContent: Map<string, string>;
   /**
    * Single-slot stash for a focus-commit request that arrived while the Git Log
    * webview wasn't mounted yet (the first blame-link click opens the panel, so

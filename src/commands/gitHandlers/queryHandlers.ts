@@ -1,7 +1,7 @@
 import { NOT_GIT_REPO, requireGit } from "../gitContext";
 import type { GitHandlerContext } from "../gitContext";
 import type { LaneSnapshot } from "../../git/types";
-import { extToLanguage } from "../../utils/ideaPatch";
+import { extToLanguage } from "../../utils/scmUtils";
 
 /**
  * Read-only / query handlers (log, graph, branches, tags, diff, status, etc.).
@@ -260,13 +260,6 @@ export function registerQueryHandlers(ctx: GitHandlerContext): void {
     "getShelves",
     requireGit(ctx, async (gitService) => {
       return gitService.getShelves();
-    }),
-  );
-
-  messageRouter.handle(
-    "getIdeaShelves",
-    requireGit(ctx, async (gitService) => {
-      return gitService.getIdeaShelves();
     }),
   );
 }

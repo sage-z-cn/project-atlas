@@ -3,7 +3,6 @@ import type { WorkingTreeFile } from "../../shared/store/commit-store";
 import { useCommitStore } from "../../shared/store/commit-store";
 import { t } from "../../shared/i18n";
 import { bridge } from "../../shared/bridge";
-import IdeaShelveIcon from "~icons/codicon/save";
 
 interface CommitFileContextMenuProps {
   x: number;
@@ -25,7 +24,6 @@ export function CommitFileContextMenu({
     rollbackFile,
     showDiff,
     shelveChanges,
-    ideaShelveChanges,
     highlightedFiles,
     changes,
   } = useCommitStore();
@@ -141,28 +139,6 @@ export function CommitFileContextMenu({
     await shelveChanges(message, paths);
   }, [file, shelveChanges, highlightedFiles, changes, onClose]);
 
-  const handleShelve = useCallback(async () => {
-    onClose();
-    const fileKey = `${file.path}:${file.staged}`;
-    const paths =
-      highlightedFiles.size > 1 && highlightedFiles.has(fileKey)
-        ? [
-            ...new Set(
-              changes
-                .filter((f) => highlightedFiles.has(`${f.path}:${f.staged}`))
-                .map((f) => f.path),
-            ),
-          ]
-        : [file.path];
-    const result = (await bridge.request("showInputBox", {
-      prompt: t("Enter shelf name (optional):"),
-      placeHolder: t("Shelved changes"),
-    })) as { value: string | null };
-    if (result.value === null) return;
-    const message = result.value.trim() || t("Shelved changes");
-    await ideaShelveChanges(message, paths);
-  }, [file, ideaShelveChanges, highlightedFiles, changes, onClose]);
-
   const handleDelete = useCallback(() => {
     const fileKey = `${file.path}:${file.staged}`;
     if (highlightedFiles.size > 1 && highlightedFiles.has(fileKey)) {
@@ -272,16 +248,6 @@ export function CommitFileContextMenu({
       >
         <ShelveIcon />
         <span>{t("Stash Changes...")}</span>
-      </button>
-      <button
-        type="button"
-        className="commit-context-menu-item"
-        onClick={handleShelve}
-      >
-        <span className="commit-context-menu-icon">
-          <IdeaShelveIcon />
-        </span>
-        <span>{t("Shelve Changes...")}</span>
       </button>
 
       <div className="commit-context-menu-separator" />

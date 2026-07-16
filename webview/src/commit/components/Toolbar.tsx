@@ -10,20 +10,17 @@ import RefreshIcon from "~icons/codicon/refresh";
 import FetchIcon from "~icons/codicon/repo-fetch";
 import PullIcon from "~icons/codicon/repo-pull";
 import PushIcon from "~icons/codicon/repo-push";
-import ShelveIcon from "~icons/codicon/git-stash";
 import RollbackIcon from "~icons/codicon/discard";
 import { useCommitStore } from "../../shared/store/commit-store";
 
 interface ToolbarProps {
   onRefresh: () => void;
-  onShelve: () => void;
   onRollback: () => void;
   hasChanges: boolean;
 }
 
 export function Toolbar({
   onRefresh,
-  onShelve,
   onRollback,
   hasChanges,
 }: ToolbarProps) {
@@ -97,16 +94,6 @@ export function Toolbar({
       </Tooltip>
 
       <div className="commit-toolbar-separator" />
-      <Tooltip text={t("Shelve Changes")}>
-        <button
-          type="button"
-          className="commit-toolbar-btn"
-          onClick={onShelve}
-          disabled={!hasChanges}
-        >
-          <ShelveIcon />
-        </button>
-      </Tooltip>
       <Tooltip text={t("Rollback")}>
         <button
           type="button"

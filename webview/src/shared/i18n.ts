@@ -1,13 +1,17 @@
 import { bridge } from "./bridge";
+import { setI18nBundle, setI18nLocale } from "./i18n-core";
 
 /**
- * Webview-side i18n.
+ * Webview-side i18n bootstrap.
  *
  * The webview cannot call `vscode.l10n.t()` (it runs in a separate JS context
  * without the VS Code API). Instead, on startup the host ships the active
- * locale's l10n bundle over the bridge (`getL10nBundle`), and this module
- * implements a plain `bundle[key] ?? key` translator that mirrors the
- * `vscode.l10n.t()` contract closely enough for the webview's needs.
+ * locale's l10n bundle over the bridge (`getL10nBundle`); initI18n() loads it
+ * into the pure-core translator (i18n-core.ts).
+ *
+ * The translator itself (t/getLocale) is re-exported from i18n-core, which has
+ * NO bridge dependency — this lets the bridge module import t() too (e.g. for
+ * translating request-timeout errors) without forming a circular graph.
  *
  * Usage:
  *   - Call `initI18n()` once, BEFORE first render (see main.tsx), so components
@@ -17,16 +21,14 @@ import { bridge } from "./bridge";
  *   - `t("Found {0} items", count)` → positional `{0}`/`{1}`/... placeholders,
  *     matching vscode.l10n.t's `{n}` convention.
  */
-
-let bundle: Record<string, string> = {};
-let locale = "en";
+export { t, getLocale } from "./i18n-core";
 
 /**
  * Fetch the active locale's bundle from the host. Must run before the first
  * React render so the bundle is populated when components first call t().
  *
  * Never throws on failure — a bridge timeout or missing bundle leaves the
- * module in its default English state (empty bundle → t() returns the key).
+ * translator in its default English state (empty bundle → t() returns the key).
  */
 export async function initI18n(): Promise<void> {
   try {
@@ -34,36 +36,14 @@ export async function initI18n(): Promise<void> {
       locale?: string;
       bundle?: Record<string, string>;
     };
-    locale = result?.locale ?? "en";
-    bundle = result?.bundle ?? {};
+    setI18nLocale(result?.locale ?? "en");
+    setI18nBundle(result?.bundle ?? {});
   } catch (err) {
     // Bridge timeout / host error → stay English. Render still proceeds (the
     // caller wraps this in .finally) so the webview degrades to English keys
     // rather than going blank.
     console.error("initI18n failed, falling back to English:", err);
-    locale = "en";
-    bundle = {};
+    setI18nLocale("en");
+    setI18nBundle({});
   }
-}
-
-/** The active locale code (e.g. "zh-cn", "en"). Defaults to "en" until init. */
-export function getLocale(): string {
-  return locale;
-}
-
-/**
- * Translate a key. Falls back to the key itself (the English source string)
- * when no bundle entry exists — so passing an untranslated English string is
- * always safe and yields correct output in English locales.
- *
- * Positional placeholders `{0}`/`{1}`/... are replaced with the corresponding
- * arg (vscode.l10n.t convention). Missing arg indices are replaced with "".
- */
-export function t(key: string, ...args: (string | number)[]): string {
-  const raw = bundle[key] ?? key;
-  if (args.length === 0) return raw;
-  return raw.replace(/\{(\d+)\}/g, (_match, index) => {
-    const i = Number(index);
-    return i >= 0 && i < args.length ? String(args[i]) : "";
-  });
 }

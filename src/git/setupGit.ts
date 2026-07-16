@@ -58,9 +58,6 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   );
   const workspaceRoot = allWorkspaceRoots[0];
 
-  // 临时存储 shelf diff 内容（base/modified 虚拟 URI → 文本）
-  const shelfDiffContent = new Map<string, string>();
-
   // Single-slot stash for a focus-commit request that lands before the Git Log
   // webview is mounted (the first blame-link click opens the panel, so its
   // focusCommit broadcast has no listener yet). The webview drains it via the
@@ -90,7 +87,6 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   // 依赖 getCurrent()（init 未完成时为空也不能跳过），provider 自身在 repo 未
   // 就绪时返回空内容、不会抛错，待 init 完成、repo 就绪后内容即可正常读取。
   const contentProvider = new GitContentProvider(registry);
-  contentProvider.setExternalContentMap(shelfDiffContent);
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(
       GIT_ATLAS_SCHEME,
@@ -165,7 +161,6 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
     pushPanel,
     rollbackPanel,
     workspaceRoot,
-    shelfDiffContent,
     pendingFocus,
   };
 

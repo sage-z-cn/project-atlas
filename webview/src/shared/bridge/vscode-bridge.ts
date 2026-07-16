@@ -4,6 +4,7 @@ import type {
   RequestMessage,
   ResponseMessage,
 } from "./types";
+import { t } from "../i18n-core";
 
 declare function acquireVsCodeApi(): {
   postMessage(msg: unknown): void;
@@ -46,7 +47,11 @@ export function createVSCodeBridge(): Bridge {
         const id = crypto.randomUUID();
         const timeout = setTimeout(() => {
           pendingRequests.delete(id);
-          reject(new Error(`Request '${command}' timed out`));
+          // name 是 locale 无关的稳定标记，供调用方区分超时（翻译后的
+          // message 不再含 "timed out"，不能靠正则匹配文本）。
+          const err = new Error(t("Request '{0}' timed out", command));
+          err.name = "BridgeTimeout";
+          reject(err);
         }, options?.timeout ?? 10_000);
 
         pendingRequests.set(id, {

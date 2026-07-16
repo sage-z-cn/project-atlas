@@ -10,7 +10,6 @@ import DiscardIcon from "~icons/codicon/discard";
 import FolderIcon from "~icons/codicon/folder";
 import MergeIcon from "~icons/codicon/git-merge";
 import StashIcon from "~icons/codicon/archive";
-import ShelveIcon from "~icons/codicon/save";
 
 export interface VscodeBatchContextMenuProps {
   x: number;
@@ -28,7 +27,7 @@ export function VscodeBatchContextMenu({
   onClose,
 }: VscodeBatchContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const { stageFiles, unstageFiles, rollbackFiles, shelveChanges, ideaShelveChanges } =
+  const { stageFiles, unstageFiles, rollbackFiles, shelveChanges } =
     useCommitStore();
 
   // Position adjustment to keep menu in viewport
@@ -120,18 +119,6 @@ export function VscodeBatchContextMenu({
     await shelveChanges(message, paths);
   }, [files, shelveChanges, onClose]);
 
-  const handleShelve = useCallback(async () => {
-    onClose();
-    const paths = files.map((f) => f.path);
-    const result = (await bridge.request("showInputBox", {
-      prompt: t("Enter shelf name (optional):"),
-      placeHolder: t("Shelved changes"),
-    })) as { value: string | null };
-    if (result.value === null) return;
-    const message = result.value.trim() || t("Shelved changes");
-    await ideaShelveChanges(message, paths);
-  }, [files, ideaShelveChanges, onClose]);
-
   const handleReveal = useCallback(() => {
     if (files.length === 0) return;
     bridge.request("revealInSystemExplorer", { filePath: files[0].path });
@@ -189,16 +176,6 @@ export function VscodeBatchContextMenu({
             </span>
             <span>{t("Stash Changes...")}</span>
           </button>
-          <button
-            type="button"
-            className="commit-context-menu-item"
-            onClick={handleShelve}
-          >
-            <span className="commit-context-menu-icon">
-              <ShelveIcon />
-            </span>
-            <span>{t("Shelve Changes...")}</span>
-          </button>
           <div className="commit-context-menu-separator" />
           <button
             type="button"
@@ -235,16 +212,6 @@ export function VscodeBatchContextMenu({
               <StashIcon />
             </span>
             <span>{t("Stash Changes...")}</span>
-          </button>
-          <button
-            type="button"
-            className="commit-context-menu-item"
-            onClick={handleShelve}
-          >
-            <span className="commit-context-menu-icon">
-              <ShelveIcon />
-            </span>
-            <span>{t("Shelve Changes...")}</span>
           </button>
           <div className="commit-context-menu-separator" />
           <button

@@ -24,15 +24,7 @@ export interface ShelveEntry {
   files: string[];
 }
 
-export interface IdeaShelfEntry {
-  name: string;
-  description: string;
-  date: string;
-  patchPath: string;
-  files: string[];
-}
-
-type TabType = "commit" | "shelf" | "stash";
+type TabType = "commit" | "stash";
 
 interface CommitStore {
   // ── Multi-repo (phase B') ──────────────────────────────────────────
@@ -68,9 +60,6 @@ interface CommitStore {
 
   // Shelf
   shelves: ShelveEntry[];
-
-  // IDEA Shelf
-  ideaShelves: IdeaShelfEntry[];
 
   // UI state
   activeTab: TabType;
@@ -141,10 +130,6 @@ interface CommitStore {
   shelveChanges: (message?: string, filePaths?: string[]) => Promise<void>;
   unshelveChanges: (stashId: string, drop?: boolean) => Promise<void>;
   deleteShelve: (stashId: string) => Promise<void>;
-  fetchIdeaShelves: () => Promise<void>;
-  ideaShelveChanges: (message?: string, filePaths?: string[]) => Promise<void>;
-  ideaUnshelveChanges: (shelfName: string, drop?: boolean) => Promise<void>;
-  deleteIdeaShelf: (shelfName: string) => Promise<void>;
   setActiveTab: (tab: TabType) => void;
   toggleGroup: (group: string) => void;
   toggleDir: (dirPath: string) => void;
@@ -195,7 +180,6 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   commitMessage: "",
   amend: false,
   shelves: [],
-  ideaShelves: [],
   activeTab: "commit",
   loading: false,
   expandedGroups: new Set(["changes", "unversioned", "staged"]),
@@ -545,12 +529,17 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 
     try {
       set({ loading: true });
-      const result = (await bridge.request("commitAndPush", {
-        message: commitMessage,
-        amend,
-        filePaths: filesToStage,
-        repoPath: get().currentRepoPath,
-      })) as { pushed?: boolean; pushError?: string };
+      const result = (await bridge.request(
+        "commitAndPush",
+        {
+          message: commitMessage,
+          amend,
+          filePaths: filesToStage,
+          repoPath: get().currentRepoPath,
+        },
+        // push 是网络操作，默认 10s 超时不够；放宽到 60s。
+        { timeout: 60_000 },
+      )) as { pushed?: boolean; pushError?: string };
       // The commit itself succeeded (the request resolved), so clear the
       // message and draft regardless of whether the push went through.
       set({ commitMessage: "", amend: false });
@@ -567,6 +556,16 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     } catch (err) {
       console.error("commitAndPush failed:", err);
       const msg = err instanceof Error ? err.message : String(err);
+      // 超时兜底：后端 commitAndPush 先 commit（本地操作，毫秒级）后 push，
+      // 一旦触发超时，commit 必然已成功（不可能在超时阈值内仍未完成本地
+      // commit），故清空消息与草稿，避免提交已落地却残留输入框。
+      // 用 err.name 而非 message 文本判定（翻译后 message 不含 "timed out"）。
+      const isTimeout = err instanceof Error && err.name === "BridgeTimeout";
+      if (isTimeout) {
+        set({ commitMessage: "", amend: false });
+        flushDraftSave(get().currentRepoPath, "");
+        await get().fetchChanges();
+      }
       bridge.request("showErrorNotification", { message: msg }).catch(() => {});
       return false;
     } finally {
@@ -644,76 +643,10 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     }
   },
 
-  async fetchIdeaShelves() {
-    // ★ Capture seq + repoPath at issue time for the in-flight race guard.
-    const mySeq = get().repoSeq;
-    const repoPath = get().currentRepoPath;
-    try {
-      const result = (await bridge.request("getIdeaShelves", {
-        repoPath,
-      })) as IdeaShelfEntry[];
-      // ★ Race guard: a switch happened during the fetch → drop stale shelves.
-      if (mySeq !== get().repoSeq) return;
-      if (Array.isArray(result)) {
-        set({ ideaShelves: result });
-      }
-    } catch (err) {
-      console.error("fetchIdeaShelves failed:", err);
-    }
-  },
-
-  async ideaShelveChanges(message?: string, filePaths?: string[]) {
-    try {
-      set({ loading: true });
-      await bridge.request("ideaShelveChanges", {
-        message,
-        filePaths,
-        repoPath: get().currentRepoPath,
-      });
-      await get().fetchChanges();
-      await get().fetchIdeaShelves();
-    } catch (err) {
-      console.error("ideaShelveChanges failed:", err);
-    } finally {
-      set({ loading: false });
-    }
-  },
-
-  async ideaUnshelveChanges(shelfName: string, drop = true) {
-    try {
-      set({ loading: true });
-      await bridge.request("ideaUnshelveChanges", {
-        shelfName,
-        drop,
-        repoPath: get().currentRepoPath,
-      });
-      await get().fetchChanges();
-      await get().fetchIdeaShelves();
-    } catch (err) {
-      console.error("ideaUnshelveChanges failed:", err);
-    } finally {
-      set({ loading: false });
-    }
-  },
-
-  async deleteIdeaShelf(shelfName: string) {
-    try {
-      await bridge.request("deleteIdeaShelf", {
-        shelfName,
-        repoPath: get().currentRepoPath,
-      });
-      await get().fetchIdeaShelves();
-    } catch (err) {
-      console.error("deleteIdeaShelf failed:", err);
-    }
-  },
-
   setActiveTab(tab: TabType) {
     set({ activeTab: tab });
     if (tab === "stash") {
       get().fetchShelves();
-    } else if (tab === "shelf") {
-      get().fetchIdeaShelves();
     }
   },
 
@@ -910,7 +843,6 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     await Promise.all([
       get().fetchChanges(),
       get().fetchShelves(),
-      get().fetchIdeaShelves(),
     ]);
   },
 }));
@@ -920,7 +852,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 // repoChanged (oracle hard constraint #3): the host is the single source of
 // truth for the active repo. On switch it broadcasts repoChanged; we bump seq
 // (dropping every in-flight fetch for the old repo), clear ALL per-repo derived
-// state (changes/selection/shelves/ideaShelves/commit message — none of it is
+// state (changes/selection/shelves/commit message — none of it is valid for the
 // valid for the new repo), then refetch.
 //
 // gitStateChanged / commitStateChanged: the watcher tags gitStateChanged with
@@ -949,7 +881,6 @@ bridge.onEvent((event, data) => {
       selectedFiles: new Set(),
       highlightedFiles: new Set(),
       shelves: [],
-      ideaShelves: [],
       commitMessage: "",
       amend: false,
     });
@@ -972,7 +903,6 @@ bridge.onEvent((event, data) => {
       return;
     }
     useCommitStore.getState().fetchChanges();
-    useCommitStore.getState().fetchIdeaShelves();
     useCommitStore.getState().fetchShelves();
     return;
   }

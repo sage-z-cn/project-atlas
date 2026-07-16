@@ -19,18 +19,12 @@ export const GIT_ATLAS_SCHEME = "git-atlas";
 export class GitContentProvider
   implements vscode.TextDocumentContentProvider, vscode.FileSystemProvider
 {
-  private externalContent: Map<string, string> | null = null;
-
   private _onDidChangeFile = new vscode.EventEmitter<
     vscode.FileChangeEvent[]
   >();
   readonly onDidChangeFile = this._onDidChangeFile.event;
 
   constructor(private readonly registry: RepoRegistry) {}
-
-  setExternalContentMap(map: Map<string, string>): void {
-    this.externalContent = map;
-  }
 
   /**
    * Resolve the GitService that owns a virtual document URI.
@@ -51,14 +45,6 @@ export class GitContentProvider
   // ─── TextDocumentContentProvider ──────────────────────────────────
 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
-    // Check external content map first (used for shelf diffs)
-    if (this.externalContent) {
-      const external = this.externalContent.get(uri.toString());
-      if (external !== undefined) {
-        return external;
-      }
-    }
-
     const ref = new URLSearchParams(uri.query).get("ref") ?? "";
     const filePath = uri.path.startsWith("/") ? uri.path.slice(1) : uri.path;
     if (!ref || !filePath) {
