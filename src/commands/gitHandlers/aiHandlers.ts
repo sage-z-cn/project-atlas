@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
 import { requireGit } from "../gitContext";
 import { AiCommitService } from "../../ai/aiCommitService";
+import { logger } from "../../utils/logger";
 
 export function registerAiHandlers(ctx: GitHandlerContext): void {
   const { messageRouter, context } = ctx;
@@ -19,24 +20,38 @@ export function registerAiHandlers(ctx: GitHandlerContext): void {
       const commitListStyle = (params.commitListStyle as "vscode" | "jetbrains") ?? "vscode";
       const selectedFiles = (params.selectedFiles as string[]) ?? [];
 
+      logger.section(
+        `AI Commit generate (style=${commitListStyle}, selectedFiles=${selectedFiles.length})`,
+      );
+      const tTotal = Date.now();
+
+      let t0 = Date.now();
       const cfg = await aiService.getConfig();
+      logger.log(`[ai-commit]   getConfig: ${Date.now() - t0}ms`);
       if (!cfg) {
+        logger.warn("[ai-commit]   aborted: AI not configured");
         throw new Error("AI is not configured. Set API URL, model, and API key first.");
       }
 
+      t0 = Date.now();
       const diffContext = await aiService.collectDiff(
         gitService,
         commitListStyle,
         selectedFiles,
       );
+      logger.log(
+        `[ai-commit]   collectDiff: ${Date.now() - t0}ms (source=${diffContext.source}, diffChars=${diffContext.diff.length}, files=${diffContext.fileSummary.length})`,
+      );
 
       if (!diffContext.diff.trim() && diffContext.fileSummary.length === 0) {
+        logger.warn("[ai-commit]   aborted: no changes");
         throw new Error("No changes to generate a commit message from.");
       }
 
-      // AI 生成不是 git 操作，不触发全局 operationStart/End 进度条；
-      // commit 区有自己的 aiGenerating spinner 作为加载指示。
+      t0 = Date.now();
       const message = await aiService.generateMessage(diffContext, gitService, cfg);
+      logger.log(`[ai-commit]   generateMessage: ${Date.now() - t0}ms`);
+      logger.log(`[ai-commit] done: total=${Date.now() - tTotal}ms`);
       return { message, source: diffContext.source };
     }),
   );

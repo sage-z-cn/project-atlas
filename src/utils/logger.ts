@@ -29,7 +29,12 @@ function getChannel(): vscode.OutputChannel {
   return channel;
 }
 
-const stamp = (): string => new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+const pad = (n: number, len = 2): string => String(n).padStart(len, "0");
+const stamp = (): string => {
+  // Local time, HH:MM:SS.mmm. toISOString() is UTC and shifts the timestamp.
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
+};
 
 export const logger = {
   /** Append one timestamped line. */

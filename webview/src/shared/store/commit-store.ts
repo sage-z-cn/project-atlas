@@ -545,18 +545,29 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 
     try {
       set({ loading: true });
-      await bridge.request("commitAndPush", {
+      const result = (await bridge.request("commitAndPush", {
         message: commitMessage,
         amend,
         filePaths: filesToStage,
         repoPath: get().currentRepoPath,
-      });
+      })) as { pushed?: boolean; pushError?: string };
+      // The commit itself succeeded (the request resolved), so clear the
+      // message and draft regardless of whether the push went through.
       set({ commitMessage: "", amend: false });
       flushDraftSave(get().currentRepoPath, "");
       await get().fetchChanges();
+      // A rejected push must not stay silent: surface the error to the user.
+      if (!result?.pushed) {
+        const msg = result?.pushError || t("Push failed");
+        bridge
+          .request("showErrorNotification", { message: msg })
+          .catch(() => {});
+      }
       return true;
     } catch (err) {
       console.error("commitAndPush failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      bridge.request("showErrorNotification", { message: msg }).catch(() => {});
       return false;
     } finally {
       set({ loading: false });

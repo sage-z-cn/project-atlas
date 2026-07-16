@@ -181,6 +181,64 @@ export function CommitMessageArea() {
     };
   }, [showDropdown]);
 
+  // AI 生成计时：生成中实时显示已用时间，完成（或取消）后冻结显示，3 分钟后隐藏
+  const aiGenStartRef = useRef<number | null>(null);
+  const aiGenIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const aiGenHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [aiElapsed, setAiElapsed] = useState<string | null>(null);
+
+  const formatElapsed = useCallback((ms: number) => {
+    const totalSec = Math.floor(ms / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
+  }, []);
+
+  useEffect(() => {
+    if (aiGenerating) {
+      // 开始生成：清理可能挂起的隐藏定时器，记录起点，启动每秒刷新
+      if (aiGenHideRef.current) {
+        clearTimeout(aiGenHideRef.current);
+        aiGenHideRef.current = null;
+      }
+      aiGenStartRef.current = Date.now();
+      setAiElapsed(null);
+      aiGenIntervalRef.current = setInterval(() => {
+        if (aiGenStartRef.current != null) {
+          setAiElapsed(formatElapsed(Date.now() - aiGenStartRef.current));
+        }
+      }, 1000);
+    } else {
+      // 结束生成：停止刷新，冻结为最终耗时，3 分钟后清除显示
+      if (aiGenIntervalRef.current) {
+        clearInterval(aiGenIntervalRef.current);
+        aiGenIntervalRef.current = null;
+      }
+      if (aiGenStartRef.current != null) {
+        const finalMs = Date.now() - aiGenStartRef.current;
+        if (finalMs < 1000) {
+          // 不足 1 秒：避免显示 "0s"，直接清除
+          setAiElapsed(null);
+          aiGenStartRef.current = null;
+        } else {
+          setAiElapsed(formatElapsed(finalMs));
+          aiGenHideRef.current = setTimeout(() => {
+            setAiElapsed(null);
+            aiGenStartRef.current = null;
+            aiGenHideRef.current = null;
+          }, 3 * 60 * 1000);
+        }
+      }
+    }
+  }, [aiGenerating, formatElapsed]);
+
+  useEffect(() => {
+    return () => {
+      if (aiGenIntervalRef.current) clearInterval(aiGenIntervalRef.current);
+      if (aiGenHideRef.current) clearTimeout(aiGenHideRef.current);
+    };
+  }, []);
+
   return (
     <div className="commit-message-area">
       <textarea
@@ -201,46 +259,6 @@ export function CommitMessageArea() {
           />
           {t("Amend")}
         </label>
-        {/* AI 生成按钮 */}
-        <Tooltip text={aiTooltip}>
-          <span
-            onClick={handleAiGenerate}
-            style={{
-              cursor: aiClickable ? "pointer" : "default",
-              display: "inline-flex",
-              alignItems: "center",
-              borderRadius: 3,
-              padding: 2,
-              opacity: aiBaseOpacity,
-              transition: "background 0.15s, opacity 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              setAiHover(true);
-              if (aiClickable) (e.currentTarget as HTMLElement).style.opacity = "1";
-            }}
-            onMouseLeave={(e) => {
-              setAiHover(false);
-              if (aiClickable) (e.currentTarget as HTMLElement).style.opacity = String(aiBaseOpacity);
-            }}
-            onMouseDown={(e) => {
-              (e.currentTarget as HTMLElement).style.background =
-                "var(--vscode-toolbar-activeBackground, rgba(0,0,0,0.15))";
-            }}
-            onMouseUp={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "transparent";
-            }}
-          >
-            {aiGenerating ? (
-              aiHover ? (
-                <StopIcon style={{ fontSize: 14, color: "var(--vscode-errorForeground, #f48771)" }} />
-              ) : (
-                <LoadingIcon style={{ fontSize: 14, animation: "ai-spin 1s linear infinite" }} />
-              )
-            ) : (
-              <SparkleIcon style={{ fontSize: 14, color: canGenerate ? "var(--vscode-textLink-foreground, #3794ff)" : undefined }} />
-            )}
-          </span>
-        </Tooltip>
         <Tooltip text={t("Recent commit messages")}>
           <span
             ref={historyBtnRef}
@@ -289,6 +307,66 @@ export function CommitMessageArea() {
             />,
             document.body,
           )}
+        {/* AI 生成按钮 + 计时 */}
+        <div
+          style={{
+            marginLeft: "auto",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          {aiElapsed && (
+            <span
+              style={{
+                fontSize: 11,
+                opacity: 0.7,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {aiElapsed}
+            </span>
+          )}
+          <Tooltip text={aiTooltip}>
+            <span
+              onClick={handleAiGenerate}
+              style={{
+                cursor: aiClickable ? "pointer" : "default",
+                display: "inline-flex",
+                alignItems: "center",
+                borderRadius: 3,
+                padding: 2,
+                opacity: aiBaseOpacity,
+                transition: "background 0.15s, opacity 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                setAiHover(true);
+                if (aiClickable) (e.currentTarget as HTMLElement).style.opacity = "1";
+              }}
+              onMouseLeave={(e) => {
+                setAiHover(false);
+                if (aiClickable) (e.currentTarget as HTMLElement).style.opacity = String(aiBaseOpacity);
+              }}
+              onMouseDown={(e) => {
+                (e.currentTarget as HTMLElement).style.background =
+                  "var(--vscode-toolbar-activeBackground, rgba(0,0,0,0.15))";
+              }}
+              onMouseUp={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+              }}
+            >
+              {aiGenerating ? (
+                aiHover ? (
+                  <StopIcon style={{ fontSize: 14, color: "var(--vscode-errorForeground, #f48771)" }} />
+                ) : (
+                  <LoadingIcon style={{ fontSize: 14, animation: "ai-spin 1s linear infinite" }} />
+                )
+              ) : (
+                <SparkleIcon style={{ fontSize: 14, color: canGenerate ? "var(--vscode-textLink-foreground, #3794ff)" : undefined }} />
+              )}
+            </span>
+          </Tooltip>
+        </div>
       </div>
 
       <div className="commit-buttons">

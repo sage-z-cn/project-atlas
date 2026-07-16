@@ -18,6 +18,12 @@ export type Provider = "deepseek" | "zhipu" | "moonshot" | "qwen" | "mimo" | "un
 export interface ThinkingBehavior {
   /** 合并进请求体以开启思考的字段；{} 表示该模型思考为自带、无需（也不应）传字段。 */
   fields: Record<string, unknown>;
+  /**
+   * 合并进请求体以"显式关闭"思考的字段。必须显式关闭而不能依赖省略——
+   * 例如 GLM-4.6/4.7 在省略 thinking 字段时默认开启思考，会导致 ~80s 推理延迟。
+   * {} 表示该模型无法关闭（自带思考/未知 provider/不支持思考字段），保持"不传"。
+   */
+  disableFields: Record<string, unknown>;
   /** 该 provider 在思考模式下会因自定义采样参数报错（Kimi），需删除 temperature。 */
   dropSamplingParams: boolean;
   /** token 上限字段名：MiMo 用 max_completion_tokens，其余用 max_tokens。 */
@@ -71,6 +77,7 @@ export function getThinkingBehavior(provider: Provider, model: string): Thinking
     case "zhipu":
       return {
         fields: { thinking: { type: "enabled" } },
+        disableFields: { thinking: { type: "disabled" } },
         dropSamplingParams: false,
         tokenField: "max_tokens",
       };
@@ -79,6 +86,7 @@ export function getThinkingBehavior(provider: Provider, model: string): Thinking
       // MiMo 用 max_completion_tokens，且思考+答案共享该预算。
       return {
         fields: { thinking: { type: "enabled" } },
+        disableFields: { thinking: { type: "disabled" } },
         dropSamplingParams: false,
         tokenField: "max_completion_tokens",
       };
@@ -89,36 +97,43 @@ export function getThinkingBehavior(provider: Provider, model: string): Thinking
       const alwaysOn = m.includes("k2.7-code") || m.includes("thinking");
       return {
         fields: alwaysOn ? {} : { thinking: { type: "enabled" } },
+        disableFields: alwaysOn ? {} : { thinking: { type: "disabled" } },
         dropSamplingParams: true,
         tokenField: "max_tokens",
       };
     }
 
     case "qwen": {
-      // QwQ / -thinking 后缀为强制思考模型，不接受 enable_thinking → 不传。
+      // QwQ / -thinking 后缀为强制思考模型，不接受 enable_thinking → 不传（也无法关闭）。
       const alwaysOn = m.includes("qwq") || m.endsWith("-thinking");
       return {
         fields: alwaysOn ? {} : { enable_thinking: true },
+        disableFields: alwaysOn ? {} : { enable_thinking: false },
         dropSamplingParams: false,
         tokenField: "max_tokens",
       };
     }
 
     case "deepseek": {
-      // deepseek-reasoner（旧）：思考由模型名决定，传 thinking 字段有兼容风险 → 不传。
-      // deepseek-v4*（新）：通过 thinking 字段控制。
-      // deepseek-chat 等：不支持思考字段。
+      // deepseek-reasoner（旧）：思考由模型名决定，传 thinking 字段有兼容风险 → 不传，且无法关闭。
+      // deepseek-v4*（新）：通过 thinking 字段控制（enabled/disabled）。
+      // deepseek-chat 等：不支持思考字段 → 不传。
       if (m.includes("reasoner")) {
-        return { fields: {}, dropSamplingParams: false, tokenField: "max_tokens" };
+        return { fields: {}, disableFields: {}, dropSamplingParams: false, tokenField: "max_tokens" };
       }
       if (m.includes("v4")) {
-        return { fields: { thinking: { type: "enabled" } }, dropSamplingParams: false, tokenField: "max_tokens" };
+        return {
+          fields: { thinking: { type: "enabled" } },
+          disableFields: { thinking: { type: "disabled" } },
+          dropSamplingParams: false,
+          tokenField: "max_tokens",
+        };
       }
-      return { fields: {}, dropSamplingParams: false, tokenField: "max_tokens" };
+      return { fields: {}, disableFields: {}, dropSamplingParams: false, tokenField: "max_tokens" };
     }
 
     default:
-      // 未知 provider：不传思考字段，避免严格服务器返回 400。
-      return { fields: {}, dropSamplingParams: false, tokenField: "max_tokens" };
+      // 未知 provider：不传思考字段（含 disable），避免严格服务器返回 400。
+      return { fields: {}, disableFields: {}, dropSamplingParams: false, tokenField: "max_tokens" };
   }
 }

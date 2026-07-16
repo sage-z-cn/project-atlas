@@ -5,6 +5,7 @@ import {
   getThinkingBehavior,
   THINKING_TOKEN_BUDGET,
 } from "./thinkingProviders";
+import { logger } from "../utils/logger";
 
 const SECRET_KEY = "gitAtlas.aiCommit.apiKey";
 
@@ -130,18 +131,32 @@ export class AiCommitService {
     this.currentAbort = controller;
 
     try {
+      logger.log(
+        `[ai-commit]     model=${cfg.model}, provider=${detectProvider(cfg.apiUrl, cfg.model)}, thinking=${cfg.enableThinking}, maxDiffChars=${cfg.maxDiffChars}, timeout=${cfg.timeout}s`,
+      );
+
       // Resolve effective language (auto → detect from history)
+      let t0 = Date.now();
       const language = await this.resolveLanguage(cfg.language, gitService);
+      logger.log(`[ai-commit]     resolveLanguage: ${Date.now() - t0}ms (=> ${language})`);
 
       // Truncate diff
       const diff = this.truncateDiff(diffContext.diff, cfg.maxDiffChars);
 
       // Build prompt
+      t0 = Date.now();
       const systemPrompt = this.buildSystemPrompt(language, cfg.customInstructions);
       const userPrompt = this.buildUserPrompt(diff, diffContext.fileSummary);
+      logger.log(
+        `[ai-commit]     prompt build: ${Date.now() - t0}ms (system=${systemPrompt.length} chars, user=${userPrompt.length} chars, diffUsed=${diff.length})`,
+      );
 
       // Call API（传入取消信号，用户取消时中止 fetch 并跳出重试循环）
+      t0 = Date.now();
       const response = await this.callApi(cfg, systemPrompt, userPrompt, controller.signal);
+      logger.log(
+        `[ai-commit]     callApi: ${Date.now() - t0}ms (respChars=${response.length})`,
+      );
       return this.cleanMessage(response);
     } finally {
       if (this.currentAbort === controller) {
@@ -303,21 +318,31 @@ export class AiCommitService {
     for (let attempt = 1; attempt <= totalAttempts; attempt++) {
       // 重试前检查取消：用户在两次尝试之间点了取消，立即跳出。
       if (cancelSignal.aborted) {
+        logger.warn(`[ai-commit]     cancelled before attempt ${attempt}`);
         throw new Error("cancelled");
       }
       if (attempt > 1) {
         // 重试前短暂线性退避，缓解瞬时模型/网关抖动。
-        await this.sleep(800 * (attempt - 1));
+        const backoff = 800 * (attempt - 1);
+        logger.log(
+          `[ai-commit]     retrying attempt ${attempt}/${totalAttempts} after ${backoff}ms backoff`,
+        );
+        await this.sleep(backoff);
       }
       if (cancelSignal.aborted) {
+        logger.warn(`[ai-commit]     cancelled before attempt ${attempt}`);
         throw new Error("cancelled");
       }
 
       const result = await this.doRequest(cfg, systemPrompt, userPrompt, cancelSignal);
       if (result.content) {
+        if (attempt > 1) logger.log(`[ai-commit]     succeeded on attempt ${attempt}`);
         return result.content;
       }
       lastDiagnostic = this.describeEmptyResponse(result.finishReason, result.raw);
+      logger.warn(
+        `[ai-commit]     attempt ${attempt}/${totalAttempts}: empty response (${lastDiagnostic})`,
+      );
     }
 
     throw new Error(
@@ -348,10 +373,10 @@ export class AiCommitService {
       stream: false,
     };
 
-    if (cfg.enableThinking) {
-      const provider = detectProvider(cfg.apiUrl, cfg.model);
-      const behavior = getThinkingBehavior(provider, cfg.model);
+    const provider = detectProvider(cfg.apiUrl, cfg.model);
+    const behavior = getThinkingBehavior(provider, cfg.model);
 
+    if (cfg.enableThinking) {
       // 合并思考字段（自带思考的模型 fields 为 {}，不传）
       for (const [k, v] of Object.entries(behavior.fields)) {
         body[k] = v;
@@ -363,6 +388,12 @@ export class AiCommitService {
       // 放大预算并使用 provider 要求的字段名
       body[behavior.tokenField] = THINKING_TOKEN_BUDGET;
     } else {
+      // 显式关闭思考：不能依赖"省略"——GLM-4.6/4.7 等模型在省略 thinking 字段时
+      // 默认开启思考，会触发数十秒的推理延迟。对支持关闭的 provider 注入 disable
+      // 字段；对无法关闭（自带思考）/未知 provider 为 {}，保持原有"不传"行为。
+      for (const [k, v] of Object.entries(behavior.disableFields)) {
+        body[k] = v;
+      }
       body.max_tokens = 500;
     }
 
@@ -391,6 +422,9 @@ export class AiCommitService {
       cancelSignal.addEventListener("abort", onCancel, { once: true });
     }
 
+    const tFetch = Date.now();
+    let fetchMs = 0;
+
     try {
       const resp = await fetch(this.buildEndpoint(cfg.apiUrl), {
         method: "POST",
@@ -401,26 +435,40 @@ export class AiCommitService {
         body: JSON.stringify(body),
         signal: controller.signal,
       });
+      fetchMs = Date.now() - tFetch;
 
       if (!resp.ok) {
         const text = await resp.text().catch(() => "");
+        logger.warn(
+          `[ai-commit]       fetch: ${fetchMs}ms -> HTTP ${resp.status}`,
+        );
         throw new Error(`AI API returned ${resp.status}: ${text.slice(0, 200)}`);
       }
 
       const data = await resp.json();
       const { content, finishReason } = this.extractContent(data);
+      logger.log(
+        `[ai-commit]       fetch: ${fetchMs}ms -> 200 (contentChars=${content.length}, finishReason=${finishReason ?? "null"})`,
+      );
       return { content, finishReason, raw: data };
     } catch (err) {
       // 用户取消优先识别（区别于超时），抛出语义化的 "cancelled"
       if (cancelSignal.aborted) {
+        logger.warn(`[ai-commit]       fetch aborted: cancelled by user (after ${fetchMs}ms)`);
         throw new Error("cancelled");
       }
       // AbortError → 友好提示（否则用户看到晦涩的 "The operation was aborted"）
       if (err instanceof Error && err.name === "AbortError") {
+        logger.warn(
+          `[ai-commit]       fetch aborted: timeout after ${cfg.timeout}s`,
+        );
         throw new Error(
           vscode.l10n.t("AI request timed out after {0} seconds while generating the commit message.", String(cfg.timeout)),
         );
       }
+      logger.warn(
+        `[ai-commit]       fetch error: ${String(err).slice(0, 200)}`,
+      );
       throw err;
     } finally {
       clearTimeout(timeout);

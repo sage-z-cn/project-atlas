@@ -107,10 +107,27 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
       }
 
       return withProgress(ctx, async () => {
-        await gitService.commitAndPush(message, amend ?? false);
+        // Commit first. A successful commit must persist (and refresh the
+        // webview) even when the subsequent push is rejected, so broadcast
+        // state changes here instead of after push.
+        await gitService.commit(message, amend ?? false);
         messageRouter.broadcastEvent("commitStateChanged", {});
         messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
-        return { success: true };
+
+        const branch = await gitService.getCurrentBranch();
+        if (!branch) {
+          return { success: true, pushed: false };
+        }
+        // Push is run separately so a rejected push does not roll back the
+        // commit success; the push error is surfaced via `pushError`.
+        try {
+          await gitService.push(branch, amend ?? false);
+          return { success: true, pushed: true };
+        } catch (pushErr) {
+          const pushError =
+            pushErr instanceof Error ? pushErr.message : String(pushErr);
+          return { success: true, pushed: false, pushError };
+        }
       });
     }),
   );
