@@ -70,18 +70,41 @@
   margin-left: 6px;
 }
 
-/* ── Group hover actions (hidden until header hover) ──────────────── */
+/* ── Group hover actions (overlay, hidden until header hover) ─────── */
+/* Tail container wraps the always-visible count badge and the overlay
+   actions. The actions are absolutely positioned with `right: 100%` so
+   they anchor to the tail's left edge and float leftward over the label
+   tail — taking ZERO layout space when hidden, so the label keeps full
+   width and is never truncated early. Width-independent (no offset math
+   based on the count badge width). */
+.vscode-scm-group-tail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
 .vscode-scm-group-actions {
+  position: absolute;
+  right: 100%;
+  top: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   gap: 2px;
-  margin-left: 6px;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.1s;
+  background: transparent;
 }
 
 .vscode-scm-group-header:hover .vscode-scm-group-actions {
   opacity: 1;
+  pointer-events: auto;
+  /* Opaque backdrop so the label text does not bleed through the
+     transparent action buttons; matches the row's hover background. */
+  background: var(--vscode-list-hoverBackground);
 }
 
 .vscode-scm-group-action-btn {
@@ -166,20 +189,50 @@
   flex-shrink: 1;
 }
 
-/* ── File hover actions (hidden until row hover) ──────────────────── */
+/* ── File hover actions (overlay, hidden until row hover) ─────────── */
+/* Tail container holds the always-visible status letter and the overlay
+   actions. Actions are absolutely positioned (`right: 100%`) just left of
+   the status, so they occupy zero layout space when hidden and overlay the
+   trailing file name/path text when revealed — the name never jumps on
+   hover and is never truncated early by invisible buttons. */
+.vscode-file-tail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
 .vscode-file-actions {
+  position: absolute;
+  right: 100%;
+  top: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   gap: 1px;
-  margin-left: auto;
-  margin-right: 2px;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.1s;
+  background: transparent;
 }
 
-.vscode-file-item:hover .vscode-file-actions,
+.vscode-file-item:hover .vscode-file-actions {
+  opacity: 1;
+  pointer-events: auto;
+  /* Opaque backdrop matching the row background so the name text does
+     not bleed through the transparent action buttons. */
+  background: var(--vscode-list-hoverBackground);
+}
+
+/* Highlighted (selected) state defined AFTER :hover so it wins the
+   equal-specificity cascade tie — mirroring the row's own background
+   rule order (highlighted is declared after :hover above), keeping the
+   overlay backdrop in sync with the visible row background. */
 .vscode-file-item.highlighted .vscode-file-actions {
   opacity: 1;
+  pointer-events: auto;
+  background: var(--vscode-list-inactiveSelectionBackground);
 }
 
 .vscode-file-action-btn {
@@ -272,19 +325,35 @@
   white-space: nowrap;
 }
 
-/* ── Directory hover actions (hidden until dir row hover) ─────────── */
+/* ── Directory hover actions (overlay, hidden until dir row hover) ── */
+/* Tail container holds the always-visible "N file(s)" count and the
+   overlay actions, mirroring the file-item pattern. */
+.vscode-dir-tail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
 .vscode-dir-actions {
+  position: absolute;
+  right: 100%;
+  top: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   gap: 1px;
-  margin-left: auto;
-  margin-right: 2px;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.1s;
+  background: transparent;
 }
 
 .vscode-dir-row:hover .vscode-dir-actions {
   opacity: 1;
+  pointer-events: auto;
+  background: var(--vscode-list-hoverBackground);
 }
 
 .vscode-dir-count {

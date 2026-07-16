@@ -107,6 +107,7 @@ export function VscodeFileItem({
           {displayDir}
         </span>
       )}
+      <span className="vscode-file-tail">
       <span className="vscode-file-actions">
         {/* Open file (all groups) */}
         <button
@@ -179,6 +180,7 @@ export function VscodeFileItem({
       </span>
       <span className={`vscode-file-status ${statusClass}`}>
         {statusLabel}
+      </span>
       </span>
     </div>
   );

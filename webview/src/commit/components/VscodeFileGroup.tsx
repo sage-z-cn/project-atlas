@@ -76,6 +76,7 @@ export function VscodeFileGroup({
           <ChevronIcon />
         </span>
         <span className="vscode-scm-group-label">{label}</span>
+        <span className="vscode-scm-group-tail">
         <span className="vscode-scm-group-actions">
           {groupType === "merge" && (
             <button
@@ -132,6 +133,7 @@ export function VscodeFileGroup({
           )}
         </span>
         <span className="vscode-scm-group-count">{files.length}</span>
+        </span>
       </div>
       {expanded && (
         <div className="vscode-scm-group-files">
@@ -230,6 +232,7 @@ function VscodeDirNodeView({
                 </span>
                 <FolderIcon className="vscode-dir-folder-icon" />
                 <span className="vscode-dir-name">{child.name}</span>
+                <span className="vscode-dir-tail">
                 <span className="vscode-dir-actions">
                   {groupType === "changes" && (
                     <>
@@ -281,6 +284,7 @@ function VscodeDirNodeView({
                 </span>
                 <span className="vscode-dir-count">
                   {t("{0} file(s)", countFiles(child))}
+                </span>
                 </span>
               </div>
               {!isCollapsed && (
