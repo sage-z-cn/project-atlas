@@ -66,20 +66,20 @@ export function StashContextMenu({
       <button
         type="button"
         className="commit-context-menu-item"
-        onClick={handleUnstash}
+        onClick={handleApply}
       >
-        <UnstashIcon />
-        <span>{t("Unstash...")}</span>
-        <span className="commit-context-menu-shortcut">⇧⌘U</span>
+        <ApplyIcon />
+        <span>{t("Restore")}</span>
       </button>
 
       <button
         type="button"
         className="commit-context-menu-item"
-        onClick={handleApply}
+        onClick={handleUnstash}
       >
-        <ApplyIcon />
-        <span>{t("Restore")}</span>
+        <UnstashIcon />
+        <span>{t("Unstash...")}</span>
+        <span className="commit-context-menu-shortcut">⇧⌘U</span>
       </button>
 
       <div className="commit-context-menu-separator" />
