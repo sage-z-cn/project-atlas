@@ -51,10 +51,7 @@ export function CommitMessageArea() {
     : commitListStyle === "vscode"
       ? changes.length > 0
       : selectedFiles.size > 0;
-  // Disable commit while AI is generating: a late-resolving AI request would
-  // otherwise re-fill the textarea after the commit cleared it (race fix).
-  const canCommit =
-    commitMessage.trim().length > 0 && hasFiles && !loading && !aiGenerating;
+  const canCommit = commitMessage.trim().length > 0 && hasFiles && !loading;
 
   // VSCode 风格下若无已暂存文件但工作区有更改，弹窗确认是否全部暂存后提交。
   // 返回 true 表示可以继续提交（已有暂存 / 已确认并暂存 / 非 vscode 风格 / amend）。
@@ -86,7 +83,8 @@ export function CommitMessageArea() {
       await commitAndPush();
       return;
     }
-    await commit();
+    // commit() 失败（含超时）时不再打开推送面板，避免“已提交”的误导。
+    if (!(await commit())) return;
     await bridge.request("openPushPanel");
   }, [canCommit, commit, commitAndPush, skipPushConfirmation, ensureStagedForVscode]);
 
@@ -94,7 +92,7 @@ export function CommitMessageArea() {
     if (!canCommit) return;
     setShowDropdown(false);
     if (!(await ensureStagedForVscode())) return;
-    await commit();
+    if (!(await commit())) return;
     await bridge.request("openPushPanel", { withTags: true });
   }, [canCommit, commit, ensureStagedForVscode]);
 

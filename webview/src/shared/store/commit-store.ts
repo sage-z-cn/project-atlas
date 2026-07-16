@@ -515,12 +515,19 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 
     try {
       set({ loading: true });
-      await bridge.request("commitChanges", {
-        message: commitMessage,
-        amend,
-        filePaths: filesToStage,
-        repoPath: get().currentRepoPath,
-      });
+      // 对齐 commitAndPush 的 60s 超时：本地 commit 通常毫秒级，但 pre-commit
+      // hook / 大 diff / 慢磁盘可能拖到数秒~十余秒。默认 10s 超时会在 commit
+      // 实际已成功（后端仍在执行）时误判失败，导致输入框残留且无错误提示。
+      await bridge.request(
+        "commitChanges",
+        {
+          message: commitMessage,
+          amend,
+          filePaths: filesToStage,
+          repoPath: get().currentRepoPath,
+        },
+        { timeout: 60_000 },
+      );
       set({
         commitMessage: "",
         amend: false,
@@ -531,6 +538,19 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       return true;
     } catch (err) {
       console.error("commit failed:", err);
+      // 超时兜底：commitChanges handler 先 stage（毫秒级）后 commit，能撑到
+      // 60s 超时，commit 几乎必然已落地。不清空会让"已提交却残留输入框"的
+      // 状态出现，故与 commitAndPush 的超时分支保持一致：清空并刷新。
+      const isTimeout = err instanceof Error && err.name === "BridgeTimeout";
+      if (isTimeout) {
+        set({
+          commitMessage: "",
+          amend: false,
+          commitEpoch: get().commitEpoch + 1,
+        });
+        flushDraftSave(get().currentRepoPath, "");
+        await get().fetchChanges();
+      }
       return false;
     } finally {
       set({ loading: false });
