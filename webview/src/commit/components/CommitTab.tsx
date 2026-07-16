@@ -116,7 +116,7 @@ export function CommitTab() {
       <Toolbar
         onRefresh={() => {
           fetchChanges();
-          bridge.request("refreshGitState");
+          bridge.request("fetchAll");
         }}
         onRollback={() => {
           // Use highlighted files (click/focus selection), not checkbox selection

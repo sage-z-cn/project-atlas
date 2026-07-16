@@ -7,7 +7,6 @@ import ExpandAllIcon from "~icons/codicon/expand-all";
 import CollapseAllIcon from "~icons/codicon/collapse-all";
 import SettingsIcon from "~icons/codicon/settings";
 import RefreshIcon from "~icons/codicon/refresh";
-import FetchIcon from "~icons/codicon/repo-fetch";
 import PullIcon from "~icons/codicon/repo-pull";
 import PushIcon from "~icons/codicon/repo-push";
 import RollbackIcon from "~icons/codicon/discard";
@@ -61,16 +60,6 @@ export function Toolbar({
           <RefreshIcon />
         </button>
       </Tooltip>
-      <Tooltip text={t("Fetch")}>
-        <button
-          type="button"
-          className="commit-toolbar-btn"
-          onClick={() => bridge.request("fetchAll")}
-        >
-          <FetchIcon />
-        </button>
-      </Tooltip>
-
       <div className="commit-toolbar-separator" />
 
       {/* Remote sync group */}

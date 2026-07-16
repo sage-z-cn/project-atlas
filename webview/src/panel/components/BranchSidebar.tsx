@@ -7,10 +7,7 @@ import IconExpandAll from "~icons/codicon/expand-all";
 import IconCollapseAll from "~icons/codicon/collapse-all";
 import IconChevronLeft from "~icons/codicon/chevron-left";
 import IconAdd from "~icons/codicon/add";
-import IconUpdate from "~icons/codicon/repo-pull";
-import IconDelete from "~icons/codicon/trash";
 import IconCompare from "~icons/codicon/git-compare";
-import IconFetch from "~icons/codicon/repo-fetch";
 import IconStar from "~icons/codicon/star-full";
 import IconLocate from "~icons/codicon/target";
 import IconListTree from "~icons/codicon/list-tree";
@@ -42,27 +39,11 @@ export function BranchSidebar({
     }
   }, [onNewBranch]);
 
-  const handleUpdateSelected = useCallback(() => {
-    if (selectedBranch) {
-      bridge.request("pullBranch", { branchName: selectedBranch });
-    }
-  }, [selectedBranch]);
-
-  const handleDeleteBranch = useCallback(() => {
-    if (selectedBranch) {
-      bridge.request("deleteBranchPrompt", { branchName: selectedBranch });
-    }
-  }, [selectedBranch]);
-
   const handleCompareWithCurrent = useCallback(() => {
     if (selectedBranch) {
       bridge.request("compareWithCurrent", { branchName: selectedBranch });
     }
   }, [selectedBranch]);
-
-  const handleFetch = useCallback(() => {
-    bridge.request("fetchAll");
-  }, []);
 
   const handleToggleFavorite = useCallback(() => {
     if (selectedBranch) {
@@ -109,37 +90,6 @@ export function BranchSidebar({
           onClick={handleNewBranch}
         >
           <IconAdd />
-        </button>
-      </Tooltip>
-      <Tooltip text={t("Delete Branch")}>
-        <button
-          type="button"
-          className="branch-sidebar-btn"
-          onClick={handleDeleteBranch}
-          disabled={!selectedBranch}
-        >
-          <IconDelete />
-        </button>
-      </Tooltip>
-      <div className="branch-sidebar-separator" />
-      {/* Remote sync */}
-      <Tooltip text={t("Fetch")}>
-        <button
-          type="button"
-          className="branch-sidebar-btn"
-          onClick={handleFetch}
-        >
-          <IconFetch />
-        </button>
-      </Tooltip>
-      <Tooltip text={t("Update Selected")}>
-        <button
-          type="button"
-          className="branch-sidebar-btn"
-          onClick={handleUpdateSelected}
-          disabled={!selectedBranch}
-        >
-          <IconUpdate />
         </button>
       </Tooltip>
       <div className="branch-sidebar-separator" />
