@@ -266,7 +266,6 @@
   "Update Branch Filter": "更新分支筛选器",
   "Update Selected": "更新选定项",
   "Right-click changed files in the Commit tab to stash changes for later.": "在提交选项卡中右键已更改的文件，可将更改贮藏以备后用。",
-  "Use the shelf icon in the Commit tab toolbar to shelve changes to .idea/shelf/ (IDEA-compatible format).": "使用提交选项卡工具栏中的搁置图标将更改搁置到 .idea/shelf/（兼容 IDEA 的格式）。",
   "User": "用户",
   "Options": "选项",
   "View Options": "视图选项",
