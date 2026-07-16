@@ -27,7 +27,7 @@ export function VscodeBatchContextMenu({
   onClose,
 }: VscodeBatchContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const { stageFiles, unstageFiles, rollbackFiles, shelveChanges } =
+  const { stageFiles, unstageFiles, rollbackFiles, stashChanges } =
     useCommitStore();
 
   // Position adjustment to keep menu in viewport
@@ -116,8 +116,8 @@ export function VscodeBatchContextMenu({
     })) as { value: string | null };
     if (result.value === null) return;
     const message = result.value.trim() || t("Stashed changes");
-    await shelveChanges(message, paths);
-  }, [files, shelveChanges, onClose]);
+    await stashChanges(message, paths);
+  }, [files, stashChanges, onClose]);
 
   const handleReveal = useCallback(() => {
     if (files.length === 0) return;

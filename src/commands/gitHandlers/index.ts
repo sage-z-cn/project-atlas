@@ -6,7 +6,7 @@ import { registerCommitHandlers } from "./commitHandlers";
 import { registerRemoteHandlers } from "./remoteHandlers";
 import { registerRollbackHandlers } from "./rollbackHandlers";
 import { registerMergeEditorHandlers } from "./mergeEditorHandlers";
-import { registerShelfHandlers } from "./shelfHandlers";
+import { registerStashHandlers } from "./stashHandlers";
 import { registerUiHandlers } from "./uiHandlers";
 import { registerRepoHandlers } from "./repoHandlers";
 import { registerL10nBundleHandler } from "../../messages/l10nHandler";
@@ -29,7 +29,7 @@ export function registerGitHandlers(ctx: GitHandlerContext): void {
   registerRemoteHandlers(ctx);
   registerRollbackHandlers(ctx);
   registerMergeEditorHandlers(ctx);
-  registerShelfHandlers(ctx);
+  registerStashHandlers(ctx);
   registerUiHandlers(ctx);
   registerRepoHandlers(ctx);
   registerL10nBundleHandler(ctx.messageRouter, ctx.context);

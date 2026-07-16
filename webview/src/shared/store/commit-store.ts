@@ -16,7 +16,7 @@ export interface WorkingTreeFile {
   staged: boolean;
 }
 
-export interface ShelveEntry {
+export interface StashEntry {
   id: string;
   message: string;
   date: string;
@@ -58,8 +58,8 @@ interface CommitStore {
   commitMessage: string;
   amend: boolean;
 
-  // Shelf
-  shelves: ShelveEntry[];
+  // Stash
+  stashes: StashEntry[];
 
   // UI state
   activeTab: TabType;
@@ -107,7 +107,7 @@ interface CommitStore {
 
   // Actions
   fetchChanges: () => Promise<void>;
-  fetchShelves: () => Promise<void>;
+  fetchStashes: () => Promise<void>;
   setCommitMessage: (msg: string) => void;
   /** 从 host 读取当前 repo 的草稿并回填（不走持久化，避免回写）。 */
   loadCommitDraft: () => Promise<void>;
@@ -127,9 +127,9 @@ interface CommitStore {
   commitAndPush: () => Promise<boolean>;
   rollbackFile: (filePath: string) => Promise<void>;
   showDiff: (filePath: string, staged?: boolean) => Promise<void>;
-  shelveChanges: (message?: string, filePaths?: string[]) => Promise<void>;
-  unshelveChanges: (stashId: string, drop?: boolean) => Promise<void>;
-  deleteShelve: (stashId: string) => Promise<void>;
+  stashChanges: (message?: string, filePaths?: string[]) => Promise<void>;
+  unstashChanges: (stashId: string, drop?: boolean) => Promise<void>;
+  deleteStash: (stashId: string) => Promise<void>;
   setActiveTab: (tab: TabType) => void;
   toggleGroup: (group: string) => void;
   toggleDir: (dirPath: string) => void;
@@ -179,7 +179,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   highlightedFiles: new Set<string>(),
   commitMessage: "",
   amend: false,
-  shelves: [],
+  stashes: [],
   activeTab: "commit",
   loading: false,
   expandedGroups: new Set(["changes", "unversioned", "staged"]),
@@ -243,7 +243,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     } catch (err) {
       console.error("initRepo failed:", err);
     }
-    // Run the changes/shelves fetch and the badge fetch concurrently so badge
+    // Run the changes/stashes fetch and the badge fetch concurrently so badge
     // counts don't wait on the (300ms min-display) changes round-trip.
     await Promise.all([
       get().refresh(),
@@ -314,21 +314,21 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     }
   },
 
-  async fetchShelves() {
+  async fetchStashes() {
     // ★ Capture seq + repoPath at issue time for the in-flight race guard.
     const mySeq = get().repoSeq;
     const repoPath = get().currentRepoPath;
     try {
-      const result = (await bridge.request("getShelves", {
+      const result = (await bridge.request("getStashes", {
         repoPath,
-      })) as ShelveEntry[];
-      // ★ Race guard: a switch happened during the fetch → drop stale shelves.
+      })) as StashEntry[];
+      // ★ Race guard: a switch happened during the fetch → drop stale stashes.
       if (mySeq !== get().repoSeq) return;
       if (Array.isArray(result)) {
-        set({ shelves: result });
+        set({ stashes: result });
       }
     } catch (err) {
-      console.error("fetchShelves failed:", err);
+      console.error("fetchStashes failed:", err);
     }
   },
 
@@ -597,56 +597,56 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     }
   },
 
-  async shelveChanges(message?: string, filePaths?: string[]) {
+  async stashChanges(message?: string, filePaths?: string[]) {
     try {
       set({ loading: true });
-      await bridge.request("shelveChanges", {
+      await bridge.request("stashChanges", {
         message,
         filePaths,
         repoPath: get().currentRepoPath,
       });
       await get().fetchChanges();
-      await get().fetchShelves();
+      await get().fetchStashes();
     } catch (err) {
-      console.error("shelveChanges failed:", err);
+      console.error("stashChanges failed:", err);
     } finally {
       set({ loading: false });
     }
   },
 
-  async unshelveChanges(stashId: string, drop = true) {
+  async unstashChanges(stashId: string, drop = true) {
     try {
       set({ loading: true });
-      await bridge.request("unshelveChanges", {
+      await bridge.request("unstashChanges", {
         stashId,
         drop,
         repoPath: get().currentRepoPath,
       });
       await get().fetchChanges();
-      await get().fetchShelves();
+      await get().fetchStashes();
     } catch (err) {
-      console.error("unshelveChanges failed:", err);
+      console.error("unstashChanges failed:", err);
     } finally {
       set({ loading: false });
     }
   },
 
-  async deleteShelve(stashId: string) {
+  async deleteStash(stashId: string) {
     try {
-      await bridge.request("deleteShelve", {
+      await bridge.request("deleteStash", {
         stashId,
         repoPath: get().currentRepoPath,
       });
-      await get().fetchShelves();
+      await get().fetchStashes();
     } catch (err) {
-      console.error("deleteShelve failed:", err);
+      console.error("deleteStash failed:", err);
     }
   },
 
   setActiveTab(tab: TabType) {
     set({ activeTab: tab });
     if (tab === "stash") {
-      get().fetchShelves();
+      get().fetchStashes();
     }
   },
 
@@ -842,7 +842,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   async refresh() {
     await Promise.all([
       get().fetchChanges(),
-      get().fetchShelves(),
+      get().fetchStashes(),
     ]);
   },
 }));
@@ -852,7 +852,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 // repoChanged (oracle hard constraint #3): the host is the single source of
 // truth for the active repo. On switch it broadcasts repoChanged; we bump seq
 // (dropping every in-flight fetch for the old repo), clear ALL per-repo derived
-// state (changes/selection/shelves/commit message — none of it is valid for the
+// state (changes/selection/stashes/commit message — none of it is valid for the
 // valid for the new repo), then refetch.
 //
 // gitStateChanged / commitStateChanged: the watcher tags gitStateChanged with
@@ -880,7 +880,7 @@ bridge.onEvent((event, data) => {
       changes: [],
       selectedFiles: new Set(),
       highlightedFiles: new Set(),
-      shelves: [],
+      stashes: [],
       commitMessage: "",
       amend: false,
     });
@@ -896,14 +896,14 @@ bridge.onEvent((event, data) => {
     // (the watcher already debounces 300ms, so a full round-trip is acceptable).
     useCommitStore.getState().fetchRepoStatuses();
     const { repoPath } = (data ?? {}) as { repoPath?: string };
-    // Multi-repo filter: only refresh changes/shelves for the current repo.
+    // Multi-repo filter: only refresh changes/stashes for the current repo.
     // Events without repoPath (global command-handler broadcasts) are always
     // honored.
     if (repoPath && repoPath !== useCommitStore.getState().currentRepoPath) {
       return;
     }
     useCommitStore.getState().fetchChanges();
-    useCommitStore.getState().fetchShelves();
+    useCommitStore.getState().fetchStashes();
     return;
   }
 });

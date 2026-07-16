@@ -4,31 +4,31 @@ import type { GitHandlerContext } from "../gitContext";
 import { GIT_ATLAS_SCHEME } from "../../webview/gitContentProvider";
 
 /**
- * Shelf / stash handlers (git-stash based).
+ * Stash handlers (git-stash based).
  *
  * Extracted from reference project extension.ts. Modal-confirmation handler
- * (deleteShelve) keeps its prompt inside requireGit.
+ * (deleteStash) keeps its prompt inside requireGit.
  */
-export function registerShelfHandlers(ctx: GitHandlerContext): void {
+export function registerStashHandlers(ctx: GitHandlerContext): void {
   const { messageRouter } = ctx;
 
   messageRouter.handle(
-    "shelveChanges",
+    "stashChanges",
     requireGit(ctx, async (gitService, params) => {
       const message = params.message as string | undefined;
       const filePaths = params.filePaths as string[] | undefined;
-      await gitService.shelveChanges(message ?? "", filePaths);
+      await gitService.stashChanges(message ?? "", filePaths);
       messageRouter.broadcastEvent("commitStateChanged", {});
       return { success: true };
     }),
   );
 
   messageRouter.handle(
-    "unshelveChanges",
+    "unstashChanges",
     requireGit(ctx, async (gitService, params) => {
       const stashId = params.stashId as string;
       const drop = (params.drop as boolean) ?? true;
-      await gitService.unshelveChanges(stashId, drop);
+      await gitService.unstashChanges(stashId, drop);
       messageRouter.broadcastEvent("commitStateChanged", {});
       messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
       return { success: true };
@@ -37,7 +37,7 @@ export function registerShelfHandlers(ctx: GitHandlerContext): void {
 
   // Modal confirmation before deleting a stash entry.
   messageRouter.handle(
-    "deleteShelve",
+    "deleteStash",
     requireGit(ctx, async (gitService, params) => {
       const stashId = params.stashId as string;
       const choice = await vscode.window.showWarningMessage(
@@ -46,14 +46,14 @@ export function registerShelfHandlers(ctx: GitHandlerContext): void {
         "Delete",
       );
       if (choice !== "Delete") return { success: false };
-      await gitService.deleteShelve(stashId);
+      await gitService.deleteStash(stashId);
       messageRouter.broadcastEvent("commitStateChanged", {});
       return { success: true };
     }),
   );
 
   messageRouter.handle(
-    "showShelfFileDiff",
+    "showStashFileDiff",
     requireGit(ctx, async (gitService, params) => {
       if (!ctx.workspaceRoot) return NOT_GIT_REPO;
       const stashId = params.stashId as string;
@@ -72,14 +72,14 @@ export function registerShelfHandlers(ctx: GitHandlerContext): void {
         "vscode.diff",
         parentUri,
         stashUri,
-        `${fileName} (Shelved: ${stashId})`,
+        `${fileName} (Stashed: ${stashId})`,
       );
       return { success: true };
     }),
   );
 
   messageRouter.handle(
-    "unshelveFile",
+    "unstashFile",
     requireGit(ctx, async (gitService, params) => {
       if (!ctx.workspaceRoot) return NOT_GIT_REPO;
       const stashId = params.stashId as string;
@@ -93,7 +93,7 @@ export function registerShelfHandlers(ctx: GitHandlerContext): void {
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         void vscode.window.showErrorMessage(
-          `Failed to unshelve file: ${message}`,
+          `Failed to unstash file: ${message}`,
         );
         return { success: false };
       }

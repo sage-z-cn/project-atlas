@@ -480,25 +480,25 @@
   cursor: not-allowed;
 }
 
-/* ─── Shelf ────────────────────────────────────────────────────── */
-.shelf-list {
+/* ─── Stash ────────────────────────────────────────────────────── */
+.stash-list {
   flex: 1;
   overflow-y: auto;
 }
 
-.shelf-empty {
+.stash-empty, .commit-empty {
   padding: 20px;
   text-align: center;
   opacity: 0.6;
   font-size: 12px;
 }
 
-.shelf-item-container {
+.stash-item-container {
   border-bottom: 1px solid
     var(--vscode-panel-border, var(--vscode-widget-border));
 }
 
-.shelf-item-row {
+.stash-item-row {
   display: flex;
   align-items: center;
   padding: 6px 8px;
@@ -507,11 +507,11 @@
   min-height: 28px;
 }
 
-.shelf-item-row:hover {
+.stash-item-row:hover {
   background: var(--vscode-list-hoverBackground);
 }
 
-.shelf-item-chevron {
+.stash-item-chevron {
   width: 16px;
   height: 16px;
   display: flex;
@@ -522,11 +522,11 @@
   transform: rotate(90deg);
 }
 
-.shelf-item-chevron.collapsed {
+.stash-item-chevron.collapsed {
   transform: rotate(0deg);
 }
 
-.shelf-item-title {
+.stash-item-title {
   font-size: 12px;
   font-weight: 500;
   overflow: hidden;
@@ -534,7 +534,7 @@
   white-space: nowrap;
 }
 
-.shelf-item-info {
+.stash-item-info {
   margin-left: auto;
   font-size: 11px;
   opacity: 0.5;
@@ -542,11 +542,11 @@
   flex-shrink: 0;
 }
 
-.shelf-item-file-list {
+.stash-item-file-list {
   padding: 0 0 4px 0;
 }
 
-.shelf-file-row {
+.stash-file-row {
   display: flex;
   align-items: center;
   padding: 2px 8px 2px 32px;
@@ -555,11 +555,11 @@
   min-height: 24px;
 }
 
-.shelf-file-row:hover {
+.stash-file-row:hover {
   background: var(--vscode-list-hoverBackground);
 }
 
-.shelf-file-icon {
+.stash-file-icon {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
@@ -568,14 +568,14 @@
   justify-content: center;
 }
 
-.shelf-file-name {
+.stash-file-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--vscode-foreground);
 }
 
-.shelf-file-path {
+.stash-file-path {
   margin-left: 4px;
   font-size: 11px;
   opacity: 0.5;

@@ -241,7 +241,7 @@ export function CommitTab() {
         )}
 
         {changes.length === 0 && (
-          <div className="shelf-empty">{t("No changes detected")}</div>
+          <div className="commit-empty">{t("No changes detected")}</div>
         )}
       </div>
 
@@ -651,7 +651,7 @@ function DirContextMenu({
   isGroup?: boolean;
   onClose: () => void;
 }) {
-  const { shelveChanges } = useCommitStore();
+  const { stashChanges } = useCommitStore();
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number }>({
     top: y,
@@ -743,8 +743,8 @@ function DirContextMenu({
     })) as { value: string | null };
     if (result.value === null) return;
     const message = result.value.trim() || t("Stashed changes");
-    await shelveChanges(message, paths);
-  }, [files, shelveChanges, onClose]);
+    await stashChanges(message, paths);
+  }, [files, stashChanges, onClose]);
 
   return (
     <div

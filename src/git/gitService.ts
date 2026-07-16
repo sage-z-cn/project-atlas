@@ -1300,9 +1300,9 @@ export class GitService {
     }
   }
 
-  // ─── Shelf (Stash-based) Operations ───────────────────────────────
+  // ─── Stash Operations ───────────────────────────────────────────
 
-  async getShelves(): Promise<import("./types").ShelveEntry[]> {
+  async getStashes(): Promise<import("./types").StashEntry[]> {
     try {
       const output = await this.execGit([
         "stash",
@@ -1311,7 +1311,7 @@ export class GitService {
       ]);
       if (!output.trim()) return [];
 
-      const entries: import("./types").ShelveEntry[] = [];
+      const entries: import("./types").StashEntry[] = [];
       for (const line of output.trim().split("\n")) {
         if (!line.trim()) continue;
         const parts = line.split("\x00");
@@ -1347,7 +1347,7 @@ export class GitService {
     }
   }
 
-  async shelveChanges(message: string, filePaths?: string[]): Promise<void> {
+  async stashChanges(message: string, filePaths?: string[]): Promise<void> {
     if (filePaths && filePaths.length > 0) {
       // Strategy: to stash only specific files without pulling in other staged files,
       // we need to temporarily reset the index, stage only our target files, then stash.
@@ -1386,7 +1386,7 @@ export class GitService {
         "push",
         "--staged",
         "-m",
-        message || "Shelved changes",
+        message || "Stashed changes",
       ]);
 
       // 5. Re-stage previously staged files (that weren't stashed)
@@ -1402,13 +1402,13 @@ export class GitService {
       }
     } else {
       // Stash all changes including untracked
-      const args = ["stash", "push", "-m", message || "Shelved changes", "-u"];
+      const args = ["stash", "push", "-m", message || "Stashed changes", "-u"];
       await this.execGit(args);
     }
     this.invalidateCache();
   }
 
-  async unshelveChanges(stashId: string, drop = true): Promise<void> {
+  async unstashChanges(stashId: string, drop = true): Promise<void> {
     if (drop) {
       await this.execGit(["stash", "pop", stashId]);
     } else {
@@ -1417,7 +1417,7 @@ export class GitService {
     this.invalidateCache();
   }
 
-  async deleteShelve(stashId: string): Promise<void> {
+  async deleteStash(stashId: string): Promise<void> {
     await this.execGit(["stash", "drop", stashId]);
   }
 

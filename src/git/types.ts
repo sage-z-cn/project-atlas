@@ -156,8 +156,8 @@ export interface WorkingTreeFile {
   staged: boolean;
 }
 
-/** Shelf entry (git stash based) */
-export interface ShelveEntry {
+/** Stash entry (git stash based) */
+export interface StashEntry {
   id: string; // stash@{n}
   message: string;
   date: string;

@@ -23,7 +23,7 @@ export function CommitFileContextMenu({
     unstageFile,
     rollbackFile,
     showDiff,
-    shelveChanges,
+    stashChanges,
     highlightedFiles,
     changes,
   } = useCommitStore();
@@ -117,7 +117,7 @@ export function CommitFileContextMenu({
 
   const handleStash = useCallback(async () => {
     onClose();
-    // If multiple files are highlighted, shelve all of them; otherwise just this file
+    // If multiple files are highlighted, stash all of them; otherwise just this file
     const fileKey = `${file.path}:${file.staged}`;
     const paths =
       highlightedFiles.size > 1 && highlightedFiles.has(fileKey)
@@ -136,8 +136,8 @@ export function CommitFileContextMenu({
     })) as { value: string | null };
     if (result.value === null) return;
     const message = result.value.trim() || t("Stashed changes");
-    await shelveChanges(message, paths);
-  }, [file, shelveChanges, highlightedFiles, changes, onClose]);
+    await stashChanges(message, paths);
+  }, [file, stashChanges, highlightedFiles, changes, onClose]);
 
   const handleDelete = useCallback(() => {
     const fileKey = `${file.path}:${file.staged}`;
@@ -240,13 +240,13 @@ export function CommitFileContextMenu({
 
       <div className="commit-context-menu-separator" />
 
-      {/* Shelve */}
+      {/* Stash */}
       <button
         type="button"
         className="commit-context-menu-item"
         onClick={handleStash}
       >
-        <ShelveIcon />
+        <StashIcon />
         <span>{t("Stash Changes...")}</span>
       </button>
 
@@ -369,7 +369,7 @@ function RollbackIcon() {
   );
 }
 
-function ShelveIcon() {
+function StashIcon() {
   return (
     <svg
       width="16"

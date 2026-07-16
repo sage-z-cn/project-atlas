@@ -257,9 +257,9 @@ export function registerQueryHandlers(ctx: GitHandlerContext): void {
   );
 
   messageRouter.handle(
-    "getShelves",
+    "getStashes",
     requireGit(ctx, async (gitService) => {
-      return gitService.getShelves();
+      return gitService.getStashes();
     }),
   );
 }

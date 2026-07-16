@@ -33,7 +33,7 @@ export function VscodeFileContextMenu({
     unstageFile,
     rollbackFile,
     showDiff,
-    shelveChanges,
+    stashChanges,
     currentRepoPath,
     highlightedFiles,
     changes,
@@ -188,8 +188,8 @@ export function VscodeFileContextMenu({
     })) as { value: string | null };
     if (result.value === null) return;
     const message = result.value.trim() || t("Stashed changes");
-    await shelveChanges(message, paths);
-  }, [resolvePaths, shelveChanges, onClose]);
+    await stashChanges(message, paths);
+  }, [resolvePaths, stashChanges, onClose]);
 
   const handleOpenMerge = useCallback(() => {
     bridge.request("openConflictsPanel");

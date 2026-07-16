@@ -6,7 +6,7 @@ import { Tooltip } from "../shared/components/Tooltip";
 import "../shared/components/Tooltip.css";
 import { useCommitStore } from "../shared/store/commit-store";
 import { CommitTab } from "./components/CommitTab";
-import { ShelfTab } from "./components/ShelfTab";
+import { StashTab } from "./components/StashTab";
 import "./commit.css";
 import "./commit-vscode.css";
 
@@ -523,7 +523,7 @@ export function CommitApp() {
   const { activeTab, setActiveTab, loading } = useCommitStore();
 
   // Ready handshake: query the host for the current repo + repo list, then
-  // fetch changes/shelves against that repo. Replaces the previous
+  // fetch changes/stashes against that repo. Replaces the previous
   // unconditional fetch trio — we can no longer assume a default repo now that
   // multiple repos are possible.
   useEffect(() => {
@@ -555,7 +555,7 @@ export function CommitApp() {
       <ProgressBar visible={loading} />
       <div className="commit-content">
         {activeTab === "commit" && <CommitTab />}
-        {activeTab === "stash" && <ShelfTab />}
+        {activeTab === "stash" && <StashTab />}
       </div>
     </div>
   );

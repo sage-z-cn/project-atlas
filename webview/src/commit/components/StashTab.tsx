@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  type ShelveEntry,
+  type StashEntry,
   useCommitStore,
 } from "../../shared/store/commit-store";
 import { t } from "../../shared/i18n";
 import { getCommitFileIcon } from "../utils/file-icon";
-import { ShelfContextMenu } from "./ShelfContextMenu";
-import { ShelfFileContextMenu } from "./ShelfFileContextMenu";
+import { StashContextMenu } from "./StashContextMenu";
+import { StashFileContextMenu } from "./StashFileContextMenu";
 
-export function ShelfTab() {
-  const { shelves, fetchShelves } = useCommitStore();
+export function StashTab() {
+  const { stashes, fetchStashes } = useCommitStore();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    entry: ShelveEntry;
+    entry: StashEntry;
   } | null>(null);
   const [fileContextMenu, setFileContextMenu] = useState<{
     x: number;
@@ -24,8 +24,8 @@ export function ShelfTab() {
   } | null>(null);
 
   useEffect(() => {
-    fetchShelves();
-  }, [fetchShelves]);
+    fetchStashes();
+  }, [fetchStashes]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -40,7 +40,7 @@ export function ShelfTab() {
   }, []);
 
   const handleContextMenu = useCallback(
-    (e: React.MouseEvent, entry: ShelveEntry) => {
+    (e: React.MouseEvent, entry: StashEntry) => {
       e.preventDefault();
       e.stopPropagation();
       setFileContextMenu(null);
@@ -67,10 +67,10 @@ export function ShelfTab() {
     setFileContextMenu(null);
   }, []);
 
-  if (shelves.length === 0) {
+  if (stashes.length === 0) {
     return (
-      <div className="shelf-list">
-        <div className="shelf-empty">
+      <div className="stash-list">
+        <div className="stash-empty">
           <p>{t("No stashed changes")}</p>
           <p style={{ fontSize: 11, marginTop: 8 }}>
             {t(
@@ -83,9 +83,9 @@ export function ShelfTab() {
   }
 
   return (
-    <div className="shelf-list">
-      {shelves.map((entry) => (
-        <ShelfItem
+    <div className="stash-list">
+      {stashes.map((entry) => (
+        <StashItem
           key={entry.id}
           entry={entry}
           expanded={expandedIds.has(entry.id)}
@@ -95,7 +95,7 @@ export function ShelfTab() {
         />
       ))}
       {contextMenu && (
-        <ShelfContextMenu
+        <StashContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
           entry={contextMenu.entry}
@@ -103,7 +103,7 @@ export function ShelfTab() {
         />
       )}
       {fileContextMenu && (
-        <ShelfFileContextMenu
+        <StashFileContextMenu
           x={fileContextMenu.x}
           y={fileContextMenu.y}
           filePath={fileContextMenu.filePath}
@@ -115,8 +115,8 @@ export function ShelfTab() {
   );
 }
 
-interface ShelfItemProps {
-  entry: ShelveEntry;
+interface StashItemProps {
+  entry: StashEntry;
   expanded: boolean;
   onToggle: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -127,32 +127,32 @@ interface ShelfItemProps {
   ) => void;
 }
 
-function ShelfItem({
+function StashItem({
   entry,
   expanded,
   onToggle,
   onContextMenu,
   onFileContextMenu,
-}: ShelfItemProps) {
+}: StashItemProps) {
   const dateStr = formatDate(entry.date);
 
   return (
-    <div className="shelf-item-container" onContextMenu={onContextMenu}>
-      <div className="shelf-item-row" onClick={onToggle}>
-        <span className={`shelf-item-chevron ${expanded ? "" : "collapsed"}`}>
+    <div className="stash-item-container" onContextMenu={onContextMenu}>
+      <div className="stash-item-row" onClick={onToggle}>
+        <span className={`stash-item-chevron ${expanded ? "" : "collapsed"}`}>
           <ChevronIcon />
         </span>
-        <span className="shelf-item-title">{entry.message || t("Changes")}</span>
-        <span className="shelf-item-info">
+        <span className="stash-item-title">{entry.message || t("Changes")}</span>
+        <span className="stash-item-info">
           {t("{0} file(s)", entry.files.length)},{" "}
           {dateStr}
         </span>
       </div>
 
       {expanded && entry.files.length > 0 && (
-        <div className="shelf-item-file-list">
+        <div className="stash-item-file-list">
           {entry.files.map((filePath) => (
-            <ShelfFileRow
+            <StashFileRow
               key={filePath}
               filePath={filePath}
               onContextMenu={(e) => onFileContextMenu(e, filePath, entry.id)}
@@ -164,7 +164,7 @@ function ShelfItem({
   );
 }
 
-function ShelfFileRow({
+function StashFileRow({
   filePath,
   onContextMenu,
 }: {
@@ -178,18 +178,18 @@ function ShelfFileRow({
 
   return (
     <div
-      className="shelf-file-row"
+      className="stash-file-row"
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
         onContextMenu(e);
       }}
     >
-      <span className="shelf-file-icon">
+      <span className="stash-file-icon">
         <FileIcon style={{ width: 16, height: 16 }} />
       </span>
-      <span className="shelf-file-name">{fileName}</span>
-      {dirPath && <span className="shelf-file-path">{dirPath}</span>}
+      <span className="stash-file-name">{fileName}</span>
+      {dirPath && <span className="stash-file-path">{dirPath}</span>}
     </div>
   );
 }
