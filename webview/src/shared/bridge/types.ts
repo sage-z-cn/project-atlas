@@ -91,7 +91,6 @@ export type CommandType =
   | "openConflictsPanel"
   | "createBranchPrompt"
   | "deleteBranchPrompt"
-  | "compareWithCurrent"
   | "fetchAll"
   | "toggleFavorite"
   | "navigateToHead"

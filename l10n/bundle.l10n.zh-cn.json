@@ -128,7 +128,6 @@
   "Commit and Push": "提交并推送",
   "Commit and Push...": "提交并推送...",
   "Commit message (Ctrl+Enter to commit)": "提交信息 (Ctrl+Enter 提交)",
-  "Compare with Current": "与当前比较",
   "Continue Cherry-pick (git cherry-pick --continue)": "继续拣选 (git cherry-pick --continue)",
   "Continue Rebase (git rebase --continue)": "继续变基 (git rebase --continue)",
   "Copy as Patch to Clipboard": "作为补丁拷贝到剪贴板",

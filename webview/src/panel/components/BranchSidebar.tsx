@@ -7,7 +7,6 @@ import IconExpandAll from "~icons/codicon/expand-all";
 import IconCollapseAll from "~icons/codicon/collapse-all";
 import IconChevronLeft from "~icons/codicon/chevron-left";
 import IconAdd from "~icons/codicon/add";
-import IconCompare from "~icons/codicon/git-compare";
 import IconStar from "~icons/codicon/star-full";
 import IconLocate from "~icons/codicon/target";
 import IconListTree from "~icons/codicon/list-tree";
@@ -38,12 +37,6 @@ export function BranchSidebar({
       bridge.request("createBranchPrompt", {});
     }
   }, [onNewBranch]);
-
-  const handleCompareWithCurrent = useCallback(() => {
-    if (selectedBranch) {
-      bridge.request("compareWithCurrent", { branchName: selectedBranch });
-    }
-  }, [selectedBranch]);
 
   const handleToggleFavorite = useCallback(() => {
     if (selectedBranch) {
@@ -94,16 +87,6 @@ export function BranchSidebar({
       </Tooltip>
       <div className="branch-sidebar-separator" />
       {/* Inspect / navigate */}
-      <Tooltip text={t("Compare with Current")}>
-        <button
-          type="button"
-          className="branch-sidebar-btn"
-          onClick={handleCompareWithCurrent}
-          disabled={!selectedBranch}
-        >
-          <IconCompare />
-        </button>
-      </Tooltip>
       <Tooltip text={t("Navigate Log to Selected Branch Head")}>
         <button
           type="button"

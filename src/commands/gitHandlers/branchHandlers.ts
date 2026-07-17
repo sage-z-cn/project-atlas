@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
 import { requireGit, withProgress } from "../gitContext";
-import { GIT_ATLAS_SCHEME } from "../../webview/gitContentProvider";
 
 /**
  * Branch operation handlers (checkout / create / delete / rename / compare).
@@ -122,20 +121,4 @@ export function registerBranchHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
-  messageRouter.handle(
-    "compareWithCurrent",
-    requireGit(ctx, async (gitService, params) => {
-      const branchName = params.branchName as string;
-      if (!branchName) return { success: false };
-      // Use VS Code's built-in git diff between current branch and selected
-      const currentBranch = await gitService.getCurrentBranch();
-      void vscode.commands.executeCommand(
-        "vscode.diff",
-        vscode.Uri.parse(`${GIT_ATLAS_SCHEME}:/${currentBranch}`),
-        vscode.Uri.parse(`${GIT_ATLAS_SCHEME}:/${branchName}`),
-        `${currentBranch} ↔ ${branchName}`,
-      );
-      return { success: true };
-    }),
-  );
 }
