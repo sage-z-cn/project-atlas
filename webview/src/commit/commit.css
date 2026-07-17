@@ -419,6 +419,60 @@
   color: var(--vscode-input-placeholderForeground);
 }
 
+/* ─── Commit Error Banner ─────────────────────────────────────── */
+.commit-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.commit-error-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--vscode-errorForeground, #f48771);
+}
+
+.commit-error-message {
+  flex: 1;
+  word-break: break-word;
+  white-space: pre-wrap;
+  color: var(--app-fg, #ccc);
+}
+
+.commit-error-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--app-fg, #ccc);
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0.7;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.commit-error-close:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.12));
+}
+
+.commit-error-close svg {
+  width: 14px;
+  height: 14px;
+}
+
 .commit-amend-row {
   display: flex;
   align-items: center;

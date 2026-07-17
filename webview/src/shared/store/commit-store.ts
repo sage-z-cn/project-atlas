@@ -86,6 +86,9 @@ interface CommitStore {
   commitBadgeMode: "total" | "current" | "off";
   /** 提交并推送时是否跳过推送确认面板直接推送。 */
   skipPushConfirmation: boolean;
+  /** 提交/推送失败的内联错误信息（显示在提交消息框上方），null 时隐藏。 */
+  commitError: string | null;
+  setCommitError: (error: string | null) => void;
   // AI commit message 生成
   aiGenerating: boolean;
   /** 用户已请求取消当前生成（generateCommitMessage 的 catch 据此跳过错误提示）。 */
@@ -201,6 +204,8 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   commitBadgeMode: "total",
   /** 提交并推送时是否跳过推送确认面板直接推送（默认 true）。 */
   skipPushConfirmation: true,
+  commitError: null,
+  setCommitError: (error) => set({ commitError: error }),
   aiGenerating: false,
   aiCancelling: false,
   aiConfigured: false,
@@ -560,6 +565,8 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   async commitAndPush() {
     const { commitMessage, amend, changes, selectedFiles } = get();
     if (!commitMessage.trim()) return false;
+    // 清除上一次的内联错误，避免残留干扰本次结果。
+    set({ commitError: null });
 
     const filesToStage = changes
       .filter((f) => !f.staged && selectedFiles.has(`${f.path}:${f.staged}`))
@@ -587,12 +594,11 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       flushDraftSave(get().currentRepoPath, "");
       await get().fetchChanges();
-      // A rejected push must not stay silent: surface the error to the user.
+      // 推送被拒时 commit 已落地，不能回滚；错误内联展示在提交面板
+      // （skipPushConfirmation 流程下没有推送面板可承载错误）。
       if (!result?.pushed) {
         const msg = result?.pushError || t("Push failed");
-        bridge
-          .request("showErrorNotification", { message: msg })
-          .catch(() => {});
+        set({ commitError: msg });
       }
       return true;
     } catch (err) {
@@ -612,7 +618,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         flushDraftSave(get().currentRepoPath, "");
         await get().fetchChanges();
       }
-      bridge.request("showErrorNotification", { message: msg }).catch(() => {});
+      set({ commitError: msg });
       return false;
     } finally {
       set({ loading: false });
@@ -934,6 +940,7 @@ bridge.onEvent((event, data) => {
       stashes: [],
       commitMessage: "",
       amend: false,
+      commitError: null,
     });
     useCommitStore.getState().fetchChanges();
     // Refresh badges for the new active repo (and the rest, in one round-trip).

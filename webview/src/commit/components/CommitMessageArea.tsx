@@ -8,6 +8,8 @@ import { useCommitStore } from "../../shared/store/commit-store";
 import SparkleIcon from "~icons/codicon/sparkle";
 import LoadingIcon from "~icons/codicon/loading";
 import StopIcon from "~icons/codicon/debug-stop";
+import ErrorIcon from "~icons/codicon/error";
+import CloseIcon from "~icons/codicon/close";
 
 export function CommitMessageArea() {
   const {
@@ -22,6 +24,8 @@ export function CommitMessageArea() {
     selectedFiles,
     commitListStyle,
     skipPushConfirmation,
+    commitError,
+    setCommitError,
     changes,
     aiGenerating,
     aiConfigured,
@@ -263,6 +267,20 @@ export function CommitMessageArea() {
 
   return (
     <div className="commit-message-area">
+      {commitError && (
+        <div className="commit-error-banner" role="alert">
+          <ErrorIcon className="commit-error-icon" />
+          <span className="commit-error-message">{commitError}</span>
+          <button
+            type="button"
+            className="commit-error-close"
+            aria-label={t("Dismiss")}
+            onClick={() => setCommitError(null)}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+      )}
       <textarea
         className="commit-message-textarea"
         placeholder={t("Commit message (Ctrl+Enter to commit)")}

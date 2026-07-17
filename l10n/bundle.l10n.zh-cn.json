@@ -310,6 +310,7 @@
   "Previous Conflict": "上一个冲突",
   "Push Rejected": "推送被拒绝",
   "Push failed": "推送失败",
+  "Dismiss": "关闭",
   "Push of the current branch '{0}' was rejected. Remote changes need to be merged before pushing.": "当前分支 '{0}' 的推送被拒绝。需要先合并远程更改后再推送。",
   "Pushed {0} commit(s) to {1}/{2}": "已推送 {0} 个提交到 {1}/{2}",
   "Request '{0}' timed out": "请求 '{0}' 超时",
