@@ -4,6 +4,13 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.11.2
+- **提交面板**: 跳过推送确认时,推送失败错误改为内联显示在提交消息输入框上方
+- **提交面板**: 修复 AI 生成消息与提交操作竞态导致消息回填问题,优化提交超时处理
+- **分支比较**: 移除分支比较功能及远程同步操作按钮
+- **SCM 操作**: 使用悬浮层布局优化操作按钮显示
+- **本地化**: 统一 shelf 为 stash 术语,修正贮藏相关中文翻译
+
 #### 1.11.1
 - **AI 提交**: 增强提交日志记录与思考模式控制
 - **提交面板**: VSCode 风格下支持自动暂存全部更改
