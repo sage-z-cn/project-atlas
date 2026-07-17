@@ -57,6 +57,8 @@ export class TodoService implements vscode.Disposable {
   private wsMemento: vscode.Memento | undefined;
   /** 本次会话是否已实际扫描校验（持久化加载的缓存为 false，需后台重扫）。 */
   private scanVerified = false;
+  /** 是否正在执行全量扫描（doScan 运行中）。 */
+  private scanning = false;
   /** 扫描缓存：按 file fsPath 分桶，用于增量 rescanFile。 */
   private scanByFile = new Map<string, TodoItem[]>();
 
@@ -262,6 +264,7 @@ export class TodoService implements vscode.Disposable {
   }
 
   private async doScan(): Promise<TodoItem[]> {
+    this.scanning = true;
     try {
       const result = await this.scanner.scanAll(this.getScanOptions());
       this.cachedScanTodos = result.todos;
@@ -270,6 +273,7 @@ export class TodoService implements vscode.Disposable {
       this.persistScanCache();
       return result.todos;
     } finally {
+      this.scanning = false;
       this.scanPromise = undefined;
     }
   }
@@ -282,6 +286,11 @@ export class TodoService implements vscode.Disposable {
   /** 本次会话是否已实际扫描校验。 */
   isScanVerified(): boolean {
     return this.scanVerified;
+  }
+
+  /** 是否正在扫描。 */
+  isScanning(): boolean {
+    return this.scanning;
   }
 
   /** 注入 workspaceState 并加载持久化扫描缓存（重开时秒显，后台重扫校验）。 */

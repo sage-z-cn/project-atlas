@@ -234,14 +234,17 @@ function TodoSection({
             <IconChevronRight width={16} height={16} />
           )}
         </span>
-        <span className="todos-section-title">{title}</span>
+        <span className="todos-section-title">
+          {title}
+          {type === "scan" && scanning ? (
+            <IconLoading width={14} height={14} className="todos-spin" style={{ marginLeft: 6 }} />
+          ) : null}
+        </span>
         <span className="todos-count">{items.length}</span>
       </div>
       {expanded && (
         <div className="todos-section-body">
-          {type === "scan" && scanning ? (
-            <div className="todos-scanning-inline">{t("Scanning...")}</div>
-          ) : items.length === 0 ? (
+          {items.length === 0 ? (
             <div className="todos-empty">{t("No TODOs")}</div>
           ) : type === "manual" && scope === "project" ? (
             <ProjectRepoGroups

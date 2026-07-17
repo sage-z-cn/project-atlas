@@ -101,7 +101,6 @@ export function registerTodoHandlers(ctx: TodoHandlerContext): void {
       .getConfiguration("todoAtlas.scan")
       .get<boolean>("autoScan", false);
     let scanned: TodoItem[] = [];
-    let scanning = false;
     const cached = todoService.getCachedScanTodos();
     if (cached !== undefined) {
       scanned = cached;
@@ -113,7 +112,6 @@ export function registerTodoHandlers(ctx: TodoHandlerContext): void {
       }
     } else if (autoScan) {
       // 首次且 autoScan：后台扫描，完成后广播刷新（手动 TODO 已先返回）
-      scanning = true;
       void todoService.scanTodos().then(() => {
         messageRouter.broadcastEvent(TODO_EVENTS.changed, {});
       });
@@ -123,7 +121,7 @@ export function registerTodoHandlers(ctx: TodoHandlerContext): void {
       projectManual: project.map(toDto),
       scanned: scanned.map(toDto),
       workspaceName: getWorkspaceName(),
-      scanning,
+      scanning: todoService.isScanning(),
       workspaceFolders: folders,
     };
   });

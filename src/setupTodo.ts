@@ -155,8 +155,10 @@ export function setupTodo(
   // view/title 命令（manifest 引用，必须保留注册）
   context.subscriptions.push(
     vscode.commands.registerCommand("todo-atlas.refreshTodos", () => {
-      todoService.invalidateScanCache();
-      void todoService.scanTodos(true);
+      // 不预先 invalidate：扫描期间保留旧缓存，doScan 完成后原子替换，避免列表闪烁清空
+      void todoService.scanTodos(true).then(() => {
+        messageRouter.broadcastEvent(TODO_EVENTS.changed, {});
+      });
       messageRouter.broadcastEvent(TODO_EVENTS.changed, {});
     }),
   );
