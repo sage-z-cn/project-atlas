@@ -531,6 +531,52 @@ export function CommitApp() {
     void useCommitStore.getState().initRepo();
   }, []);
 
+  // 失去焦点/可见性超过 1 分钟后重新激活时，自动触发一次本地 git 刷新。
+  // 同时监听 webview 视图可见性（切换到其他视图/编辑器）与窗口焦点
+  // （切到其他应用）。任一信号触发"激活"且距上次"非激活"开始已超过阈值
+  // 即调用 refresh()（fetchChanges + fetchStashes，纯本地操作）。
+  useEffect(() => {
+    const STALE_THRESHOLD_MS = 60_000;
+    let inactiveSince: number | null = null;
+
+    const markActive = () => {
+      if (inactiveSince !== null) {
+        const elapsed = Date.now() - inactiveSince;
+        inactiveSince = null;
+        if (elapsed >= STALE_THRESHOLD_MS) {
+          void useCommitStore.getState().refresh();
+        }
+      }
+    };
+
+    const markInactive = () => {
+      if (inactiveSince === null) {
+        inactiveSince = Date.now();
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        markActive();
+      } else {
+        markInactive();
+      }
+    };
+
+    const onFocus = () => markActive();
+    const onBlur = () => markInactive();
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+
   return (
     <div className="commit-app">
       <RepoSelector store="commit" />

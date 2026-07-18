@@ -145,12 +145,26 @@ export function CommitFileContextMenu({
       const paths = changes
         .filter((f) => highlightedFiles.has(`${f.path}:${f.staged}`))
         .map((f) => f.path);
-      import("../../shared/bridge").then(({ bridge }) => {
-        bridge.request("deleteFiles", { filePaths: [...new Set(paths)] });
+      import("../../shared/bridge").then(async ({ bridge }) => {
+        try {
+          await bridge.request("deleteFiles", {
+            filePaths: [...new Set(paths)],
+          });
+        } catch (err) {
+          useCommitStore.getState().setCommitError(
+            err instanceof Error ? err.message : String(err),
+          );
+        }
       });
     } else {
-      import("../../shared/bridge").then(({ bridge }) => {
-        bridge.request("deleteFiles", { filePaths: [file.path] });
+      import("../../shared/bridge").then(async ({ bridge }) => {
+        try {
+          await bridge.request("deleteFiles", { filePaths: [file.path] });
+        } catch (err) {
+          useCommitStore.getState().setCommitError(
+            err instanceof Error ? err.message : String(err),
+          );
+        }
       });
     }
     onClose();

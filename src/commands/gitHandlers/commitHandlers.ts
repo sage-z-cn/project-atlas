@@ -1,6 +1,5 @@
 import type { GitHandlerContext } from "../gitContext";
 import { requireGit, withProgress } from "../gitContext";
-import { ErrorCode } from "../../messages/protocol";
 
 /**
  * Commit / stage / reset / revert / tag handlers.
@@ -196,23 +195,17 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
       const hash = params.hash as string;
 
       // Validate hash format (40-char hex)
+      // 校验失败必须 throw（而不是 return { success:false }），否则
+      // MessageRouter 会包成 { success:true, data:{ success:false } }，
+      // webview 端 CommitContextMenu.handleDropCommit 的 try-catch 拿不到。
       if (!hash || !/^[0-9a-f]{40}$/i.test(hash)) {
-        return {
-          success: false,
-          error: { code: ErrorCode.INVALID_REF, message: "Invalid commit hash" },
-        };
+        throw new Error("Invalid commit hash");
       }
 
       // Check if merge commit (reject before emitting operationStart)
       const parents = await gitService.getCommitParents(hash);
       if (parents.length > 1) {
-        return {
-          success: false,
-          error: {
-            code: ErrorCode.GIT_COMMAND_FAILED,
-            message: "Merge commits cannot be dropped",
-          },
-        };
+        throw new Error("Merge commits cannot be dropped");
       }
 
       // Proceed with progress and 30-second timeout

@@ -454,7 +454,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("stageFile failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -466,7 +466,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("unstageFile failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -475,7 +475,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await bridge.request("stageAll", { repoPath: get().currentRepoPath });
       await get().fetchChanges();
     } catch (err) {
-      console.error("stageAll failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -484,7 +484,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await bridge.request("unstageAll", { repoPath: get().currentRepoPath });
       await get().fetchChanges();
     } catch (err) {
-      console.error("unstageAll failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -497,7 +497,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("stageFiles failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -510,7 +510,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("unstageFiles failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -638,7 +638,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("rollbackFile failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -665,7 +665,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await get().fetchChanges();
       await get().fetchStashes();
     } catch (err) {
-      console.error("stashChanges failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     } finally {
       set({ loading: false });
     }
@@ -682,7 +682,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await get().fetchChanges();
       await get().fetchStashes();
     } catch (err) {
-      console.error("unstashChanges failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     } finally {
       set({ loading: false });
     }
@@ -696,7 +696,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchStashes();
     } catch (err) {
-      console.error("deleteStash failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -896,7 +896,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("rollbackFiles failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 

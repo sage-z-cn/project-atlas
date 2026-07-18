@@ -710,16 +710,28 @@ function DirContextMenu({
 
   const handleDelete = useCallback(() => {
     const paths = files.map((f) => f.path);
-    import("../../shared/bridge").then(({ bridge }) => {
-      bridge.request("deleteFiles", { filePaths: paths });
+    import("../../shared/bridge").then(async ({ bridge }) => {
+      try {
+        await bridge.request("deleteFiles", { filePaths: paths });
+      } catch (err) {
+        useCommitStore.getState().setCommitError(
+          err instanceof Error ? err.message : String(err),
+        );
+      }
     });
     onClose();
   }, [files, onClose]);
 
   const handleRollback = useCallback(() => {
     const paths = files.map((f) => f.path);
-    import("../../shared/bridge").then(({ bridge }) => {
-      bridge.request("rollbackFiles", { filePaths: paths });
+    import("../../shared/bridge").then(async ({ bridge }) => {
+      try {
+        await bridge.request("rollbackFiles", { filePaths: paths });
+      } catch (err) {
+        useCommitStore.getState().setCommitError(
+          err instanceof Error ? err.message : String(err),
+        );
+      }
     });
     onClose();
   }, [files, onClose]);

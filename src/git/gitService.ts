@@ -1303,103 +1303,70 @@ export class GitService {
   // ─── Stash Operations ───────────────────────────────────────────
 
   async getStashes(): Promise<import("./types").StashEntry[]> {
-    try {
-      const output = await this.execGit([
-        "stash",
-        "list",
-        "--format=%gd%x00%s%x00%aI%x00%D",
-      ]);
-      if (!output.trim()) return [];
+    // 不再用外层 try-catch 吞掉所有 git 错误并返回 [] —— 那会让真实 git 故障
+    //（例如仓库损坏、git 可执行文件丢失）对调用方完全不可见。让 execGit 的错误
+    // 自然冒泡，由 handler/router 路由到 webview。
+    const output = await this.execGit([
+      "stash",
+      "list",
+      "--format=%gd%x00%s%x00%aI%x00%D",
+    ]);
+    if (!output.trim()) return [];
 
-      const entries: import("./types").StashEntry[] = [];
-      for (const line of output.trim().split("\n")) {
-        if (!line.trim()) continue;
-        const parts = line.split("\x00");
-        const id = parts[0] ?? "";
-        const message = (parts[1] ?? "").replace(/^(WIP on|On) [^:]+:\s*/, "");
-        const date = parts[2] ?? "";
-        const _refs = parts[3] ?? "";
-        // Extract branch from refs or message
-        const branchMatch = (parts[1] ?? "").match(/^(?:WIP on|On) ([^:]+)/);
-        const branch = branchMatch?.[1] ?? "";
+    const entries: import("./types").StashEntry[] = [];
+    for (const line of output.trim().split("\n")) {
+      if (!line.trim()) continue;
+      const parts = line.split("\x00");
+      const id = parts[0] ?? "";
+      const message = (parts[1] ?? "").replace(/^(WIP on|On) [^:]+:\s*/, "");
+      const date = parts[2] ?? "";
+      const _refs = parts[3] ?? "";
+      // Extract branch from refs or message
+      const branchMatch = (parts[1] ?? "").match(/^(?:WIP on|On) ([^:]+)/);
+      const branch = branchMatch?.[1] ?? "";
 
-        entries.push({ id, message, date, branch, files: [] });
-      }
-
-      // Load files for each stash
-      for (const entry of entries) {
-        try {
-          const filesOutput = await this.execGit([
-            "stash",
-            "show",
-            entry.id,
-            "--name-only",
-          ]);
-          entry.files = filesOutput.trim().split("\n").filter(Boolean);
-        } catch {
-          // ignore
-        }
-      }
-
-      return entries;
-    } catch {
-      return [];
+      entries.push({ id, message, date, branch, files: [] });
     }
+
+    // Load files for each stash
+    // 内层 try-catch 保留：单个 stash 的 file list 解析失败属于可降级场景，
+    // 不应影响整体返回（files 字段保持为空数组即可）。
+    for (const entry of entries) {
+      try {
+        const filesOutput = await this.execGit([
+          "stash",
+          "show",
+          entry.id,
+          "--name-only",
+        ]);
+        entry.files = filesOutput.trim().split("\n").filter(Boolean);
+      } catch {
+        // 单个 stash 的 file list 解析失败，忽略，files 保持为 []
+      }
+    }
+
+    return entries;
   }
 
   async stashChanges(message: string, filePaths?: string[]): Promise<void> {
     if (filePaths && filePaths.length > 0) {
-      // Strategy: to stash only specific files without pulling in other staged files,
-      // we need to temporarily reset the index, stage only our target files, then stash.
-
-      // 1. Save current index state by creating a temporary stash of the index
-      //    We use a different approach: reset index, add targets, stash, restore index.
-
-      // Get current status to know what's staged
-      const statusBefore = await this.execGit(["status", "--porcelain=v1"]);
-      const previouslyStaged: string[] = [];
-      for (const line of statusBefore.split("\n")) {
-        if (line.length < 4) continue;
-        const indexStatus = line[0];
-        if (indexStatus !== " " && indexStatus !== "?" && indexStatus !== "!") {
-          const rest = line.substring(3);
-          const arrowIdx = rest.indexOf(" -> ");
-          const filePath =
-            arrowIdx !== -1 ? rest.substring(arrowIdx + 4) : rest;
-          previouslyStaged.push(filePath);
-        }
-      }
-
-      // 2. Reset the index (unstage everything) without touching working tree
-      try {
-        await this.execGit(["reset", "HEAD"]);
-      } catch {
-        // May fail if there's no HEAD (initial commit) — that's ok
-      }
-
-      // 3. Stage only the target files
-      await this.execGit(["add", "--", ...filePaths]);
-
-      // 4. Stash only the staged files
+      // git 2.13+ 原生支持 `git stash push -- <pathspec>`，一步完成对指定文件的
+      // stash（同时包含 index 与 working tree 的改动，--include-untracked 也覆盖
+      // 未跟踪文件）。相比旧实现（reset HEAD → add targets → stash --staged →
+      // 重新 add 剩余文件）少 4 个中间步骤，从根本上消除"中间步骤失败导致 staged
+      // 状态被破坏"的污染场景。
+      // 行为变化：旧实现只 stash 目标 path 的 staged 部分，unstaged 部分留在工作区
+      // （这反而与"stash 这些文件"的 UI 承诺不符，属于隐 bug）；新实现 stash 目标
+      // path 的全部改动（staged + unstaged + untracked）。
       await this.execGit([
         "stash",
         "push",
-        "--staged",
+        "--include-untracked",
         "-m",
         message || "Stashed changes",
+        "--",
+        ...filePaths,
       ]);
-
-      // 5. Re-stage previously staged files (that weren't stashed)
-      const remainingToStage = previouslyStaged.filter(
-        (f) => !filePaths.includes(f),
-      );
-      if (remainingToStage.length > 0) {
-        try {
-          await this.execGit(["add", "--", ...remainingToStage]);
-        } catch {
-          // Some files may no longer exist, ignore errors
-        }
-      }
     } else {
       // Stash all changes including untracked
       const args = ["stash", "push", "-m", message || "Stashed changes", "-u"];

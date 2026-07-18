@@ -4,6 +4,7 @@ import { Tooltip } from "../shared/components/Tooltip";
 import "../shared/components/Tooltip.css";
 import { t } from "../shared/i18n";
 import { useMergeStore } from "../shared/store/merge-store";
+import { ErrorBanner } from "./components/ErrorBanner";
 import { MergeContainer } from "./components/MergeContainer";
 import { parseMergeBlocks } from "./utils/merge-logic";
 
@@ -29,9 +30,15 @@ export function MergeStandaloneApp() {
     acceptAllLeft,
     acceptAllRight,
     resetToInitial,
+    setConflictError,
   } = useMergeStore();
 
   const filePath = useMemo(() => getMergeFileFromRoot(), []);
+
+  // 卸载时清掉 stale 错误，避免下次打开 merge editor 时残留上次错误 banner
+  useEffect(() => {
+    return () => setConflictError(null);
+  }, [setConflictError]);
 
   // Conflict navigation state
   const conflictBlockIds = useMemo(
@@ -68,20 +75,53 @@ export function MergeStandaloneApp() {
     );
   }, [conflictCount]);
 
-  // Apply: save + stage + close
+  // Apply: save + stage + open + close. 每步独立 try-catch，让用户清楚部分
+  // 成功的状态（save 成功但 stage 失败时不能只说 "Apply failed"）。
   const handleApply = useCallback(async () => {
     if (!filePath) return;
+    setConflictError(null);
+    const content = blocks.map((b) => b.resultLines.join("\n")).join("\n");
+
+    // Step 1: 保存到磁盘。失败意味着什么都没写盘，直接中止。
     try {
-      const content = blocks.map((b) => b.resultLines.join("\n")).join("\n");
       await bridge.request("saveMergedContent", { filePath, content });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setConflictError(t("Save failed: {0}", msg));
+      return;
+    }
+
+    // Step 2: stage。save 已成功，stage 失败属于部分成功——保留 merge editor
+    // 让用户重试 stage，不丢失已保存的内容。
+    try {
       await bridge.request("stageFile", { filePath });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setConflictError(
+        t("Content saved to disk, but staging failed: {0}", msg),
+      );
+      return;
+    }
+
+    // Step 3 & 4: 收尾操作（打开文件 + 关闭 merge editor）。主操作 save+stage
+    // 已成功，这里把多个错误聚合展示，不中止。
+    const tailErrors: string[] = [];
+    try {
       await bridge.request("openFile", { filePath });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      tailErrors.push(`${t("open file")}: ${msg}`);
+    }
+    try {
       await bridge.request("closeMergeEditor", { filePath });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(t("Apply failed: {0}", msg));
+      tailErrors.push(`${t("close merge editor")}: ${msg}`);
     }
-  }, [filePath, blocks]);
+    if (tailErrors.length > 0) {
+      setConflictError(t("Applied, but: {0}", tailErrors.join("; ")));
+    }
+  }, [filePath, blocks, setConflictError]);
 
   // Cancel: confirm if dirty, then close
   const handleCancel = useCallback(async () => {
@@ -172,6 +212,7 @@ export function MergeStandaloneApp() {
         fontFamily: "var(--font-family)",
       }}
     >
+      <ErrorBanner />
       {/* File path header */}
       <div
         style={{

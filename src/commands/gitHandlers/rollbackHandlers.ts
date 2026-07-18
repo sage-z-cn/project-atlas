@@ -99,8 +99,12 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
       );
       try {
         await vscode.workspace.fs.delete(fullPath, { recursive: true });
-      } catch {
-        // File may already be deleted, ignore
+      } catch (err: unknown) {
+        // 仅忽略"文件不存在"类错误；其他错误（权限拒绝、文件被占用、路径无效等）需要冒泡
+        const code = (err as { code?: string }).code;
+        if (code !== "FileNotFound" && code !== "ENOENT") {
+          throw err;
+        }
       }
     }
     messageRouter.broadcastEvent("commitStateChanged", {});
@@ -125,39 +129,37 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
         ctx.registry.getCurrentRepoPath() ||
         ctx.workspaceRoot;
 
-      try {
-        // Get current working tree status to determine each file's state
-        const workingTreeChanges = await gitService.getWorkingTreeChanges();
-        const statusMap = new Map<string, string>();
-        for (const file of workingTreeChanges) {
-          statusMap.set(file.path, file.status);
-        }
-
-        for (const filePath of filePaths) {
-          const status = statusMap.get(filePath) ?? "modified";
-          if (status === "added" || status === "untracked") {
-            if (deleteLocalCopies) {
-              // Delete untracked/added file from filesystem
-              const absPath = vscode.Uri.joinPath(
-                vscode.Uri.file(repoRoot!),
-                filePath,
-              );
-              await vscode.workspace.fs.delete(absPath);
-            }
-            // If deleteLocalCopies is false, skip untracked/added files
-          } else {
-            // Revert tracked file changes via git checkout
-            await gitService.rollbackFile(filePath);
-          }
-        }
-
-        messageRouter.broadcastEvent("commitStateChanged", {});
-        ctx.rollbackPanel.close();
-        return { success: true };
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        return { success: false, error: message };
+      // 让错误自然冒泡：handler throw 后，MessageRouter 会包成
+      // { success:false, error } 返回给 webview，触发 rollback/App.tsx 的
+      // try-catch 错误处理。不要在此处用 return { success:false } 吞错。
+      // Get current working tree status to determine each file's state
+      const workingTreeChanges = await gitService.getWorkingTreeChanges();
+      const statusMap = new Map<string, string>();
+      for (const file of workingTreeChanges) {
+        statusMap.set(file.path, file.status);
       }
+
+      for (const filePath of filePaths) {
+        const status = statusMap.get(filePath) ?? "modified";
+        if (status === "added" || status === "untracked") {
+          if (deleteLocalCopies) {
+            // Delete untracked/added file from filesystem
+            const absPath = vscode.Uri.joinPath(
+              vscode.Uri.file(repoRoot!),
+              filePath,
+            );
+            await vscode.workspace.fs.delete(absPath);
+          }
+          // If deleteLocalCopies is false, skip untracked/added files
+        } else {
+          // Revert tracked file changes via git checkout
+          await gitService.rollbackFile(filePath);
+        }
+      }
+
+      messageRouter.broadcastEvent("commitStateChanged", {});
+      ctx.rollbackPanel.close();
+      return { success: true };
     }),
   );
 
