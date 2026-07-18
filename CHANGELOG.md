@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.12.1
+- **错误处理**: 统一 git 处理器错误处理机制，改用抛出异常替代返回失败对象，确保错误正确传递至前端
+- **错误提示**: 优化冲突解决、提交暂存与文件回滚场景下的错误提示文案及边界处理，冲突视图新增错误横幅组件
+
 #### 1.12.0
 - **远程操作**: 新增错误提示横幅，捕获拉取/推送/变基等远程操作失败并内联显示
 - **TODO Atlas**: 优化扫描状态管理，修复刷新时列表闪烁问题
