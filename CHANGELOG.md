@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.12.0
+- **远程操作**: 新增错误提示横幅，捕获拉取/推送/变基等远程操作失败并内联显示
+- **TODO Atlas**: 优化扫描状态管理，修复刷新时列表闪烁问题
+
 #### 1.11.2
 - **提交面板**: 跳过推送确认时,推送失败错误改为内联显示在提交消息输入框上方
 - **提交面板**: 修复 AI 生成消息与提交操作竞态导致消息回填问题,优化提交超时处理
