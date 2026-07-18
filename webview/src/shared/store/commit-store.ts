@@ -89,6 +89,9 @@ interface CommitStore {
   /** 提交/推送失败的内联错误信息（显示在提交消息框上方），null 时隐藏。 */
   commitError: string | null;
   setCommitError: (error: string | null) => void;
+  /** 远程操作（如 pull）失败的内联错误信息（显示在面板顶部 banner），null 时隐藏。 */
+  remoteError: string | null;
+  setRemoteError: (error: string | null) => void;
   // AI commit message 生成
   aiGenerating: boolean;
   /** 用户已请求取消当前生成（generateCommitMessage 的 catch 据此跳过错误提示）。 */
@@ -206,6 +209,8 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   skipPushConfirmation: true,
   commitError: null,
   setCommitError: (error) => set({ commitError: error }),
+  remoteError: null,
+  setRemoteError: (error) => set({ remoteError: error }),
   aiGenerating: false,
   aiCancelling: false,
   aiConfigured: false,
@@ -941,6 +946,7 @@ bridge.onEvent((event, data) => {
       commitMessage: "",
       amend: false,
       commitError: null,
+      remoteError: null,
     });
     useCommitStore.getState().fetchChanges();
     // Refresh badges for the new active repo (and the rest, in one round-trip).

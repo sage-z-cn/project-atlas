@@ -222,7 +222,7 @@ export function FileContextMenu({ x, y, file, onClose }: FileContextMenuProps) {
     try {
       await bridge.request("openFile", { filePath });
     } catch (err) {
-      console.error("Open file failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -235,7 +235,7 @@ export function FileContextMenu({ x, y, file, onClose }: FileContextMenuProps) {
           ref: selectedCommitHash,
         });
       } catch (err) {
-        console.error("Open repo version failed:", err);
+        usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
       }
     }
   };
@@ -245,7 +245,7 @@ export function FileContextMenu({ x, y, file, onClose }: FileContextMenuProps) {
     try {
       await bridge.request("copyToClipboard", { text: filePath });
     } catch (err) {
-      console.error("Copy path failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -255,7 +255,7 @@ export function FileContextMenu({ x, y, file, onClose }: FileContextMenuProps) {
     try {
       await bridge.request("copyToClipboard", { text: fileName });
     } catch (err) {
-      console.error("Copy filename failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -274,7 +274,7 @@ export function FileContextMenu({ x, y, file, onClose }: FileContextMenuProps) {
         status: file.status,
       });
     } catch (err) {
-      console.error("Revert file changes failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -292,7 +292,7 @@ export function FileContextMenu({ x, y, file, onClose }: FileContextMenuProps) {
         filePath,
       });
     } catch (err) {
-      console.error("Cherry-pick file changes failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 

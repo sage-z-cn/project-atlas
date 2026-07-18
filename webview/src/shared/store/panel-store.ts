@@ -154,6 +154,13 @@ interface PanelStore {
   loading: boolean;
   hasMore: boolean;
   operationInProgress: boolean;
+  /**
+   * Top-level error banner message for the Git Log panel (null = hidden).
+   * Set by panel event handlers (BranchTree / context menus) when a git
+   * operation fails so the user sees the git error inline. Cleared on repo
+   * switch (the error no longer applies to the new repo).
+   */
+  panelError: string | null;
 
   // ── Multi-repo actions ─────────────────────────────────────────────
   /** Switch the active repo. Only issues the host command; the repoChanged
@@ -193,6 +200,7 @@ interface PanelStore {
   /** Directly replace the favorite list (used on repo switch to load persisted state). */
   setFavoriteBranches: (list: string[]) => void;
   setCurrentEmail: (email: string | null) => void;
+  setPanelError: (error: string | null) => void;
   refresh: () => Promise<void>;
   /**
    * Jump the Git Log to the page containing `hash`, select + scroll to it.
@@ -396,6 +404,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   loading: false,
   hasMore: true,
   operationInProgress: false,
+  panelError: null,
 
   // ── Multi-repo actions ─────────────────────────────────────────────
   async switchRepo(path: string) {
@@ -976,6 +985,10 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     set({ currentEmail: email });
   },
 
+  setPanelError(error) {
+    set({ panelError: error });
+  },
+
   toggleSequenceCollapse(sequenceId: string, intermediates: string[]) {
     const {
       commits,
@@ -1177,6 +1190,8 @@ bridge.onEvent((event, data) => {
       rangeOldest: null,
       rangeNewest: null,
       hasMore: true,
+      // Clear any stale error from the previous repo — it no longer applies.
+      panelError: null,
     });
     usePanelStore.getState().fetchInitialData();
     // Refresh badges for the new active repo (and the rest, in one round-trip).

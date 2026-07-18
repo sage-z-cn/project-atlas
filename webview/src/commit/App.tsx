@@ -7,6 +7,7 @@ import "../shared/components/Tooltip.css";
 import { useCommitStore } from "../shared/store/commit-store";
 import { CommitTab } from "./components/CommitTab";
 import { StashTab } from "./components/StashTab";
+import { ErrorBanner } from "./components/ErrorBanner";
 import "./commit.css";
 import "./commit-vscode.css";
 
@@ -549,6 +550,7 @@ export function CommitApp() {
           {t("Stash")}
         </button>
       </div>
+      <ErrorBanner />
       <RebaseBanner />
       <CherryPickBanner />
       <MergeBanner />
