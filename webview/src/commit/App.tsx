@@ -537,7 +537,8 @@ export function CommitApp() {
   // 即调用 refresh()（fetchChanges + fetchStashes，纯本地操作）。
   useEffect(() => {
     const STALE_THRESHOLD_MS = 60_000;
-    let inactiveSince: number | null = null;
+    let inactiveSince: number
+     | null = null;
 
     const markActive = () => {
       if (inactiveSince !== null) {
