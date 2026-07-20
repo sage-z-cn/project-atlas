@@ -352,7 +352,7 @@
   "{0} changes": "{0} 项变更",
   "{0} changes across all repositories": "所有仓库共 {0} 项变更",
   "{0} changes across all repositories ({1} unavailable)": "所有仓库共 {0} 项变更（{1} 个仓库不可用）",
-  "(me)": "(我)",
+  "me": "我",
   "Generate commit message with AI": "使用 AI 生成提交信息",
   "AI not configured. Click to open settings.": "AI 未配置，点击打开设置。",
   "AI API key not set. Click to set up.": "AI API 密钥未设置，点击配置。",
