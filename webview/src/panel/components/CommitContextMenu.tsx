@@ -205,7 +205,7 @@ export function CommitContextMenu({
     try {
       await bridge.request("copyToClipboard", { text: commit.hash });
     } catch (err) {
-      console.error("Copy failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -217,7 +217,7 @@ export function CommitContextMenu({
         : commit.subject;
       await bridge.request("copyToClipboard", { text: message });
     } catch (err) {
-      console.error("Copy failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -226,7 +226,7 @@ export function CommitContextMenu({
     try {
       await bridgeWithProgress("cherryPick", { hash: commit.hash });
     } catch (err) {
-      console.error("Cherry-pick failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -235,7 +235,7 @@ export function CommitContextMenu({
     try {
       await bridgeWithProgress("checkoutCommit", { hash: commit.hash });
     } catch (err) {
-      console.error("Checkout revision failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -252,7 +252,7 @@ export function CommitContextMenu({
         mode: "hard",
       });
     } catch (err) {
-      console.error("Reset failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -264,7 +264,7 @@ export function CommitContextMenu({
         mode: "mixed",
       });
     } catch (err) {
-      console.error("Reset failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -276,7 +276,7 @@ export function CommitContextMenu({
         mode: "soft",
       });
     } catch (err) {
-      console.error("Reset failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -285,7 +285,7 @@ export function CommitContextMenu({
     try {
       await bridgeWithProgress("revertCommit", { hash: commit.hash });
     } catch (err) {
-      console.error("Revert failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -299,7 +299,7 @@ export function CommitContextMenu({
       if (!result.confirmed) return;
       await bridgeWithProgress("dropCommit", { hash: commit.hash });
     } catch (err) {
-      console.error("Drop commit failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -321,7 +321,7 @@ export function CommitContextMenu({
         hash: commit.hash,
       });
     } catch (err) {
-      console.error("Create branch failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -338,7 +338,7 @@ export function CommitContextMenu({
         hash: commit.hash,
       });
     } catch (err) {
-      console.error("Create tag failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 

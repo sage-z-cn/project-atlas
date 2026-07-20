@@ -10,8 +10,10 @@ import { t } from "../shared/i18n";
 import { bridge } from "../shared/bridge";
 import { BranchTree } from "./components/BranchTree";
 import { DetailPanel } from "./components/DetailPanel";
+import { ErrorBanner } from "./components/ErrorBanner";
 import { GitGraphPanel } from "./components/GitGraphPanel";
 import { Toolbar } from "./components/Toolbar";
+import "./panel.css";
 
 // ── Panel layout persistence ────────────────────────────────────────
 // The Git Log panel's layout (sidebar visibility + pane widths) is persisted
@@ -186,6 +188,7 @@ export function PanelApp() {
       }}
     >
       <ProgressBar visible={operationInProgress || loading} />
+      <ErrorBanner />
       <RepoSelector store="panel" />
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* Left branch panel — outside Allotment to avoid flicker */}

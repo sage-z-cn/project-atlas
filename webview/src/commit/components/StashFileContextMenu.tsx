@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
+import { useCommitStore } from "../../shared/store/commit-store";
 
 interface StashFileContextMenuProps {
   x: number;
@@ -51,9 +52,15 @@ export function StashFileContextMenu({
     onClose();
   }, [stashId, filePath, onClose]);
 
-  const handleUnstashFile = useCallback(() => {
-    bridge.request("unstashFile", { stashId, filePath });
+  const handleUnstashFile = useCallback(async () => {
     onClose();
+    try {
+      await bridge.request("unstashFile", { stashId, filePath });
+    } catch (err) {
+      useCommitStore.getState().setCommitError(
+        err instanceof Error ? err.message : String(err),
+      );
+    }
   }, [stashId, filePath, onClose]);
 
   const handleJumpToSource = useCallback(() => {

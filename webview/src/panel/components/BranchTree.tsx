@@ -845,7 +845,7 @@ export function BranchTree({
                     force,
                   });
                 } catch (err) {
-                  console.error("Push failed:", err);
+                  usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
                 }
               }}
             />,
@@ -1230,12 +1230,10 @@ async function copyRemoteUrl(remoteName: string): Promise<void> {
         message: t("Copied remote URL of {0}", remoteName),
       });
     } else {
-      void bridge.request("showErrorNotification", {
-        message: t("No remote URL configured for {0}", remoteName),
-      });
+      usePanelStore.getState().setPanelError(t("No remote URL configured for {0}", remoteName));
     }
   } catch (err) {
-    console.error("Copy remote URL failed:", err);
+    usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -1360,7 +1358,7 @@ function BranchContextMenu({
         await bridgeWithProgress("checkoutBranch", { branchName: branch.name });
       }
     } catch (err) {
-      console.error("Checkout failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -1399,7 +1397,7 @@ function BranchContextMenu({
             force: true,
           });
         } catch (err2) {
-          console.error("Force delete failed:", err2);
+          usePanelStore.getState().setPanelError(err2 instanceof Error ? err2.message : String(err2));
         }
       }
     }
@@ -1423,7 +1421,7 @@ function BranchContextMenu({
         newName: result.value.trim(),
       });
     } catch (err) {
-      console.error("Rename failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -1442,7 +1440,7 @@ function BranchContextMenu({
     try {
       await bridgeWithProgress("pullBranch", { branchName: branch.name });
     } catch (err) {
-      console.error("Update failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -1456,7 +1454,7 @@ function BranchContextMenu({
     try {
       await bridgeWithProgress("mergeBranch", { branchName: branch.name });
     } catch (err) {
-      console.error("Merge failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -1470,7 +1468,7 @@ function BranchContextMenu({
     try {
       await bridgeWithProgress("rebaseBranch", { onto: branch.name });
     } catch (err) {
-      console.error("Rebase failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -1482,7 +1480,7 @@ function BranchContextMenu({
         rebaseOnto: currentBranch,
       });
     } catch (err) {
-      console.error("Checkout and rebase failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -1801,7 +1799,7 @@ function TagContextMenu({
     try {
       await bridgeWithProgress("checkoutBranch", { branchName: tag.name });
     } catch (err) {
-      console.error("Tag checkout failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -1834,7 +1832,7 @@ function TagContextMenu({
         message: t("Pushed tag '{0}'", tag.name),
       });
     } catch (err) {
-      console.error("Push tag failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -1851,7 +1849,7 @@ function TagContextMenu({
         message: t("Deleted tag '{0}'", tag.name),
       });
     } catch (err) {
-      console.error("Delete tag failed:", err);
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
     }
   };
 

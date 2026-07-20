@@ -12,7 +12,9 @@ import {
 } from "../shared/hooks/useModifierClickSelection";
 import { usePreventSelect } from "../shared/hooks/usePreventSelect";
 import { t } from "../shared/i18n";
+import { useMergeStore } from "../shared/store/merge-store";
 import type { DiffFile } from "../shared/types/git";
+import { ErrorBanner } from "./components/ErrorBanner";
 
 interface MergeState {
   isMerging: boolean;
@@ -37,9 +39,17 @@ export function ConflictsApp() {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [lastSelectedFile, setLastSelectedFile] = useState<string | null>(null);
 
+  const setConflictError = useMergeStore((s) => s.setConflictError);
+
   const containerRef = usePreventSelect<HTMLDivElement>();
 
+  // 卸载时清掉 stale 错误，避免下次打开 webview 时残留上次错误 banner
+  useEffect(() => {
+    return () => setConflictError(null);
+  }, [setConflictError]);
+
   const loadData = useCallback(async () => {
+    setConflictError(null);
     try {
       const [state, files] = await Promise.all([
         bridge.request("getMergeState") as Promise<MergeState>,
@@ -47,10 +57,13 @@ export function ConflictsApp() {
       ]);
       setMergeState(state);
       setConflictFiles(files);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setConflictError(msg || t("Failed to load conflicts."));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setConflictError]);
 
   useEffect(() => {
     loadData();
@@ -127,24 +140,90 @@ export function ConflictsApp() {
 
   // Batch actions
   const handleAcceptYours = useCallback(async () => {
-    for (const filePath of selectedFiles) {
-      await bridge.request("acceptOurs", { filePath });
+    if (selectedFiles.length === 0) return;
+    setConflictError(null);
+    const results = await Promise.allSettled(
+      selectedFiles.map((filePath) =>
+        bridge.request("acceptOurs", { filePath }),
+      ),
+    );
+    const succeeded: string[] = [];
+    const failures: { filePath: string; reason: unknown }[] = [];
+    results.forEach((r, i) => {
+      const filePath = selectedFiles[i];
+      if (r.status === "fulfilled") {
+        succeeded.push(filePath);
+      } else {
+        failures.push({ filePath, reason: r.reason });
+      }
+    });
+    if (succeeded.length > 0) {
+      setConflictFiles((prev) => prev.filter((f) => !succeeded.includes(f)));
     }
-    setConflictFiles((prev) => prev.filter((f) => !selectedFiles.includes(f)));
+    if (failures.length > 0) {
+      const firstReason = failures[0].reason;
+      const detail =
+        firstReason instanceof Error ? firstReason.message : String(firstReason);
+      setConflictError(
+        t(
+          "Accept Yours failed for {0} file(s): {1}",
+          String(failures.length),
+          detail,
+        ),
+      );
+    }
     setSelectedFiles([]);
-  }, [selectedFiles]);
+  }, [selectedFiles, setConflictError]);
 
   const handleAcceptTheirs = useCallback(async () => {
-    for (const filePath of selectedFiles) {
-      await bridge.request("acceptTheirs", { filePath });
+    if (selectedFiles.length === 0) return;
+    setConflictError(null);
+    const results = await Promise.allSettled(
+      selectedFiles.map((filePath) =>
+        bridge.request("acceptTheirs", { filePath }),
+      ),
+    );
+    const succeeded: string[] = [];
+    const failures: { filePath: string; reason: unknown }[] = [];
+    results.forEach((r, i) => {
+      const filePath = selectedFiles[i];
+      if (r.status === "fulfilled") {
+        succeeded.push(filePath);
+      } else {
+        failures.push({ filePath, reason: r.reason });
+      }
+    });
+    if (succeeded.length > 0) {
+      setConflictFiles((prev) => prev.filter((f) => !succeeded.includes(f)));
     }
-    setConflictFiles((prev) => prev.filter((f) => !selectedFiles.includes(f)));
+    if (failures.length > 0) {
+      const firstReason = failures[0].reason;
+      const detail =
+        firstReason instanceof Error ? firstReason.message : String(firstReason);
+      setConflictError(
+        t(
+          "Accept Theirs failed for {0} file(s): {1}",
+          String(failures.length),
+          detail,
+        ),
+      );
+    }
     setSelectedFiles([]);
-  }, [selectedFiles]);
+  }, [selectedFiles, setConflictError]);
 
-  const openMergeEditor = useCallback(async (filePath: string) => {
-    await bridge.request("openMergeEditor", { file: filePath });
-  }, []);
+  const openMergeEditor = useCallback(
+    async (filePath: string) => {
+      try {
+        await bridge.request("openMergeEditor", { file: filePath });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setConflictError(
+          t("Failed to open merge editor for '{0}': {1}", filePath, msg),
+        );
+      }
+    },
+    [setConflictError],
+  );
 
   const handleMerge = useCallback(async () => {
     if (selectedFiles.length > 0) {
@@ -217,6 +296,7 @@ export function ConflictsApp() {
         userSelect: "none",
       }}
     >
+      <ErrorBanner />
       {/* Header */}
       <div style={{ padding: "12px 16px 8px", flexShrink: 0 }}>
         <h2
@@ -337,7 +417,7 @@ export function ConflictsApp() {
                 onFileClick={handleFileClick}
                 onFileDoubleClick={(file) => {
                   const filePath = file.newPath || file.oldPath;
-                  openMergeEditor(filePath);
+                  void openMergeEditor(filePath);
                 }}
                 collapsed={collapsed}
                 onToggle={toggleCollapse}

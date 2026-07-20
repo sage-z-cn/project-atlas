@@ -14,6 +14,9 @@ interface MergeStoreState {
   initialBlocks: MergeBlock[];
   language: string;
   isDirty: boolean;
+  /** 冲突列表 / merge editor 操作失败的内联错误信息（顶部 banner 显示），null 时隐藏。 */
+  conflictError: string | null;
+  setConflictError: (msg: string | null) => void;
   setBlocks: (blocks: MergeBlock[], language?: string) => void;
   acceptLeft: (id: string) => void;
   acceptRight: (id: string) => void;
@@ -63,6 +66,8 @@ export const useMergeStore = create<MergeStoreState>((set) => ({
   initialBlocks: [],
   language: "plaintext",
   isDirty: false,
+  conflictError: null,
+  setConflictError: (msg) => set({ conflictError: msg }),
 
   setBlocks: (blocks, language = "plaintext") =>
     set({

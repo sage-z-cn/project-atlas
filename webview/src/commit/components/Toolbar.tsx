@@ -67,7 +67,16 @@ export function Toolbar({
         <button
           type="button"
           className="commit-toolbar-btn"
-          onClick={() => bridge.request("pullBranch", {})}
+          onClick={async () => {
+            const { setRemoteError } = useCommitStore.getState();
+            setRemoteError(null);
+            try {
+              await bridge.request("pullBranch", {});
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              setRemoteError(msg);
+            }
+          }}
         >
           <PullIcon />
         </button>

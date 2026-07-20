@@ -89,6 +89,9 @@ interface CommitStore {
   /** 提交/推送失败的内联错误信息（显示在提交消息框上方），null 时隐藏。 */
   commitError: string | null;
   setCommitError: (error: string | null) => void;
+  /** 远程操作（如 pull）失败的内联错误信息（显示在面板顶部 banner），null 时隐藏。 */
+  remoteError: string | null;
+  setRemoteError: (error: string | null) => void;
   // AI commit message 生成
   aiGenerating: boolean;
   /** 用户已请求取消当前生成（generateCommitMessage 的 catch 据此跳过错误提示）。 */
@@ -206,6 +209,8 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   skipPushConfirmation: true,
   commitError: null,
   setCommitError: (error) => set({ commitError: error }),
+  remoteError: null,
+  setRemoteError: (error) => set({ remoteError: error }),
   aiGenerating: false,
   aiCancelling: false,
   aiConfigured: false,
@@ -449,7 +454,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("stageFile failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -461,7 +466,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("unstageFile failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -470,7 +475,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await bridge.request("stageAll", { repoPath: get().currentRepoPath });
       await get().fetchChanges();
     } catch (err) {
-      console.error("stageAll failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -479,7 +484,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await bridge.request("unstageAll", { repoPath: get().currentRepoPath });
       await get().fetchChanges();
     } catch (err) {
-      console.error("unstageAll failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -492,7 +497,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("stageFiles failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -505,7 +510,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("unstageFiles failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -633,7 +638,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("rollbackFile failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -660,7 +665,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await get().fetchChanges();
       await get().fetchStashes();
     } catch (err) {
-      console.error("stashChanges failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     } finally {
       set({ loading: false });
     }
@@ -677,7 +682,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await get().fetchChanges();
       await get().fetchStashes();
     } catch (err) {
-      console.error("unstashChanges failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     } finally {
       set({ loading: false });
     }
@@ -691,7 +696,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchStashes();
     } catch (err) {
-      console.error("deleteStash failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -891,7 +896,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       await get().fetchChanges();
     } catch (err) {
-      console.error("rollbackFiles failed:", err);
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -941,6 +946,7 @@ bridge.onEvent((event, data) => {
       commitMessage: "",
       amend: false,
       commitError: null,
+      remoteError: null,
     });
     useCommitStore.getState().fetchChanges();
     // Refresh badges for the new active repo (and the rest, in one round-trip).

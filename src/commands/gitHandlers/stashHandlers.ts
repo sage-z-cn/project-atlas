@@ -85,18 +85,12 @@ export function registerStashHandlers(ctx: GitHandlerContext): void {
       const stashId = params.stashId as string;
       const filePath = params.filePath as string;
 
-      // Checkout the single file from the stash into the working tree
-      try {
-        await gitService.checkoutFileFromCommit(stashId, filePath);
-        messageRouter.broadcastEvent("commitStateChanged", {});
-        return { success: true };
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        void vscode.window.showErrorMessage(
-          `Failed to unstash file: ${message}`,
-        );
-        return { success: false };
-      }
+      // Checkout the single file from the stash into the working tree.
+      // 让错误自然冒泡到 webview（统一协议），不要走 vscode.window.showErrorMessage
+      // 原生通知 — 那样 webview 端无法感知错误。
+      await gitService.checkoutFileFromCommit(stashId, filePath);
+      messageRouter.broadcastEvent("commitStateChanged", {});
+      return { success: true };
     }),
   );
 }
