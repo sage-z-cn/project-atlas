@@ -73,17 +73,23 @@ export function PushApp() {
   const root = document.getElementById("root");
   const branchName = root?.dataset.branch ?? "";
   const remoteName = root?.dataset.remote ?? "origin";
+  // skipPushConfirmation 流程下 commitAndPush 被拒后，后端会把 push 错误
+  // 通过 root dataset（新建 panel 路径）或 pushPanelInit 事件（已存在
+  // panel 路径）传进来。两者都让 PushPanel 直接进入 rejected 状态，
+  // 展示 rebase/merge 入口，无需用户再点一次 Push。
+  const initialPushError = root?.dataset.initialPushError;
 
   const [commits, setCommits] = useState<Commit[]>([]);
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
   const [files, setFiles] = useState<DiffFile[]>([]);
   const [pushing, setPushing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialPushError ?? null);
   const [showPushMenu, setShowPushMenu] = useState(false);
-  const [pushRejected, setPushRejected] = useState<PushRejectedState>({
-    show: false,
-    branchName: "",
-  });
+  const [pushRejected, setPushRejected] = useState<PushRejectedState>(
+    initialPushError
+      ? { show: true, branchName }
+      : { show: false, branchName: "" },
+  );
 
   // Editable remote branch target state
   const [targetRemote, setTargetRemote] = useState(remoteName);
@@ -100,38 +106,55 @@ export function PushApp() {
   const { leftWidthPercent, isDragging, dividerProps } =
     useDraggableDivider(bodyRef);
 
+  const reloadAheadCommits = useCallback(async () => {
+    try {
+      const result = (await bridge.request("getAheadCommits", {
+        branchName,
+        remote: targetRemote,
+      })) as { commits: Commit[] } | null;
+      const list = result?.commits ?? [];
+      setCommits(list);
+      if (list.length > 0) {
+        setSelectedHash(list[0].hash);
+      }
+    } catch (err) {
+      console.error("Failed to load ahead commits:", err);
+    }
+  }, [branchName, targetRemote]);
+
+  // 首次挂载拉取一次 ahead commits。
+  useEffect(() => {
+    void reloadAheadCommits();
+  }, [reloadAheadCommits]);
+
   // Update state when push panel is re-opened (reveal path sends pushPanelInit
   // with the latest branch/remote/withTags — without this, re-opening an already
   // open panel would keep stale pushTags since the webview is not recreated).
   useEffect(() => {
     const off = bridge.onEvent((event, data) => {
       if (event !== "pushPanelInit") return;
-      const d = data as { withTags?: boolean } | null;
+      const d = data as {
+        withTags?: boolean;
+        initialPushError?: string;
+        branchName?: string;
+      } | null;
       if (d && typeof d.withTags === "boolean") {
         setPushTags(d.withTags);
       }
+      // 已有 panel 被复用时（如提交面板再次触发 commitAndPush 被拒），
+      // dataset 不会重新读取，必须经此事件同步 rejected 状态。
+      // 同时重拉 ahead commits：上一次 commitAndPush 已在本地多产生 commit，
+      // 否则旧 commits 列表与 selectedHash 会落后于实际仓库状态。
+      void reloadAheadCommits();
+      if (d && typeof d.initialPushError === "string" && d.initialPushError) {
+        // 优先用事件里的 branchName（用户可能已切分支），缺失才回退闭包。
+        const effectiveBranch = d.branchName || branchName;
+        setPushRejected({ show: true, branchName: effectiveBranch });
+        setError(d.initialPushError);
+      }
     });
     return () => off();
-  }, []);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const result = (await bridge.request("getAheadCommits", {
-          branchName,
-          remote: targetRemote,
-        })) as { commits: Commit[] } | null;
-        const list = result?.commits ?? [];
-        setCommits(list);
-        if (list.length > 0) {
-          setSelectedHash(list[0].hash);
-        }
-      } catch (err) {
-        console.error("Failed to load ahead commits:", err);
-      }
-    }
-    load();
-  }, [branchName, targetRemote]);
+  }, [branchName, reloadAheadCommits]);
 
   useEffect(() => {
     if (!selectedHash) {

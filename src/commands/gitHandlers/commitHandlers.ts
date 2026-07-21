@@ -125,7 +125,17 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
         } catch (pushErr) {
           const pushError =
             pushErr instanceof Error ? pushErr.message : String(pushErr);
-          return { success: true, pushed: false, pushError };
+          // 识别 "non-fast-forward / rejected" 类错误。skipPushConfirmation
+          // 流程下没有 PushPanel 承载 rebase/merge 入口，故把该信号标记出
+          // 来交给前端，前端据此打开 PushPanel 直接展示 rebase/merge 对话框。
+          // 关键词集合参考 push/App.tsx 的 pushRejected 判定：前端使用
+          // case-sensitive includes，本处加 /i 更宽容；git 实际输出为小写，
+          // 行为等价。
+          const rejected =
+            /non-fast-forward|\[rejected\]|failed to push some refs/i.test(
+              pushError,
+            );
+          return { success: true, pushed: false, pushError, rejected };
         }
       });
     }),

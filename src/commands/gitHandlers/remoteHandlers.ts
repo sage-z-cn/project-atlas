@@ -118,7 +118,10 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
       if (!branch) return { error: "No current branch" };
       const remote = await gitService.getDefaultRemote(branch);
       const withTags = params.withTags as boolean | undefined;
-      ctx.pushPanel.open(branch, remote, withTags ?? false);
+      // 当 skipPushConfirmation 流程下 push 被拒时，前端会附带 initialPushError
+      // 调用本接口；PushPanel 启动后据此直接进入 rebase/merge 对话框。
+      const initialPushError = params.initialPushError as string | undefined;
+      ctx.pushPanel.open(branch, remote, withTags ?? false, initialPushError);
       return { success: true };
     }),
   );
