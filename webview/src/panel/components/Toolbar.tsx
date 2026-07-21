@@ -50,7 +50,7 @@ export function Toolbar() {
   // Mark the current user with "(me)" in the dropdown display
   const userLabelMap = useMemo<Record<string, string> | undefined>(() => {
     if (!myAuthorName) return undefined;
-    return { [myAuthorName]: `${myAuthorName} (${t("(me)")})` };
+    return { [myAuthorName]: `${myAuthorName} (${t("me")})` };
   }, [myAuthorName]);
 
   // Collect branch names for filter

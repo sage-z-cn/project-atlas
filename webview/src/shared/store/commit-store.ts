@@ -589,7 +589,11 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         },
         // push 是网络操作，默认 10s 超时不够；放宽到 60s。
         { timeout: 60_000 },
-      )) as { pushed?: boolean; pushError?: string };
+      )) as {
+        pushed?: boolean;
+        pushError?: string;
+        rejected?: boolean;
+      };
       // The commit itself succeeded (the request resolved), so clear the
       // message and draft regardless of whether the push went through.
       set({
@@ -599,11 +603,18 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       });
       flushDraftSave(get().currentRepoPath, "");
       await get().fetchChanges();
-      // 推送被拒时 commit 已落地，不能回滚；错误内联展示在提交面板
-      // （skipPushConfirmation 流程下没有推送面板可承载错误）。
+      // 推送被拒时 commit 已落地，不能回滚。
       if (!result?.pushed) {
-        const msg = result?.pushError || t("Push failed");
-        set({ commitError: msg });
+        if (result?.rejected) {
+          // 远程有新提交需要 rebase/merge：转交给 PushPanel 承载处理入口。
+          // 不再内联显示错误，避免与 PushPanel 的 rebase/merge 对话框重复。
+          await bridge.request("openPushPanel", {
+            initialPushError: result.pushError,
+          });
+        } else {
+          const msg = result?.pushError || t("Push failed");
+          set({ commitError: msg });
+        }
       }
       return true;
     } catch (err) {
