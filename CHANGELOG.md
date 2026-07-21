@@ -4,6 +4,12 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.13.0
+- **Git 远程**: 自动推断默认远程仓库名称,修复远程名不为 origin 时推送/拉取失败的问题
+- **提交面板**: 窗口聚焦时自动刷新工作区状态(含节流,避免频繁刷新)
+- **推送**: 跳过确认推送被拒时自动打开冲突处理界面
+- **本地化**: 更新当前用户标识的翻译键名以移除括号
+
 #### 1.12.1
 - **错误处理**: 统一 git 处理器错误处理机制，改用抛出异常替代返回失败对象，确保错误正确传递至前端
 - **错误提示**: 优化冲突解决、提交暂存与文件回滚场景下的错误提示文案及边界处理，冲突视图新增错误横幅组件
