@@ -4,6 +4,12 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.13.1
+- **分支推送**: 分支右键"推送"改用完整推送面板(含变基/合并/强制推送入口),替代简化对话框;支持对非当前分支发起推送
+- **文件历史**: 修复 Windows 下"显示文件历史"过滤失效的问题(路径分隔符导致精确匹配失败)
+- **Blame 悬停**: 修复 Windows 下代码行悬停定位提交失效的问题
+- **工具栏**: 文件历史标签移入筛选行,修复长文件名挤压关闭按钮的问题
+
 #### 1.13.0
 - **Git 远程**: 自动推断默认远程仓库名称,修复远程名不为 origin 时推送/拉取失败的问题
 - **提交面板**: 窗口聚焦时自动刷新工作区状态(含节流,避免频繁刷新)
