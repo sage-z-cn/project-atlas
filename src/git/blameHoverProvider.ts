@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import type { RepoRegistry } from "./repoRegistry";
+import { toForwardSlash } from "../utils/pathUtils";
 
 /**
  * Configuration key (under `gitAtlas.*`) that toggles this provider.
@@ -67,7 +68,11 @@ export class BlameHoverProvider implements vscode.HoverProvider {
     const svc = this.registry.getService(repo.path);
     if (!svc) return;
 
-    const relativePath = path.relative(repo.path, document.uri.fsPath);
+    // Normalize to "/": git pathspecs and the cache key below expect
+    // POSIX-style paths.
+    const relativePath = toForwardSlash(
+      path.relative(repo.path, document.uri.fsPath),
+    );
     if (!relativePath) return; // repo root itself — nothing to blame
     const line = position.line + 1; // git blame is 1-based, Position.line is 0-based
 

@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
 import type { TaskItem, TaskSource, PackageManager } from "../models/task";
+import { toForwardSlash } from "../utils/pathUtils";
 
 /** Glob exclude pattern for findFiles */
 const EXCLUDE_PATTERN = "**/{node_modules,.git,dist,out,build,.vscode-test}/**";
@@ -632,11 +633,4 @@ export class TaskService {
     }
     this._memento.update("taskAtlas.order", obj);
   }
-}
-
-/**
- * Normalize a file path to use forward slashes for consistent IDs.
- */
-function toForwardSlash(p: string): string {
-  return p.split(path.sep).join("/");
 }

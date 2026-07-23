@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import type { GitHandlerContext } from "./gitContext";
 import { GIT_ATLAS_SCHEME } from "../webview/gitContentProvider";
 import { getScmResourcePath } from "../utils/scmUtils";
+import { toForwardSlash } from "../utils/pathUtils";
 
 /**
  * Register the 12 `git-atlas.*` commands declared in package.json.
@@ -103,7 +104,10 @@ export function registerGitCommands(
         }
         // git log -- <file> needs a path relative to the REPO root, not the
         // workspace root — they differ when the repo is a workspace subfolder.
-        const relativePath = path.relative(repo.path, fileUri.fsPath);
+        // Normalize to "/" to match git's POSIX-style paths downstream.
+        const relativePath = toForwardSlash(
+          path.relative(repo.path, fileUri.fsPath),
+        );
         // Ensure the Git Log panel is visible before sending the event
         await vscode.commands.executeCommand("git-atlas.gitLog.focus");
         // Carry repoPath so the store can sync if the repoChanged fetch (from
