@@ -9,7 +9,6 @@ import { usePanelStore } from "../../shared/store/panel-store";
 import type { BranchInfo, TagInfo } from "../../shared/types/git";
 import { BranchSidebar as BranchSidebarComponent } from "./BranchSidebar";
 import { CreateBranchDialog } from "./CreateBranchDialog";
-import { PushDialog } from "./PushDialog";
 import IconStarFilled from "~icons/codicon/star-full";
 
 // ---------------------------------------------------------------------------
@@ -336,11 +335,6 @@ export function BranchTree({
   const [createBranchDialog, setCreateBranchDialog] = useState<{
     startPoint: string;
     defaultName: string;
-  } | null>(null);
-
-  // Push dialog state
-  const [pushDialog, setPushDialog] = useState<{
-    branchName: string;
   } | null>(null);
 
   const handleContextMenu = useCallback(
@@ -764,10 +758,6 @@ export function BranchTree({
                 closeContextMenu();
                 setCreateBranchDialog({ startPoint, defaultName });
               }}
-              onPush={(branchName) => {
-                closeContextMenu();
-                setPushDialog({ branchName });
-              }}
             />,
             document.body,
           )}
@@ -825,27 +815,6 @@ export function BranchTree({
                   return match
                     ? match[1]
                     : t("Branch '{0}' already exists.\nChange the name or overwrite existing branch.", branchName);
-                }
-              }}
-            />,
-            document.body,
-          )}
-
-        {/* Push Dialog */}
-        {pushDialog &&
-          createPortal(
-            <PushDialog
-              branchName={pushDialog.branchName}
-              onClose={() => setPushDialog(null)}
-              onPush={async (force) => {
-                setPushDialog(null);
-                try {
-                  await bridgeWithProgress("pushBranch", {
-                    branchName: pushDialog.branchName,
-                    force,
-                  });
-                } catch (err) {
-                  usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
                 }
               }}
             />,
@@ -1248,7 +1217,6 @@ function BranchContextMenu({
   currentBranch,
   onClose,
   onCreateBranch,
-  onPush,
 }: {
   x: number;
   y: number;
@@ -1256,7 +1224,6 @@ function BranchContextMenu({
   currentBranch: string;
   onClose: () => void;
   onCreateBranch: (startPoint: string, defaultName: string) => void;
-  onPush: (branchName: string) => void;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{
@@ -1426,7 +1393,17 @@ function BranchContextMenu({
   };
 
   const handlePush = async () => {
-    onPush(branch.name);
+    onClose();
+    try {
+      // 直接打开 PushPanel（含 rebase/merge 入口、force push 菜单），
+      // 替代原本简化的 PushDialog。branch 可能不是当前分支，后端
+      // openPushPanel handler 会以此参数覆盖当前分支。
+      await bridge.request("openPushPanel", { branchName: branch.name });
+    } catch (err) {
+      usePanelStore
+        .getState()
+        .setPanelError(err instanceof Error ? err.message : String(err));
+    }
   };
 
   const handleCopyRemoteUrl = () => {

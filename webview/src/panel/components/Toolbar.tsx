@@ -228,6 +228,78 @@ export function Toolbar() {
         )}
       </div>
 
+      {/* File history tab — placed BEFORE the flex spacer so it stays in the
+          visible filter row instead of being pushed to the far edge.
+          minWidth:0 + maxWidth let the whole tab shrink: the filename
+          ellipsizes while the "History:" label and close button (flexShrink:0)
+          always stay visible and clickable. The full path is shown on hover
+          via Tooltip; its popup is portaled to <body>, so the tab's own
+          overflow:hidden cannot clip it. */}
+      {filter.file && (
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "2px 8px 2px 10px",
+            fontSize: "12px",
+            borderRadius: 3,
+            background: "var(--vscode-tab-activeBackground, #1e1e1e)",
+            border: "1px solid var(--vscode-tab-border, #444)",
+            color: "var(--vscode-tab-activeForeground, inherit)",
+            userSelect: "none",
+            minWidth: 0,
+            maxWidth: 240,
+            overflow: "hidden",
+          }}
+        >
+          <span style={{ opacity: 0.6, flexShrink: 0 }}>{t("History:")}</span>
+          {/* minWidth:0 wrapper is required: Tooltip renders an internal
+              div.tooltip-wrapper which, as a flex item, defaults to
+              min-width:auto and cannot shrink — without this wrapper the
+              filename would push the close button out of the tab's visible
+              (overflow:hidden) area. */}
+          <div style={{ minWidth: 0, overflow: "hidden" }}>
+            <Tooltip text={filter.file}>
+              <span
+                style={{
+                  display: "block",
+                  fontWeight: 500,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {filter.file.split(/[\\/]/).pop()}
+              </span>
+            </Tooltip>
+          </div>
+          <div
+            onClick={() => setFilter({ file: "" })}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              cursor: "pointer",
+              opacity: 0.5,
+              marginLeft: 2,
+              padding: 1,
+              borderRadius: 3,
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.opacity = "1";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.opacity = "0.5";
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 8.707l3.646 3.647.708-.707L8.707 8l3.647-3.646-.707-.708L8 7.293 4.354 3.646l-.707.708L7.293 8l-3.646 3.646.707.708L8 8.707z" />
+            </svg>
+          </div>
+        </div>
+      )}
+
       {/* View Options (eye icon) — pushed to far right */}
       <div style={{ flex: 1 }} />
       <div style={{ position: "relative" }}>
@@ -283,51 +355,6 @@ export function Toolbar() {
         )}
       </div>
 
-      {/* File history tab */}
-      {filter.file && (
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "2px 8px 2px 10px",
-            fontSize: "12px",
-            borderRadius: 3,
-            background: "var(--vscode-tab-activeBackground, #1e1e1e)",
-            border: "1px solid var(--vscode-tab-border, #444)",
-            color: "var(--vscode-tab-activeForeground, inherit)",
-            whiteSpace: "nowrap",
-            userSelect: "none",
-          }}
-        >
-          <span style={{ opacity: 0.6 }}>{t("History:")}</span>
-          <span style={{ fontWeight: 500 }}>
-            {filter.file.split("/").pop()}
-          </span>
-          <div
-            onClick={() => setFilter({ file: "" })}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              cursor: "pointer",
-              opacity: 0.5,
-              marginLeft: 2,
-              padding: 1,
-              borderRadius: 3,
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.opacity = "1";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.opacity = "0.5";
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 8.707l3.646 3.647.708-.707L8.707 8l3.647-3.646-.707-.708L8 7.293 4.354 3.646l-.707.708L7.293 8l-3.646 3.646.707.708L8 8.707z" />
-            </svg>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

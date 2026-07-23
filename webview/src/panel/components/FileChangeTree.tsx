@@ -80,7 +80,7 @@ export function FileChangeTree() {
   if (displayFiles.length === 0 && filter.file) {
     return (
       <div style={{ padding: 12, opacity: 0.5 }}>
-        {t("No changes to {0} in this commit", filter.file.split("/").pop() ?? "")}
+        {t("No changes to {0} in this commit", filter.file.split(/[\\/]/).pop() ?? "")}
       </div>
     );
   }
