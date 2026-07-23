@@ -89,7 +89,7 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
     requireGit(ctx, async (gitService, params) => {
       const branchName = params.branchName as string;
       const force = params.force as boolean | undefined;
-      const remote = (params.remote as string) || "origin";
+      const remote = params.remote as string | undefined;
       const targetBranch = (params.targetBranch as string) || branchName;
       const withTags = params.withTags as boolean | undefined;
       return withProgress(ctx, async () => {
@@ -132,7 +132,12 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
   messageRouter.handle(
     "getRemoteUrl",
     requireGit(ctx, async (gitService, params) => {
-      const remote = (params.remote as string) || "origin";
+      // Resolve the real remote name when none is provided, instead of
+      // assuming "origin". getDefaultRemote() inspects upstream config and
+      // the configured remote list.
+      const remote =
+        (params.remote as string) ||
+        (await gitService.getDefaultRemote());
       const url = await gitService.getRemoteUrl(remote);
       return { success: true, url };
     }),
@@ -142,7 +147,7 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
     "pushTag",
     requireGit(ctx, async (gitService, params) => {
       const tagName = params.tagName as string;
-      const remote = (params.remote as string) || "origin";
+      const remote = params.remote as string | undefined;
       return withProgress(ctx, async () => {
         await gitService.pushTag(tagName, remote);
         messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });

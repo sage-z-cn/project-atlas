@@ -802,14 +802,17 @@ export class GitService {
   async push(
     branchName: string,
     force = false,
-    remote = "origin",
+    remote?: string,
     targetBranch?: string,
     withTags = false,
   ): Promise<string> {
     const args = ["push"];
     if (force) args.push("--force-with-lease");
     if (withTags) args.push("--tags");
-    args.push(remote, `${branchName}:${targetBranch || branchName}`);
+    // Resolve the real remote name (upstream config → first configured remote)
+    // instead of hard-coding "origin". See getDefaultRemote().
+    const remoteName = remote ?? (await this.getDefaultRemote(branchName));
+    args.push(remoteName, `${branchName}:${targetBranch || branchName}`);
     const output = await this.execGit(args);
     this.invalidateCache();
     return output;
@@ -848,26 +851,29 @@ export class GitService {
     return parseLogOutput(output);
   }
 
-  async pull(branchName?: string): Promise<void> {
+  async pull(branchName?: string, remote?: string): Promise<void> {
     const args = ["pull", "--autostash"];
     if (branchName) {
-      args.push("origin", branchName);
+      const remoteName = remote ?? (await this.getDefaultRemote(branchName));
+      args.push(remoteName, branchName);
     }
     await this.execGit(args);
     this.invalidateCache();
   }
 
-  async pullRebase(branchName?: string): Promise<void> {
+  async pullRebase(branchName?: string, remote?: string): Promise<void> {
     const args = ["pull", "--rebase", "--autostash"];
     if (branchName) {
-      args.push("origin", branchName);
+      const remoteName = remote ?? (await this.getDefaultRemote(branchName));
+      args.push(remoteName, branchName);
     }
     await this.execGit(args);
     this.invalidateCache();
   }
 
-  async fetch(remote = "origin"): Promise<void> {
-    await this.execGit(["fetch", remote]);
+  async fetch(remote?: string): Promise<void> {
+    const remoteName = remote ?? (await this.getDefaultRemote());
+    await this.execGit(["fetch", remoteName]);
     this.invalidateCache();
   }
 
@@ -1051,8 +1057,9 @@ export class GitService {
     this.invalidateCache();
   }
 
-  async pushTag(tagName: string, remote = "origin"): Promise<string> {
-    const output = await this.execGit(["push", remote, tagName]);
+  async pushTag(tagName: string, remote?: string): Promise<string> {
+    const remoteName = remote ?? (await this.getDefaultRemote());
+    const output = await this.execGit(["push", remoteName, tagName]);
     this.invalidateCache();
     return output;
   }

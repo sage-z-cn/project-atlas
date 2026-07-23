@@ -177,6 +177,48 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
     }),
   );
 
+  // 窗口聚焦 → 广播 commitStateChanged，触发 commit 面板重扫 working tree。
+  // webview 内部的 visibilitychange / window.focus 在窗口从外部应用切回时
+  // 不可靠（iframe 焦点行为依赖宿主），这里从扩展端补一个可靠信号；与
+  // setupProject 的 dataChanged 广播模式对齐。
+  //
+  // 节流（leading + trailing, 5s）：commitStateChanged 会让 commit-store
+  // 调 fetchRepoStatuses()，对所有注册 repo 各跑一次 git status（badge 显示
+  // 需要）。多 repo 用户频繁 alt-tab 会累积开销。leading 保证首次切回立即
+  // 刷新，trailing 确保阈值内的最后一次切回信号不丢失。webview 端的
+  // fetchChanges/fetchStashes 有 seq 竞态保护，多次广播不会出错。
+  const FOCUS_THROTTLE_MS = 5000;
+  let lastFocusBroadcastAt = 0;
+  let trailingTimer: ReturnType<typeof setTimeout> | undefined;
+  const broadcastCommitChanged = () => {
+    messageRouter.broadcastEvent("commitStateChanged", {});
+    lastFocusBroadcastAt = Date.now();
+  };
+  context.subscriptions.push(
+    vscode.window.onDidChangeWindowState((e) => {
+      if (!e.focused) return;
+      const elapsed = Date.now() - lastFocusBroadcastAt;
+      if (elapsed >= FOCUS_THROTTLE_MS) {
+        broadcastCommitChanged();
+        return;
+      }
+      // 阈值内：安排一次尾部补刷（多次触发共享同一个 timer），确保最后
+      // 一次切回引入的外部变更不会被吞掉。
+      if (!trailingTimer) {
+        trailingTimer = setTimeout(
+          () => {
+            trailingTimer = undefined;
+            broadcastCommitChanged();
+          },
+          FOCUS_THROTTLE_MS - elapsed,
+        );
+      }
+    }),
+    { dispose: () => {
+      if (trailingTimer) clearTimeout(trailingTimer);
+    } },
+  );
+
   registerGitCommands(context, ctx);
 
   // Hover provider: appends a "Locate in Git Atlas" link to the editor hover
