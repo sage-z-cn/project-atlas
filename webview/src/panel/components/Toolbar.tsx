@@ -53,12 +53,26 @@ export function Toolbar() {
     return { [myAuthorName]: `${myAuthorName} (${t("me")})` };
   }, [myAuthorName]);
 
-  // Collect branch names for filter
+  // Collect branch names for filter; current (checked-out) branch pinned to top
   const branchNames = useMemo(() => {
-    return branches
+    const list = branches
       .map((b) => b.name)
       .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-  }, [branches]);
+    if (currentBranch) {
+      const i = list.indexOf(currentBranch);
+      if (i > 0) {
+        list.splice(i, 1);
+        list.unshift(currentBranch);
+      }
+    }
+    return list;
+  }, [branches, currentBranch]);
+
+  // Mark the current (checked-out) branch in the dropdown display
+  const branchLabelMap = useMemo<Record<string, string> | undefined>(() => {
+    if (!currentBranch) return undefined;
+    return { [currentBranch]: `${currentBranch} (${t("current")})` };
+  }, [currentBranch]);
 
   const handleSearch = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,6 +185,7 @@ export function Toolbar() {
             onClear={filter.branch ? handleClearBranch : undefined}
             clearLabel={t("All branches")}
             onClose={() => setShowBranchDropdown(false)}
+            labelMap={branchLabelMap}
           />
         )}
       </div>

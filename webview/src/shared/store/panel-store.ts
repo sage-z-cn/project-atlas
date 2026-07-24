@@ -1192,6 +1192,11 @@ bridge.onEvent((event, data) => {
       hasMore: true,
       // Clear any stale error from the previous repo — it no longer applies.
       panelError: null,
+      // Repo-specific filters (branch names, file paths) don't carry over to a
+      // new repo — keep them and the list goes empty. Cross-repo-relevant
+      // filters (author, dateRange, searchQuery) stay so the user keeps their
+      // working context. fetchInitialData below applies the reset filter.
+      filter: { ...state.filter, branch: "", file: "" },
     });
     usePanelStore.getState().fetchInitialData();
     // Refresh badges for the new active repo (and the rest, in one round-trip).
