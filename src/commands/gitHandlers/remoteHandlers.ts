@@ -114,7 +114,10 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
   messageRouter.handle(
     "openPushPanel",
     requireGit(ctx, async (gitService, params) => {
-      const branch = await gitService.getCurrentBranch();
+      // 优先使用前端显式传入的 branchName（如分支侧栏右键推送非当前分支）；
+      // 缺失时回退到当前分支（commitAndPush 被拒、commit 面板"提交并推送"）。
+      const explicitBranch = params.branchName as string | undefined;
+      const branch = explicitBranch ?? (await gitService.getCurrentBranch());
       if (!branch) return { error: "No current branch" };
       const remote = await gitService.getDefaultRemote(branch);
       const withTags = params.withTags as boolean | undefined;
