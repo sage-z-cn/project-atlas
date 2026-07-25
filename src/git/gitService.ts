@@ -1160,19 +1160,46 @@ export class GitService {
     await this.execGit(["add", "--", ...filePaths]);
   }
 
+  /**
+   * HEAD 是否可解析。仓库还没有任何 commit（unborn 分支）时返回 false。
+   * 这种状态下 `git reset HEAD` 会因 HEAD 不存在而失败。
+   */
+  private async hasHead(): Promise<boolean> {
+    try {
+      await this.execGit(["rev-parse", "--verify", "-q", "HEAD"]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async unstageFile(filePath: string): Promise<void> {
-    await this.execGit(["reset", "HEAD", "--", filePath]);
+    if (await this.hasHead()) {
+      await this.execGit(["reset", "HEAD", "--", filePath]);
+    } else {
+      // unborn 分支：所有暂存文件都是新文件，rm --cached 等价于 reset HEAD 对新文件的效果
+      await this.execGit(["rm", "--cached", "--ignore-unmatch", "--", filePath]);
+    }
   }
 
   async unstageFiles(filePaths: string[]): Promise<void> {
     if (filePaths.length === 0) {
       return;
     }
-    await this.execGit(["reset", "HEAD", "--", ...filePaths]);
+    if (await this.hasHead()) {
+      await this.execGit(["reset", "HEAD", "--", ...filePaths]);
+    } else {
+      await this.execGit(["rm", "--cached", "--ignore-unmatch", "--", ...filePaths]);
+    }
   }
 
   async unstageAll(): Promise<void> {
-    await this.execGit(["reset", "HEAD"]);
+    if (await this.hasHead()) {
+      await this.execGit(["reset", "HEAD"]);
+    } else {
+      // unborn 分支：清空 index 中所有暂存文件；--ignore-unmatch 避免 index 为空时报错
+      await this.execGit(["rm", "-r", "--cached", "--ignore-unmatch", "."]);
+    }
   }
 
   async stageAll(): Promise<void> {
