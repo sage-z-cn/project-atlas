@@ -723,10 +723,10 @@ function DirContextMenu({
   }, [files, onClose]);
 
   const handleRollback = useCallback(() => {
-    const paths = files.map((f) => f.path);
+    const items = files.map((f) => ({ path: f.path, staged: f.staged }));
     import("../../shared/bridge").then(async ({ bridge }) => {
       try {
-        await bridge.request("rollbackFiles", { filePaths: paths });
+        await bridge.request("rollbackFiles", { items });
       } catch (err) {
         useCommitStore.getState().setCommitError(
           err instanceof Error ? err.message : String(err),

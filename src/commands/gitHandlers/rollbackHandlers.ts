@@ -19,10 +19,13 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
   const { messageRouter } = ctx;
 
   // Modal confirmation: prompts before reverting a single file.
+  // `staged` selects which side to revert: true = unstage only (Staged group),
+  // false = discard working-tree changes back to the index (Changes group).
   messageRouter.handle(
     "rollbackFile",
     requireGit(ctx, async (gitService, params) => {
       const filePath = params.filePath as string;
+      const staged = params.staged === true;
       const rollbackBtn = vscode.l10n.t("Rollback");
       const choice = await vscode.window.showWarningMessage(
         vscode.l10n.t(
@@ -33,30 +36,32 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
         rollbackBtn,
       );
       if (choice !== rollbackBtn) return { success: false };
-      await gitService.rollbackFile(filePath);
+      await gitService.rollbackFile(filePath, staged);
       messageRouter.broadcastEvent("commitStateChanged", {});
       return { success: true };
     }),
   );
 
   // Modal confirmation: prompts before reverting multiple files.
+  // Each item carries its own `staged` flag so a mixed selection (e.g. from
+  // the JetBrains-style list) reverts each file on the correct side.
   messageRouter.handle(
     "rollbackFiles",
     requireGit(ctx, async (gitService, params) => {
-      const filePaths = params.filePaths as string[];
-      if (!filePaths || filePaths.length === 0) return { success: false };
+      const items = params.items as { path: string; staged: boolean }[];
+      if (!items || items.length === 0) return { success: false };
       const rollbackBtn = vscode.l10n.t("Rollback");
       const choice = await vscode.window.showWarningMessage(
         vscode.l10n.t(
           "Rollback changes to {0} file(s)? This cannot be undone.",
-          filePaths.length,
+          items.length,
         ),
         { modal: true },
         rollbackBtn,
       );
       if (choice !== rollbackBtn) return { success: false };
-      for (const filePath of filePaths) {
-        await gitService.rollbackFile(filePath);
+      for (const item of items) {
+        await gitService.rollbackFile(item.path, item.staged);
       }
       messageRouter.broadcastEvent("commitStateChanged", {});
       return { success: true };
@@ -152,8 +157,10 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
           }
           // If deleteLocalCopies is false, skip untracked/added files
         } else {
-          // Revert tracked file changes via git checkout
-          await gitService.rollbackFile(filePath);
+          // Revert tracked file fully to HEAD via the standalone-panel path
+          // (discards BOTH staged and unstaged changes — distinct from the
+          // group-aware rollbackFile used by the commit view).
+          await gitService.rollbackFileToHead(filePath);
         }
       }
 

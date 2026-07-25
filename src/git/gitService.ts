@@ -1278,8 +1278,60 @@ export class GitService {
     }
   }
 
-  async rollbackFile(filePath: string): Promise<void> {
-    // Check if file exists in HEAD (i.e., was previously committed)
+  /**
+   * Group-aware rollback: reverts only ONE side of a file's changes based on
+   * which list the action originated from.
+   *
+   * - staged=true  (from the Staged group):  `git reset HEAD -- <path>` —
+   *   unstages the file (index → HEAD) and leaves the working tree untouched.
+   * - staged=false (from the Changes group): `git checkout -- <path>` —
+   *   restores the working tree to the index (staged) version, preserving any
+   *   staged edits. This is the fix for "stage a file, edit it again, then
+   *   rollback from Changes": only the unstaged edits are discarded.
+   *   A truly untracked file (not in the index) has no staged version to
+   *   restore, so it is deleted — mirroring VSCode's native "Discard Changes"
+   *   on an untracked file.
+   *
+   * For a full revert of BOTH sides (the standalone Rollback panel), use
+   * rollbackFileToHead instead.
+   */
+  async rollbackFile(filePath: string, staged = false): Promise<void> {
+    if (staged) {
+      await this.execGit(["reset", "HEAD", "--", filePath]);
+      return;
+    }
+    // Unstaged: restore working tree to the index version. If the path is not
+    // in the index (untracked), there is nothing to restore — delete it.
+    let inIndex = false;
+    try {
+      await this.execGit(["ls-files", "--error-unmatch", "--", filePath]);
+      inIndex = true;
+    } catch {
+      inIndex = false;
+    }
+    if (inIndex) {
+      await this.execGit(["checkout", "--", filePath]);
+    } else {
+      const fullPath = path.join(this.cwd, filePath);
+      try {
+        await fs.unlink(fullPath);
+      } catch (err: unknown) {
+        // Only tolerate "file already gone" — surface real failures (locked
+        // on Windows: EPERM/EBUSY, permission: EACCES) so the caller reports
+        // them instead of a false success.
+        const code = (err as { code?: string }).code;
+        if (code !== "ENOENT") throw err;
+      }
+    }
+  }
+
+  /**
+   * Fully revert a file to its HEAD version — discards BOTH index (staged)
+   * and working-tree (unstaged) changes. Used by the standalone Rollback
+   * panel (executeRollback), which is a "discard everything" entry distinct
+   * from the group-aware rollbackFile that reverts one side at a time.
+   */
+  async rollbackFileToHead(filePath: string): Promise<void> {
     let existsInHead = false;
     try {
       await this.execGit(["cat-file", "-e", `HEAD:${filePath}`]);
@@ -1289,7 +1341,6 @@ export class GitService {
     }
 
     if (existsInHead) {
-      // File exists in HEAD - restore to HEAD version (handles both staged and unstaged changes)
       await this.execGit(["checkout", "HEAD", "--", filePath]);
     } else {
       // File is new (not in HEAD) - remove from index and delete from disk

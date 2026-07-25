@@ -174,7 +174,7 @@ export function VscodeFileContextMenu({
 
   const handleDiscard = useCallback(() => {
     // Backend rollbackFile handler opens a modal confirmation.
-    rollbackFile(file.path);
+    rollbackFile(file.path, file.staged);
     onClose();
   }, [file, rollbackFile, onClose]);
 

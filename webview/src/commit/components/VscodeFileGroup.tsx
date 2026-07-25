@@ -113,7 +113,9 @@ export function VscodeFileGroup({
                 onClick={(e) => {
                   e.stopPropagation();
                   // Backend rollbackFiles handler opens a modal confirmation.
-                  void rollbackFiles(files.map((f) => f.path));
+                  void rollbackFiles(
+                    files.map((f) => ({ path: f.path, staged: f.staged })),
+                  );
                 }}
               >
                 <DiscardIcon />
@@ -244,7 +246,10 @@ function VscodeDirNodeView({
                           e.stopPropagation();
                           // Backend rollbackFiles handler opens a modal confirmation.
                           void rollbackFiles(
-                            collectDirFiles(child).map((f) => f.path),
+                            collectDirFiles(child).map((f) => ({
+                              path: f.path,
+                              staged: f.staged,
+                            })),
                           );
                         }}
                       >
