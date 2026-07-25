@@ -249,6 +249,10 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
 
   // refreshGitState tolerates a null gitService — written by hand.
   messageRouter.handle("refreshGitState", async () => {
+    const roots = (vscode.workspace.workspaceFolders ?? []).map(
+      (f) => f.uri.fsPath,
+    );
+    await ctx.registry.rescan(roots); // 识别外部 git init / 新增仓库
     if (ctx.gitService) {
       ctx.gitService.invalidateCache();
     }

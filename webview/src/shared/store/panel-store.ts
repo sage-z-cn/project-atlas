@@ -100,6 +100,12 @@ interface PanelStore {
    * state too, so the refresh is NOT gated to the current repo).
    */
   repoStatuses: Record<string, RepoStatus>;
+  /**
+   * Ready-handshake flag: false until initRepo() resolves getCurrentRepo +
+   * getRepos, true thereafter. Distinguishes "still loading" from "loaded and
+   * genuinely repoless" so the empty-state card doesn't flash during startup.
+   */
+  repoInitialized: boolean;
 
   commits: Commit[];
   /** Commits filtered by search/author (client-side). Graph layout uses full `commits`. */
@@ -339,6 +345,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   repos: [],
   repoSeq: 0,
   repoStatuses: {},
+  repoInitialized: false,
 
   commits: [],
   visibleCommits: [],
@@ -453,9 +460,13 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         // (none in practice, but defensive) is dropped.
         repoSeq: get().repoSeq + 1,
         favoriteBranches: repoPath ? loadFavoritesForRepo(repoPath) : [],
+        repoInitialized: true,
       });
     } catch (err) {
       console.error("initRepo failed:", err);
+      // Mark initialized even on handshake failure so the UI doesn't hang on
+      // the loading state — the empty-state card will surface the situation.
+      set({ repoInitialized: true });
     }
     // Run the graph fetch and the badge fetch concurrently so the (fast) badge
     // counts don't wait on the (slow, 1s+ min-display) getGraphData round-trip.
@@ -1166,6 +1177,46 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
 // only refresh when the event is for the current repo (or carries no repoPath,
 // e.g. the global { scope: "all" } broadcasts from command handlers).
 bridge.onEvent((event, data) => {
+  if (event === "reposChanged") {
+    // The host rescanned the workspace and the repo SET changed (a repo was
+    // initialized, cloned, or removed). Always refresh the list; only when the
+    // ACTIVE repo also changed do we reload the graph — mirroring the
+    // repoChanged path so a freshly-initialized repo loads its (empty) log.
+    const { currentRepoPath } = (data ?? {}) as {
+      currentRepoPath?: string | null;
+    };
+    const state = usePanelStore.getState();
+    state.fetchRepos();
+    if (currentRepoPath && currentRepoPath !== state.currentRepoPath) {
+      const nextRepoPath = currentRepoPath;
+      usePanelStore.setState({
+        repoSeq: state.repoSeq + 1,
+        currentRepoPath: nextRepoPath,
+        favoriteBranches: nextRepoPath
+          ? loadFavoritesForRepo(nextRepoPath)
+          : [],
+        loading: true,
+        selectedCommitHash: null,
+        selectedCommitHashes: [],
+        lastSelectedCommitHash: null,
+        collapsedSequenceIds: new Set(),
+        collapsedIntermediates: new Map(),
+        commitFiles: [],
+        selectedFilePath: null,
+        rangeOldest: null,
+        rangeNewest: null,
+        hasMore: true,
+        panelError: null,
+      });
+      usePanelStore.getState().fetchInitialData();
+      usePanelStore.getState().fetchRepoStatuses();
+    } else {
+      // Active repo unchanged — a sibling repo appeared/disappeared. Just
+      // refresh the chip badges so the new repo's status shows up.
+      usePanelStore.getState().fetchRepoStatuses();
+    }
+    return;
+  }
   if (event === "repoChanged") {
     const { repoPath } = (data ?? {}) as { repoPath?: string | null };
     const state = usePanelStore.getState();

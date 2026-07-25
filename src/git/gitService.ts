@@ -1647,3 +1647,23 @@ function parseTrack(track: string): { ahead: number; behind: number } {
   }
   return { ahead, behind };
 }
+
+/**
+ * Initialize a new git repository at `targetPath` (runs `git init`).
+ *
+ * 作为独立的导出函数(而非 GitService 实例方法)存在:目标目录此时还不是 git
+ * 仓库、没有 GitService 实例可调用。幂等 —— 对已存在的仓库重新 init 时 git
+ * 退出码为 0,等价于 no-op。复用 GitService.execGit 相同的环境加固(LC_ALL、
+ * 禁用终端提示)。
+ */
+export async function initGitRepo(targetPath: string): Promise<void> {
+  await execFileAsync("git", ["init"], {
+    cwd: targetPath,
+    maxBuffer: MAX_BUFFER,
+    env: {
+      ...process.env,
+      LC_ALL: "C",
+      GIT_TERMINAL_PROMPT: "0",
+    },
+  });
+}

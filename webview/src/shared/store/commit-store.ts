@@ -57,6 +57,12 @@ interface CommitStore {
    * repoChanged, and every gitStateChanged.
    */
   repoStatuses: Record<string, RepoStatus>;
+  /**
+   * Ready-handshake flag: false until initRepo() resolves getCurrentRepo +
+   * getRepos, true thereafter. Distinguishes "still loading" from "loaded and
+   * genuinely repoless" so the empty-state card doesn't flash during startup.
+   */
+  repoInitialized: boolean;
 
   // File changes
   changes: WorkingTreeFile[];
@@ -190,6 +196,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   repoSeq: 0,
   commitEpoch: 0,
   repoStatuses: {},
+  repoInitialized: false,
 
   changes: [],
   selectedFiles: new Set<string>(),
@@ -260,9 +267,13 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         currentRepoPath: current?.repoPath ?? null,
         repos: Array.isArray(reposResult?.repos) ? reposResult.repos : [],
         repoSeq: get().repoSeq + 1,
+        repoInitialized: true,
       });
     } catch (err) {
       console.error("initRepo failed:", err);
+      // Mark initialized even on handshake failure so the UI doesn't hang on
+      // the loading state — the empty-state card will surface the situation.
+      set({ repoInitialized: true });
     }
     // Run the changes/stashes fetch and the badge fetch concurrently so badge
     // counts don't wait on the (300ms min-display) changes round-trip.
@@ -912,6 +923,14 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   },
 
   async refresh() {
+    // Trigger a host-side rescan first so an external `git init` (or a repo
+    // removed outside VSCode) is reflected in the repo list before we refetch
+    // local state. The host then broadcasts reposChanged if the set changed.
+    try {
+      await bridge.request("refreshGitState", {});
+    } catch (err) {
+      console.error("refreshGitState failed:", err);
+    }
     await Promise.all([
       get().fetchChanges(),
       get().fetchStashes(),
@@ -939,6 +958,44 @@ bridge.onEvent((event, data) => {
   }
   if (event === "aiConfigChanged") {
     useCommitStore.getState().fetchAiConfig();
+    return;
+  }
+  if (event === "reposChanged") {
+    // The host rescanned the workspace and the repo SET changed (a repo was
+    // initialized, cloned, or removed). Always refresh the list; only when the
+    // ACTIVE repo also changed do we reload per-repo state — mirroring the
+    // repoChanged path so a freshly-initialized repo loads its (empty) tree,
+    // config, and draft.
+    const { currentRepoPath } = (data ?? {}) as {
+      currentRepoPath?: string | null;
+    };
+    const state = useCommitStore.getState();
+    state.fetchRepos();
+    if (currentRepoPath && currentRepoPath !== state.currentRepoPath) {
+      flushDraftSave(state.currentRepoPath, state.commitMessage);
+      useCommitStore.setState({
+        repoSeq: state.repoSeq + 1,
+        commitEpoch: state.commitEpoch + 1,
+        currentRepoPath,
+        changes: [],
+        selectedFiles: new Set(),
+        highlightedFiles: new Set(),
+        stashes: [],
+        commitMessage: "",
+        amend: false,
+        commitError: null,
+        remoteError: null,
+      });
+      useCommitStore.getState().refresh();
+      useCommitStore.getState().fetchRepoStatuses();
+      useCommitStore.getState().fetchGitConfig();
+      useCommitStore.getState().fetchAiConfig();
+      useCommitStore.getState().loadCommitDraft();
+    } else {
+      // Active repo unchanged — a sibling repo appeared/disappeared. Just
+      // refresh the chip badges so the new repo's status shows up.
+      useCommitStore.getState().fetchRepoStatuses();
+    }
     return;
   }
   if (event === "repoChanged") {

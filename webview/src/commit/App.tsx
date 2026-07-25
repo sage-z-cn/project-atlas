@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { bridge } from "../shared/bridge";
+import { EmptyRepoState } from "../shared/components/EmptyRepoState";
 import { RepoSelector } from "../shared/components/RepoSelector";
 import { t } from "../shared/i18n";
 import { Tooltip } from "../shared/components/Tooltip";
@@ -522,6 +523,8 @@ function MergeBanner() {
 
 export function CommitApp() {
   const { activeTab, setActiveTab, loading } = useCommitStore();
+  const repos = useCommitStore((s) => s.repos);
+  const repoInitialized = useCommitStore((s) => s.repoInitialized);
 
   // Ready handshake: query the host for the current repo + repo list, then
   // fetch changes/stashes against that repo. Replaces the previous
@@ -577,6 +580,18 @@ export function CommitApp() {
       window.removeEventListener("blur", onBlur);
     };
   }, []);
+
+  // Empty state: the ready handshake confirmed a repoless workspace. Rendered
+  // before the main shell so neither the misleading "No changes detected" nor
+  // a blank RepoSelector flashes. `repoInitialized` gates this so the loading
+  // phase (handshake in flight) doesn't briefly show the empty card.
+  if (repoInitialized && repos.length === 0) {
+    return (
+      <div className="commit-app">
+        <EmptyRepoState />
+      </div>
+    );
+  }
 
   return (
     <div className="commit-app">

@@ -1,4 +1,7 @@
+import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
+import { initGitRepo } from "../../git/gitService";
+import { normalizePath } from "../../git/repoPaths";
 
 /**
  * Multi-repo management handlers: listing repos, querying the active repo,
@@ -79,5 +82,31 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
       }),
     );
     return { statuses };
+  });
+
+  // 在工作区非 git 目录(或指定目录)执行 `git init`。
+  // 目标目录此时还不是 git 仓库、没有 GitService 实例,因此调用独立的导出函数。
+  // rescan 内部会在仓库列表变化时广播 reposChanged,前端据此刷新仓库选择器。
+  messageRouter.handle("initializeRepository", async (params) => {
+    const explicit =
+      typeof params?.repoPath === "string" ? params.repoPath : undefined;
+    const targetPath =
+      explicit ??
+      (vscode.workspace.workspaceFolders ?? [])[0]?.uri.fsPath ??
+      ctx.workspaceRoot;
+    if (!targetPath) {
+      return { success: false as const, error: "No workspace folder available" };
+    }
+    try {
+      await initGitRepo(targetPath);
+      const roots = (vscode.workspace.workspaceFolders ?? []).map(
+        (f) => f.uri.fsPath,
+      );
+      await ctx.registry.rescan(roots); // rescan 内部会在列表变化时广播 reposChanged
+      return { success: true as const, repoPath: normalizePath(targetPath) };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false as const, error: message };
+    }
   });
 }

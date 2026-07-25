@@ -46,7 +46,11 @@ export function registerGitCommands(
         }
       },
     ),
-    vscode.commands.registerCommand("git-atlas.refreshLog", () => {
+    vscode.commands.registerCommand("git-atlas.refreshLog", async () => {
+      const roots = (vscode.workspace.workspaceFolders ?? []).map(
+        (f) => f.uri.fsPath,
+      );
+      await ctx.registry.rescan(roots); // 识别外部 git init / 新增仓库
       ctx.messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
     }),
     vscode.commands.registerCommand("git-atlas.nextDiff", async () => {

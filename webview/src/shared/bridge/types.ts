@@ -82,6 +82,7 @@ export type CommandType =
   | "openInTerminal"
   | "getRecentCommitMessages"
   | "refreshGitState"
+  | "initializeRepository"
   | "getRebaseState"
   | "rebaseAction"
   | "mergeAction"

@@ -82,6 +82,11 @@ export class RepoRegistry implements vscode.Disposable {
    * phase) — only the delta is created/destroyed.
    */
   async rescan(workspaceRoots: string[]): Promise<void> {
+    // 重扫前的快照,用于末尾判断是否需要广播事件。
+    // repoInfos 初始为 [],currentRepoPath 初始为 null。
+    const prevPathsKey = this.repoInfos.map((i) => i.path).join("\n");
+    const prevCurrent = this.currentRepoPath;
+
     const rawInfos = await scanRepos(workspaceRoots);
     // Normalize paths once at the ingress so every downstream map key
     // (services/watchers) and lookup (getService/getCurrent) stays consistent.
@@ -118,6 +123,55 @@ export class RepoRegistry implements vscode.Disposable {
     // currentRepo validation: fall back if it vanished.
     if (this.currentRepoPath && !newPaths.has(this.currentRepoPath)) {
       this.currentRepoPath = infos[0]?.path ?? null;
+      // fallback 改变了当前 repo,持久化新值(与 setCurrent 同 key),避免下次
+      // 激活时还原到一个已不存在的仓库。
+      await this.context.workspaceState.update(
+        CURRENT_REPO_KEY,
+        this.currentRepoPath,
+      );
+    }
+
+    // Auto-select the first repo when none is currently selected but repos now
+    // exist. Covers the runtime discovery path (git init / new workspace folder
+    // / external `git init` picked up by the .git watcher) where rescan() runs
+    // WITHOUT the init()-time bootstrap. Without this, a freshly-discovered
+    // repo is registered (services map populated, reposChanged broadcast) but
+    // getCurrent() keeps returning null — every requireGit handler then answers
+    // NOT_A_GIT_REPO and the commit/panel views show an empty working tree
+    // until the window is reloaded (which re-runs init()'s bootstrap).
+    //
+    // 内存赋值即可,绝不在此持久化:rescan() 也在 init() 首次启动路径中被
+    // 调用,而 init() 在 rescan() 返回后才读取 saved —— 在这里写
+    // workspaceState 会用 infos[0] 覆盖用户之前保存的选择(repoB 被覆盖成
+    // repoA)。init() 自己负责恢复 saved(有效则用)或在 else 分支用
+    // repoInfos[0] 兜底。运行时路径(git init / watcher)不持久化也无妨:
+    // 重启后 init() 的 repoInfos[0] 兜底会选中同一个首仓库;用户若手动
+    // 切换,setCurrent() 会持久化新选择。
+    if (!this.currentRepoPath && infos.length > 0) {
+      this.currentRepoPath = infos[0].path;
+    }
+
+    // 仓库列表或当前仓库发生变化时广播对应事件。
+    // 首次 init() 调用 rescan 时(paths 从 [] → [repos])也会广播一次
+    // reposChanged —— 此时 webview 尚未挂载,广播会丢失;webview 挂载后通过
+    // initRepo 握手拉取最新状态,因此无害。
+    const pathsChanged =
+      infos.map((i) => i.path).join("\n") !== prevPathsKey;
+    const currentChanged = this.currentRepoPath !== prevCurrent;
+    if (pathsChanged) {
+      this.messageRouter.broadcastEvent("reposChanged", {
+        currentRepoPath: this.currentRepoPath,
+      });
+    }
+    if (currentChanged) {
+      // 不单独广播 repoChanged:当 rescan 同时改变仓库列表与当前仓库时
+      // (常见于 git init 发现新仓库、当前仓库消失后 fallback),上方
+      // reposChanged 已携带新的 currentRepoPath,前端 reposChanged handler
+      // 会完整重载派生状态(镜像 repoChanged 路径)。若同时广播 repoChanged,
+      // commit-store 的两个 handler 会顺序执行,第二次 flushDraftSave 会用
+      // 空 commitMessage 覆盖新 repo 已保存的草稿。repoChanged 仍由
+      // setCurrent()(纯切换,列表不变)单独广播。
+      this._onGitStateChanged.fire();
     }
   }
 
