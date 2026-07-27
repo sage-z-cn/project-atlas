@@ -111,7 +111,7 @@ export function CommitFileContextMenu({
   }, [file, unstageFile, onClose]);
 
   const handleRollback = useCallback(() => {
-    rollbackFile(file.path);
+    rollbackFile(file.path, file.staged);
     onClose();
   }, [file, rollbackFile, onClose]);
 

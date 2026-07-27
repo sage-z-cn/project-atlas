@@ -147,7 +147,7 @@ export function VscodeFileItem({
             onClick={(e) => {
               e.stopPropagation();
               // Backend handler opens a modal confirmation — no client confirm.
-              useCommitStore.getState().rollbackFile(file.path);
+              useCommitStore.getState().rollbackFile(file.path, file.staged);
             }}
           >
             <DiscardIcon />

@@ -4,6 +4,12 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.14.0
+- **Git 初始化**: 支持在 webview 中初始化 git 仓库
+- **分支显示**: 提交面板标记当前分支,切换仓库时重置分支过滤
+- **回滚**: 区分暂存与未暂存的回滚逻辑
+- **暂存文件**: 修复 unborn 分支下取消暂存文件时的异常
+
 #### 1.13.1
 - **分支推送**: 分支右键"推送"改用完整推送面板(含变基/合并/强制推送入口),替代简化对话框;支持对非当前分支发起推送
 - **文件历史**: 修复 Windows 下"显示文件历史"过滤失效的问题(路径分隔符导致精确匹配失败)

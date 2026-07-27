@@ -219,6 +219,39 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
     } },
   );
 
+  // 工作区目录变化 / `.git` 目录创建 → 防抖重扫,识别外部 `git init` 或新增仓库。
+  // 多个触发源(workspace folder 变化、.git 目录创建)汇聚到一次 rescan,避免
+  // 短时间内重复扫盘。rescan 内部在仓库列表变化时广播 reposChanged,前端据此
+  // 刷新仓库选择器;未变化时不广播,无副作用。
+  let rescanTimer: ReturnType<typeof setTimeout> | undefined;
+  const scheduleRescan = (): void => {
+    if (rescanTimer) clearTimeout(rescanTimer);
+    rescanTimer = setTimeout(() => {
+      rescanTimer = undefined;
+      const roots = (vscode.workspace.workspaceFolders ?? []).map(
+        (f) => f.uri.fsPath,
+      );
+      void registry.rescan(roots); // rescan 内部在列表变化时广播 reposChanged
+    }, 800);
+  };
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => scheduleRescan()),
+    (() => {
+      // 监听 .git 目录创建:用户在外部执行 `git init` 时触发自动重扫。
+      // `**/.git` 匹配任意层级的 .git 目录(含 submodule),onDidCreate 只在
+      // 目录首次创建时触发,不关心后续内容修改,开销可控。
+      const watcher = vscode.workspace.createFileSystemWatcher("**/.git");
+      const sub = watcher.onDidCreate(() => scheduleRescan());
+      return { dispose: () => {
+        sub.dispose();
+        watcher.dispose();
+      } };
+    })(),
+    { dispose: () => {
+      if (rescanTimer) clearTimeout(rescanTimer);
+    } },
+  );
+
   registerGitCommands(context, ctx);
 
   // Hover provider: appends a "Locate in Git Atlas" link to the editor hover

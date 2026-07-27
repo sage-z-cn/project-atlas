@@ -119,6 +119,8 @@ export type CommandType =
   | "getCurrentRepo"
   | "switchRepo"
   | "getRepoStatuses"
+  // 在工作区非 git 目录执行 `git init`，返回 { success, repoPath?, error? }。
+  | "initializeRepository"
   | "getL10nBundle"
   | "getGitConfig"
   | "setGitConfig"

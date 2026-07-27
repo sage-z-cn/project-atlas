@@ -1,6 +1,7 @@
 import { Allotment, LayoutPriority } from "allotment";
 import { useCallback, useEffect, useState } from "react";
 import "allotment/dist/style.css";
+import { EmptyRepoState } from "../shared/components/EmptyRepoState";
 import { RepoSelector } from "../shared/components/RepoSelector";
 import { Tooltip } from "../shared/components/Tooltip";
 import "../shared/components/Tooltip.css";
@@ -107,6 +108,8 @@ export function PanelApp() {
   const loading = usePanelStore((s) => s.loading);
   const commits = usePanelStore((s) => s.commits);
   const operationInProgress = usePanelStore((s) => s.operationInProgress);
+  const repos = usePanelStore((s) => s.repos);
+  const repoInitialized = usePanelStore((s) => s.repoInitialized);
 
   const [initialLayout] = useState(loadPanelLayout);
   const [showLeft, setShowLeft] = useState(initialLayout.showLeft);
@@ -161,7 +164,19 @@ export function PanelApp() {
     void usePanelStore.getState().initRepo();
   }, []);
 
-  if (loading && commits.length === 0) {
+  // Empty state: the ready handshake confirmed a repoless workspace. Checked
+  // BEFORE the loading guard so that once we know there's no repo, we never
+  // flash "Loading..." (the handshake already settled the question). The
+  // `repoInitialized` gate prevents a startup flash of this card while the
+  // handshake is still in flight.
+  if (repoInitialized && repos.length === 0) {
+    return <EmptyRepoState />;
+  }
+
+  // Loading state: handshake not yet complete, or initial graph fetch in
+  // flight with nothing to show yet. Also covers the pre-handshake mount so
+  // the panel doesn't briefly render an empty shell.
+  if (!repoInitialized || (loading && commits.length === 0)) {
     return (
       <div
         style={{

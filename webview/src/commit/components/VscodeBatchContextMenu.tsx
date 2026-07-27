@@ -102,7 +102,7 @@ export function VscodeBatchContextMenu({
 
   const handleDiscardAll = useCallback(() => {
     // Backend rollbackFiles handler opens a modal confirmation.
-    void rollbackFiles(files.map((f) => f.path));
+    void rollbackFiles(files.map((f) => ({ path: f.path, staged: f.staged })));
     onClose();
   }, [files, rollbackFiles, onClose]);
 

@@ -1172,19 +1172,46 @@ export class GitService {
     await this.execGit(["add", "--", ...filePaths]);
   }
 
+  /**
+   * HEAD 是否可解析。仓库还没有任何 commit（unborn 分支）时返回 false。
+   * 这种状态下 `git reset HEAD` 会因 HEAD 不存在而失败。
+   */
+  private async hasHead(): Promise<boolean> {
+    try {
+      await this.execGit(["rev-parse", "--verify", "-q", "HEAD"]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async unstageFile(filePath: string): Promise<void> {
-    await this.execGit(["reset", "HEAD", "--", filePath]);
+    if (await this.hasHead()) {
+      await this.execGit(["reset", "HEAD", "--", filePath]);
+    } else {
+      // unborn 分支：所有暂存文件都是新文件，rm --cached 等价于 reset HEAD 对新文件的效果
+      await this.execGit(["rm", "--cached", "--ignore-unmatch", "--", filePath]);
+    }
   }
 
   async unstageFiles(filePaths: string[]): Promise<void> {
     if (filePaths.length === 0) {
       return;
     }
-    await this.execGit(["reset", "HEAD", "--", ...filePaths]);
+    if (await this.hasHead()) {
+      await this.execGit(["reset", "HEAD", "--", ...filePaths]);
+    } else {
+      await this.execGit(["rm", "--cached", "--ignore-unmatch", "--", ...filePaths]);
+    }
   }
 
   async unstageAll(): Promise<void> {
-    await this.execGit(["reset", "HEAD"]);
+    if (await this.hasHead()) {
+      await this.execGit(["reset", "HEAD"]);
+    } else {
+      // unborn 分支：清空 index 中所有暂存文件；--ignore-unmatch 避免 index 为空时报错
+      await this.execGit(["rm", "-r", "--cached", "--ignore-unmatch", "."]);
+    }
   }
 
   async stageAll(): Promise<void> {
@@ -1290,8 +1317,60 @@ export class GitService {
     }
   }
 
-  async rollbackFile(filePath: string): Promise<void> {
-    // Check if file exists in HEAD (i.e., was previously committed)
+  /**
+   * Group-aware rollback: reverts only ONE side of a file's changes based on
+   * which list the action originated from.
+   *
+   * - staged=true  (from the Staged group):  `git reset HEAD -- <path>` —
+   *   unstages the file (index → HEAD) and leaves the working tree untouched.
+   * - staged=false (from the Changes group): `git checkout -- <path>` —
+   *   restores the working tree to the index (staged) version, preserving any
+   *   staged edits. This is the fix for "stage a file, edit it again, then
+   *   rollback from Changes": only the unstaged edits are discarded.
+   *   A truly untracked file (not in the index) has no staged version to
+   *   restore, so it is deleted — mirroring VSCode's native "Discard Changes"
+   *   on an untracked file.
+   *
+   * For a full revert of BOTH sides (the standalone Rollback panel), use
+   * rollbackFileToHead instead.
+   */
+  async rollbackFile(filePath: string, staged = false): Promise<void> {
+    if (staged) {
+      await this.execGit(["reset", "HEAD", "--", filePath]);
+      return;
+    }
+    // Unstaged: restore working tree to the index version. If the path is not
+    // in the index (untracked), there is nothing to restore — delete it.
+    let inIndex = false;
+    try {
+      await this.execGit(["ls-files", "--error-unmatch", "--", filePath]);
+      inIndex = true;
+    } catch {
+      inIndex = false;
+    }
+    if (inIndex) {
+      await this.execGit(["checkout", "--", filePath]);
+    } else {
+      const fullPath = path.join(this.cwd, filePath);
+      try {
+        await fs.unlink(fullPath);
+      } catch (err: unknown) {
+        // Only tolerate "file already gone" — surface real failures (locked
+        // on Windows: EPERM/EBUSY, permission: EACCES) so the caller reports
+        // them instead of a false success.
+        const code = (err as { code?: string }).code;
+        if (code !== "ENOENT") throw err;
+      }
+    }
+  }
+
+  /**
+   * Fully revert a file to its HEAD version — discards BOTH index (staged)
+   * and working-tree (unstaged) changes. Used by the standalone Rollback
+   * panel (executeRollback), which is a "discard everything" entry distinct
+   * from the group-aware rollbackFile that reverts one side at a time.
+   */
+  async rollbackFileToHead(filePath: string): Promise<void> {
     let existsInHead = false;
     try {
       await this.execGit(["cat-file", "-e", `HEAD:${filePath}`]);
@@ -1301,7 +1380,6 @@ export class GitService {
     }
 
     if (existsInHead) {
-      // File exists in HEAD - restore to HEAD version (handles both staged and unstaged changes)
       await this.execGit(["checkout", "HEAD", "--", filePath]);
     } else {
       // File is new (not in HEAD) - remove from index and delete from disk
@@ -1658,4 +1736,24 @@ function parseTrack(track: string): { ahead: number; behind: number } {
     behind = parseInt(behindMatch[1], 10);
   }
   return { ahead, behind };
+}
+
+/**
+ * Initialize a new git repository at `targetPath` (runs `git init`).
+ *
+ * 作为独立的导出函数(而非 GitService 实例方法)存在:目标目录此时还不是 git
+ * 仓库、没有 GitService 实例可调用。幂等 —— 对已存在的仓库重新 init 时 git
+ * 退出码为 0,等价于 no-op。复用 GitService.execGit 相同的环境加固(LC_ALL、
+ * 禁用终端提示)。
+ */
+export async function initGitRepo(targetPath: string): Promise<void> {
+  await execFileAsync("git", ["init"], {
+    cwd: targetPath,
+    maxBuffer: MAX_BUFFER,
+    env: {
+      ...process.env,
+      LC_ALL: "C",
+      GIT_TERMINAL_PROMPT: "0",
+    },
+  });
 }
