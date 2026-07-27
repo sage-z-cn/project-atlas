@@ -750,7 +750,19 @@ export class GitService {
     const slashIdx = remoteBranch.indexOf("/");
     const remote = remoteBranch.substring(0, slashIdx);
     const branch = remoteBranch.substring(slashIdx + 1);
-    await this.execGit(["push", remote, "--delete", branch]);
+    try {
+      await this.execGit(["push", remote, "--delete", branch]);
+    } catch (err) {
+      // Idempotent: if the remote ref is already gone, the user's goal
+      // (remote branch no longer exists) is already satisfied. git exits
+      // non-zero with "remote ref does not exist" in stderr in that case.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/remote ref does not exist/i.test(msg)) {
+        // Fall through to cache invalidation / success.
+      } else {
+        throw err;
+      }
+    }
     this.invalidateCache();
   }
 
