@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
+import { requireGit } from "../gitContext";
 import { initGitRepo } from "../../git/gitService";
 import { normalizePath } from "../../git/repoPaths";
 
@@ -21,6 +22,15 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
   messageRouter.handle("getCurrentRepo", async () => {
     return { repoPath: registry.getCurrentRepoPath() };
   });
+
+  // 当前仓库是否配置了远程（`git remote` 非空）。用于在 UI 层禁用"提交并推送"
+  // 按钮（第一道门槛），避免无 remote 时仍允许触发推送流程。
+  messageRouter.handle(
+    "hasRemote",
+    requireGit(ctx, async (gitService) => {
+      return { hasRemote: await gitService.hasRemote() };
+    }),
+  );
 
   messageRouter.handle("switchRepo", async (params) => {
     const repoPath = params?.repoPath as string | undefined;

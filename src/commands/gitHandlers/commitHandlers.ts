@@ -1,3 +1,4 @@
+import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
 import { requireGit, withProgress } from "../gitContext";
 
@@ -100,6 +101,17 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
       const message = params.message as string;
       const amend = params.amend as boolean | undefined;
       const filePaths = params.filePaths as string[] | undefined;
+
+      // 第二道门槛：无 remote 时友好拦截，避免 `git push` 抛出 ugly 错误。
+      // 放在 stage/commit 之前确保零副作用；message 经 l10n 翻译后由前端
+      // catch 写入 commitError 内联展示（按钮已被第一道门槛禁用，此处仅兜底）。
+      if (!(await gitService.hasRemote())) {
+        throw new Error(
+          vscode.l10n.t(
+            "This repository has no remote configured. Add a remote before pushing.",
+          ),
+        );
+      }
 
       if (filePaths && filePaths.length > 0) {
         await gitService.stageFiles(filePaths);

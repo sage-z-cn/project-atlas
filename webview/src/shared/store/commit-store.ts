@@ -92,6 +92,14 @@ interface CommitStore {
   commitBadgeMode: "total" | "current" | "off";
   /** 提交并推送时是否跳过推送确认面板直接推送。 */
   skipPushConfirmation: boolean;
+  /**
+   * 当前仓库是否配置了远程（`git remote` 非空）。驱动"提交并推送"按钮的
+   * 禁用状态（第一道门槛）。乐观默认 true：fetchHasRemote 失败时不误禁用，
+   * 交由后端执行层门槛兜底。
+   */
+  hasRemote: boolean;
+  /** 从 host 拉取当前仓库是否有 remote。 */
+  fetchHasRemote: () => Promise<void>;
   /** 提交/推送失败的内联错误信息（显示在提交消息框上方），null 时隐藏。 */
   commitError: string | null;
   setCommitError: (error: string | null) => void;
@@ -216,6 +224,9 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   commitBadgeMode: "total",
   /** 提交并推送时是否跳过推送确认面板直接推送（默认 true）。 */
   skipPushConfirmation: true,
+  // 乐观默认 true：initRepo/refresh 完成前不禁用按钮，避免闪烁；fetchHasRemote
+  // 失败时也保持 true，交由后端执行层门槛兜底，宁可放行也不误锁。
+  hasRemote: true,
   commitError: null,
   setCommitError: (error) => set({ commitError: error }),
   remoteError: null,
@@ -285,6 +296,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       get().fetchGitConfig(),
       get().fetchAiConfig(),
       get().loadCommitDraft(),
+      get().fetchHasRemote(),
     ]);
   },
 
@@ -305,6 +317,23 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       }
     } catch (err) {
       console.error("fetchRepoStatuses failed:", err);
+    }
+  },
+
+  async fetchHasRemote() {
+    // ★ Capture seq at issue time for the in-flight race guard: a slow
+    // hasRemote response for repo A must not overwrite repo B's state after
+    // a switch.
+    const mySeq = get().repoSeq;
+    try {
+      const result = (await bridge.request("hasRemote", {
+        repoPath: get().currentRepoPath,
+      })) as { hasRemote?: boolean };
+      if (mySeq !== get().repoSeq) return;
+      set({ hasRemote: result?.hasRemote ?? true });
+    } catch (err) {
+      console.error("fetchHasRemote failed:", err);
+      // 保持乐观 true：fetch 失败不误禁用按钮，后端执行层门槛兜底。
     }
   },
 
@@ -994,6 +1023,7 @@ bridge.onEvent((event, data) => {
       useCommitStore.getState().fetchGitConfig();
       useCommitStore.getState().fetchAiConfig();
       useCommitStore.getState().loadCommitDraft();
+      useCommitStore.getState().fetchHasRemote();
     } else {
       // Active repo unchanged — a sibling repo appeared/disappeared. Just
       // refresh the chip badges so the new repo's status shows up.
@@ -1024,6 +1054,8 @@ bridge.onEvent((event, data) => {
     useCommitStore.getState().fetchRepoStatuses();
     // 回填新 repo 的草稿（loadCommitDraft 内部有 seq 竞态保护）。
     useCommitStore.getState().loadCommitDraft();
+    // 刷新 remote 状态（驱动"提交并推送"按钮禁用）。
+    useCommitStore.getState().fetchHasRemote();
     return;
   }
   if (event === "commitStateChanged" || event === "gitStateChanged") {
@@ -1039,6 +1071,9 @@ bridge.onEvent((event, data) => {
     }
     useCommitStore.getState().fetchChanges();
     useCommitStore.getState().fetchStashes();
+    // 覆盖外部 `git remote add/remove`（修改 .git/config → watcher 广播
+    // gitStateChanged），保持"提交并推送"按钮禁用状态与实际 remote 一致。
+    useCommitStore.getState().fetchHasRemote();
     return;
   }
 });

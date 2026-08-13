@@ -314,6 +314,8 @@
   "No commits to push": "没有要推送的提交",
   "No merge in progress": "没有进行中的合并",
   "No remotes found": "未找到远程仓库",
+  "No remote repository configured": "未配置远程仓库",
+  "This repository has no remote configured. Add a remote before pushing.": "该仓库未配置远程仓库，请先添加远程仓库后再推送。",
   "open file": "打开文件",
   "Previous Conflict": "上一个冲突",
   "Push Rejected": "推送被拒绝",

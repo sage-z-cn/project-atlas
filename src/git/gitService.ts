@@ -1246,6 +1246,20 @@ export class GitService {
   }
 
   /**
+   * Whether the repository has any configured remote (`git remote` non-empty).
+   * Used to gate push-related UI ("Commit and Push") and to short-circuit a
+   * push attempt that would otherwise surface an ugly `git push` error.
+   */
+  async hasRemote(): Promise<boolean> {
+    try {
+      const output = await this.execGit(["remote"]);
+      return output.trim().length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Get the default remote for the current branch.
    * Tries the upstream tracking remote first, then falls back to the first configured remote.
    */

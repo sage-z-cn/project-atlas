@@ -24,6 +24,7 @@ export function CommitMessageArea() {
     selectedFiles,
     commitListStyle,
     skipPushConfirmation,
+    hasRemote,
     commitError,
     setCommitError,
     changes,
@@ -56,6 +57,10 @@ export function CommitMessageArea() {
       ? changes.length > 0
       : selectedFiles.size > 0;
   const canCommit = commitMessage.trim().length > 0 && hasFiles && !loading;
+  // 第一道门槛：无 remote 时禁用"提交并推送"按钮，阻止进入推送流程。
+  // hasRemote 乐观默认 true，未加载完成不禁用（后端执行层门槛兜底）。
+  const canPush = canCommit && hasRemote;
+  const noRemoteHint = !hasRemote ? t("No remote repository configured") : undefined;
 
   // VSCode 风格下若无已暂存文件但工作区有更改，弹窗确认是否全部暂存后提交。
   // 返回 true 表示可以继续提交（已有暂存 / 已确认并暂存 / 非 vscode 风格 / amend）。
@@ -423,7 +428,8 @@ export function CommitMessageArea() {
           <button
             type="button"
             className="commit-btn commit-btn-secondary commit-split-main"
-            disabled={!canCommit}
+            disabled={!canPush}
+            title={noRemoteHint}
             onClick={handleCommitAndPush}
           >
             {t("Commit and Push...")}
@@ -431,7 +437,8 @@ export function CommitMessageArea() {
           <button
             type="button"
             className="commit-btn commit-btn-secondary commit-split-arrow"
-            disabled={!canCommit}
+            disabled={!canPush}
+            title={noRemoteHint}
             onClick={() => setShowDropdown(!showDropdown)}
           >
             <svg
