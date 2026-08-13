@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.15.0
+- **提交并推送**: 仓库未配置远程时禁用"提交并推送"按钮,执行时友好拦截避免 git 推送报错
+- **远程分支**: 删除已不存在的远程分支时优雅处理错误(幂等)
+
 #### 1.14.0
 - **Git 初始化**: 支持在 webview 中初始化 git 仓库
 - **分支显示**: 提交面板标记当前分支,切换仓库时重置分支过滤
