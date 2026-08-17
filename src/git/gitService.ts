@@ -534,14 +534,14 @@ export class GitService {
       const arrowIdx = rest.indexOf(" -> ");
       if (arrowIdx !== -1) {
         files.push({
-          path: rest.substring(arrowIdx + 4),
-          oldPath: rest.substring(0, arrowIdx),
+          path: unquoteGitPath(rest.substring(arrowIdx + 4)),
+          oldPath: unquoteGitPath(rest.substring(0, arrowIdx)),
           indexStatus,
           workTreeStatus,
         });
       } else {
         files.push({
-          path: rest,
+          path: unquoteGitPath(rest),
           indexStatus,
           workTreeStatus,
         });
@@ -690,7 +690,8 @@ export class GitService {
     return output
       .trim()
       .split("\n")
-      .filter((s) => s.length > 0);
+      .filter((s) => s.length > 0)
+      .map(unquoteGitPath);
   }
 
   async getFileVersions(
@@ -1114,8 +1115,13 @@ export class GitService {
 
       const rest = line.substring(3);
       const arrowIdx = rest.indexOf(" -> ");
-      const filePath = arrowIdx !== -1 ? rest.substring(arrowIdx + 4) : rest;
-      const oldPath = arrowIdx !== -1 ? rest.substring(0, arrowIdx) : undefined;
+      const filePath = unquoteGitPath(
+        arrowIdx !== -1 ? rest.substring(arrowIdx + 4) : rest,
+      );
+      const oldPath =
+        arrowIdx !== -1
+          ? unquoteGitPath(rest.substring(0, arrowIdx))
+          : undefined;
 
       // Untracked file (??) — single untracked entry, never staged
       if (indexStatus === "?" && workTreeStatus === "?") {
@@ -1450,7 +1456,11 @@ export class GitService {
           entry.id,
           "--name-only",
         ]);
-        entry.files = filesOutput.trim().split("\n").filter(Boolean);
+        entry.files = filesOutput
+          .trim()
+          .split("\n")
+          .filter(Boolean)
+          .map(unquoteGitPath);
       } catch {
         // 单个 stash 的 file list 解析失败，忽略，files 保持为 []
       }
@@ -1581,7 +1591,11 @@ export class GitService {
         "--others",
         "--exclude-standard",
       ]);
-      const untrackedFiles = untrackedOutput.trim().split("\n").filter(Boolean);
+      const untrackedFiles = untrackedOutput
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map(unquoteGitPath);
 
       for (const filePath of untrackedFiles) {
         const fullPath = path.join(this.cwd, filePath);
@@ -1622,8 +1636,8 @@ function parseDiffNameStatus(output: string): DiffFile[] {
     const statusCode = parts[0]?.trim() ?? "";
 
     if (statusCode.startsWith("R") || statusCode.startsWith("C")) {
-      const oldPath = parts[1] ?? "";
-      const newPath = parts[2] ?? "";
+      const oldPath = unquoteGitPath(parts[1] ?? "");
+      const newPath = unquoteGitPath(parts[2] ?? "");
       files.push({
         oldPath,
         newPath,
@@ -1631,7 +1645,7 @@ function parseDiffNameStatus(output: string): DiffFile[] {
         isBinary: false,
       });
     } else {
-      const filePath = parts[1] ?? "";
+      const filePath = unquoteGitPath(parts[1] ?? "");
       let status: DiffFile["status"] = "modified";
       if (statusCode === "A") {
         status = "added";
@@ -1647,6 +1661,88 @@ function parseDiffNameStatus(output: string): DiffFile[] {
     }
   }
   return files;
+}
+
+/**
+ * git 在非 `-z` 格式下（status --porcelain / diff-tree --name-status /
+ * ls-files / diff --name-only 等），只要路径包含空格、引号、反斜杠、控制字符，
+ * 或 core.quotepath=true 时包含非 ASCII 字符，就会输出 C 风格双引号包裹并转义
+ * 的路径，例如 "Cowork Helper/Cowork Helper.js" 或 "\344\270\255\346\226\207.js"。
+ * 本函数剥离包裹引号并解码转义序列，还原真实路径。未加引号的路径原样返回。
+ */
+function unquoteGitPath(raw: string): string {
+  if (raw.length < 2 || !raw.startsWith('"') || !raw.endsWith('"')) {
+    return raw;
+  }
+  const inner = raw.slice(1, -1);
+  if (!inner.includes("\\")) {
+    return inner;
+  }
+
+  let result = "";
+  // 连续的八进制转义先攒成字节，再按 UTF-8 解码（core.quotepath=true 时
+  // 非 ASCII 字符被逐字节转义，必须整体解码才能还原）。
+  let pendingBytes: number[] = [];
+  const flushBytes = () => {
+    if (pendingBytes.length > 0) {
+      result += Buffer.from(pendingBytes).toString("utf-8");
+      pendingBytes = [];
+    }
+  };
+
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i];
+    if (ch !== "\\") {
+      flushBytes();
+      result += ch;
+      continue;
+    }
+    i++;
+    const esc = inner[i];
+    switch (esc) {
+      case "\\":
+        flushBytes();
+        result += "\\";
+        break;
+      case '"':
+        flushBytes();
+        result += '"';
+        break;
+      case "n":
+        flushBytes();
+        result += "\n";
+        break;
+      case "t":
+        flushBytes();
+        result += "\t";
+        break;
+      case "r":
+        flushBytes();
+        result += "\r";
+        break;
+      case undefined:
+        break;
+      default: {
+        if (esc >= "0" && esc <= "7") {
+          let oct = esc;
+          while (
+            i + 1 < inner.length &&
+            oct.length < 3 &&
+            inner[i + 1]! >= "0" &&
+            inner[i + 1]! <= "7"
+          ) {
+            oct += inner[++i]!;
+          }
+          pendingBytes.push(parseInt(oct, 8) & 0xff);
+        } else {
+          flushBytes();
+          result += esc;
+        }
+      }
+    }
+  }
+  flushBytes();
+  return result;
 }
 
 function parseLogOutput(output: string): CommitNode[] {
