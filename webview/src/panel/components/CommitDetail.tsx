@@ -3,7 +3,17 @@ import { t } from "../../shared/i18n";
 import { usePanelStore } from "../../shared/store/panel-store";
 import type { Commit } from "../../shared/types/git";
 
-export function CommitDetail() {
+/**
+ * @param headerReserveRight Reserve space to the right of the FIRST commit's
+ *   subject line, keeping it clear of the floating action buttons that
+ *   overlay the detail panel's top-right in bottom-dock mode. Only the first
+ *   (topmost) header can collide with them; other content renders full width.
+ */
+export function CommitDetail({
+  headerReserveRight = 0,
+}: {
+  headerReserveRight?: number;
+}) {
   const commits = usePanelStore((s) => s.commits);
   const selectedCommitHashes = usePanelStore((s) => s.selectedCommitHashes);
 
@@ -32,7 +42,10 @@ export function CommitDetail() {
               }}
             />
           )}
-          <CommitInfo commit={commit} />
+          <CommitInfo
+            commit={commit}
+            subjectReserveRight={i === 0 ? headerReserveRight : 0}
+          />
         </div>
       ))}
     </div>

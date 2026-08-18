@@ -13,6 +13,7 @@ import type { GitHandlerContext } from "../gitContext";
  */
 export type CommitListStyle = "vscode" | "jetbrains";
 export type CommitBadgeMode = "total" | "current" | "off";
+export type DetailPanelPosition = "right" | "bottom";
 
 export function registerConfigHandlers(ctx: GitHandlerContext): void {
   const { messageRouter } = ctx;
@@ -32,7 +33,11 @@ export function registerConfigHandlers(ctx: GitHandlerContext): void {
       "skipPushConfirmation",
       true,
     );
-    return { commitListStyle, commitBadgeMode, skipPushConfirmation };
+    const detailPanelPosition = config.get<DetailPanelPosition>(
+      "detailPanelPosition",
+      "right",
+    );
+    return { commitListStyle, commitBadgeMode, skipPushConfirmation, detailPanelPosition };
   });
 
   // 写入配置并广播事件，让所有 webview 热刷新
@@ -49,6 +54,13 @@ export function registerConfigHandlers(ctx: GitHandlerContext): void {
       await config.update(
         "commitBadgeMode",
         params.commitBadgeMode as CommitBadgeMode,
+        vscode.ConfigurationTarget.Global,
+      );
+    }
+    if (typeof params?.detailPanelPosition === "string") {
+      await config.update(
+        "detailPanelPosition",
+        params.detailPanelPosition as DetailPanelPosition,
         vscode.ConfigurationTarget.Global,
       );
     }

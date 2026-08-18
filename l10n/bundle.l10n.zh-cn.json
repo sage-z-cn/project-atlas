@@ -181,6 +181,8 @@
   "Merging": "正在合并",
   "Merging {0}": "正在合并 {0}",
   "Message": "信息",
+  "Move to Bottom": "移到底部",
+  "Move to Right": "移到右侧",
   "Navigate Log to Branch Head": "导航日志到分支头",
   "Navigate Log to Selected Branch Head": "导航日志到选定分支头",
   "New Branch": "新建分支",

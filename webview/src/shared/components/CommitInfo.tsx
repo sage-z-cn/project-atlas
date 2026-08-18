@@ -53,7 +53,19 @@ const iconColors: Record<string, string> = {
  * Reusable commit info display component.
  * Shows commit message, metadata (hash, author, date), and ref tags.
  */
-export function CommitInfo({ commit }: { commit: Commit }) {
+export function CommitInfo({
+  commit,
+  subjectReserveRight = 0,
+}: {
+  commit: Commit;
+  /**
+   * Extra right padding for the subject (header) line, so it wraps clear of
+   * the floating action buttons overlaying the detail panel's top-right in
+   * bottom-dock mode. Only the header avoids them; the rest of the content
+   * renders full width.
+   */
+  subjectReserveRight?: number;
+}) {
   const displayRefs = commit.refs.filter(
     (r) => !(r.type === "remote-branch" && r.name.endsWith("/HEAD")),
   );
@@ -67,6 +79,7 @@ export function CommitInfo({ commit }: { commit: Commit }) {
           fontSize: "1.05em",
           lineHeight: 1.4,
           marginBottom: 4,
+          paddingRight: subjectReserveRight || undefined,
         }}
       >
         <Linkify text={commit.subject} />

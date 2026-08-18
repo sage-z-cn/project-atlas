@@ -185,7 +185,7 @@ button:disabled {
     background 0.15s;
 }
 
-.panel-toggle-btn:hover {
+.panel-toggle-btn:hover:not(:disabled) {
   opacity: 1;
   background: var(--hover-bg, rgba(0, 0, 0, 0.08));
 }
@@ -232,7 +232,7 @@ button.panel-toggle-btn {
     background 0.15s;
 }
 
-button.panel-toggle-btn:hover {
+button.panel-toggle-btn:hover:not(:disabled) {
   opacity: 1;
   background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
   color: var(--app-fg);

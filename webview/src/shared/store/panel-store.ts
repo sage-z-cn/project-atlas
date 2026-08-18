@@ -148,6 +148,11 @@ interface PanelStore {
   favoriteBranches: string[];
   /** Current git user email (from getUserIdentity), null until resolved. */
   currentEmail: string | null;
+  /**
+   * Where the Git Log detail panel is docked (gitAtlas.detailPanelPosition).
+   * "right" until fetchDetailPanelPosition resolves the host setting.
+   */
+  detailPanelPosition: "right" | "bottom";
 
   filter: PanelFilter;
   /** Hashes to restore after clearing a filter */
@@ -206,6 +211,14 @@ interface PanelStore {
   /** Directly replace the favorite list (used on repo switch to load persisted state). */
   setFavoriteBranches: (list: string[]) => void;
   setCurrentEmail: (email: string | null) => void;
+  /** Pull gitAtlas.detailPanelPosition from the host config bridge. */
+  fetchDetailPanelPosition: () => Promise<void>;
+  /**
+   * Switch the detail panel docking (gitAtlas.detailPanelPosition). Optimistic
+   * local update + host config write; the host's gitConfigChanged broadcast
+   * (also fired by setGitConfig) makes every panel instance refetch.
+   */
+  setDetailPanelPosition: (position: "right" | "bottom") => void;
   setPanelError: (error: string | null) => void;
   refresh: () => Promise<void>;
   /**
@@ -394,6 +407,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   })(),
   favoriteBranches: [],
   currentEmail: null,
+  detailPanelPosition: "right",
 
   filter: {
     searchQuery: "",
@@ -996,6 +1010,27 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     set({ currentEmail: email });
   },
 
+  async fetchDetailPanelPosition() {
+    try {
+      const result = (await bridge.request("getGitConfig")) as {
+        detailPanelPosition?: "right" | "bottom";
+      };
+      const detailPanelPosition = result?.detailPanelPosition ?? "right";
+      set({ detailPanelPosition });
+    } catch (err) {
+      console.error("fetchDetailPanelPosition failed:", err);
+    }
+  },
+
+  setDetailPanelPosition(position) {
+    // Optimistic update — the host broadcast (gitConfigChanged) will land the
+    // same value right after; writing config only, no refetch needed here.
+    set({ detailPanelPosition: position });
+    bridge
+      .request("setGitConfig", { detailPanelPosition: position })
+      .catch((err) => console.error("setDetailPanelPosition failed:", err));
+  },
+
   setPanelError(error) {
     set({ panelError: error });
   },
@@ -1316,6 +1351,9 @@ bridge.onEvent((event, data) => {
     // The seq bump also invalidates any in-flight fetchRepoStatuses from the
     // concurrent repoChanged; re-issue so chip badges stay fresh.
     usePanelStore.getState().fetchRepoStatuses();
+  }
+  if (event === "gitConfigChanged") {
+    void usePanelStore.getState().fetchDetailPanelPosition();
   }
   if (event === "operationStart") {
     usePanelStore.setState({ operationInProgress: true });

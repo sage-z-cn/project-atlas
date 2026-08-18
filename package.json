@@ -874,6 +874,19 @@
           ],
           "description": "%config.gitAtlas.commitBadgeMode%"
         },
+        "gitAtlas.detailPanelPosition": {
+          "type": "string",
+          "default": "right",
+          "enum": [
+            "right",
+            "bottom"
+          ],
+          "enumDescriptions": [
+            "%config.gitAtlas.detailPanelPosition.right%",
+            "%config.gitAtlas.detailPanelPosition.bottom%"
+          ],
+          "description": "%config.gitAtlas.detailPanelPosition%"
+        },
         "gitAtlas.enableGitLogPanel": {
           "type": "boolean",
           "default": true,
