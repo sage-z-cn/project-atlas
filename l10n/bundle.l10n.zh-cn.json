@@ -405,5 +405,16 @@
   "Copy Commit Message": "拷贝提交信息",
   "Copy Absolute Path": "复制绝对路径",
   "Copy Repo Name": "复制仓库名称",
-  "Open in Integrated Terminal": "在集成终端中打开"
+  "Open in Integrated Terminal": "在集成终端中打开",
+  "Manage Remotes": "管理远程",
+  "Add Remote": "新增远程",
+  "Edit URL": "编辑 URL",
+  "Copy URL": "复制 URL",
+  "Delete Remote": "删除远程",
+  "Delete remote '{0}'?": "删除远程 '{0}'?",
+  "Save": "保存",
+  "Close": "关闭",
+  "Add": "新增",
+  "Edit Remote": "编辑远程",
+  "Fetch Remote": "提取远程"
 }

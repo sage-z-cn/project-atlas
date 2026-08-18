@@ -9,6 +9,7 @@ import { usePanelStore } from "../../shared/store/panel-store";
 import type { BranchInfo, TagInfo } from "../../shared/types/git";
 import { BranchSidebar as BranchSidebarComponent } from "./BranchSidebar";
 import { CreateBranchDialog } from "./CreateBranchDialog";
+import { ManageRemotesDialog } from "./ManageRemotesDialog";
 import IconStarFilled from "~icons/codicon/star-full";
 
 // ---------------------------------------------------------------------------
@@ -337,6 +338,9 @@ export function BranchTree({
     defaultName: string;
   } | null>(null);
 
+  // Manage remotes dialog state
+  const [showManageRemotes, setShowManageRemotes] = useState(false);
+
   const handleContextMenu = useCallback(
     (e: React.MouseEvent, branch: BranchInfo) => {
       e.preventDefault();
@@ -533,6 +537,7 @@ export function BranchTree({
         onNewBranch={() =>
           setCreateBranchDialog({ startPoint: "HEAD", defaultName: "" })
         }
+        onManageRemotes={() => setShowManageRemotes(true)}
       />
       <div
         ref={containerRef}
@@ -820,6 +825,11 @@ export function BranchTree({
             />,
             document.body,
           )}
+
+        {/* Manage Remotes Dialog — portaled to document.body by the component */}
+        {showManageRemotes && (
+          <ManageRemotesDialog onClose={() => setShowManageRemotes(false)} />
+        )}
       </div>
     </div>
   );

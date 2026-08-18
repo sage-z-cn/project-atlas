@@ -1316,6 +1316,50 @@ export class GitService {
     }
   }
 
+  /**
+   * List all configured remotes via `git remote -v`.
+   * Parses the "(fetch)" lines (`name\turl (fetch)`) and dedupes by name —
+   * each remote appears twice in `-v` output (fetch + push) with the same
+   * name, so first-wins dedupe keeps a single { name, url } entry per remote.
+   */
+  async getRemotes(): Promise<Array<{ name: string; url: string }>> {
+    try {
+      const output = await this.execGit(["remote", "-v"]);
+      const seen = new Set<string>();
+      const remotes: Array<{ name: string; url: string }> = [];
+      for (const line of output.trim().split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.endsWith("(fetch)")) continue;
+        const match = /^(.+?)\t(.+)\s+\(fetch\)$/.exec(trimmed);
+        if (!match) continue;
+        const [, name, url] = match;
+        if (name && url && !seen.has(name)) {
+          seen.add(name);
+          remotes.push({ name, url });
+        }
+      }
+      return remotes;
+    } catch {
+      return [];
+    }
+  }
+
+  async addRemote(name: string, url: string): Promise<void> {
+    await this.execGit(["remote", "add", name, url]);
+  }
+
+  async removeRemote(name: string): Promise<void> {
+    await this.execGit(["remote", "remove", name]);
+  }
+
+  async setRemoteUrl(name: string, url: string): Promise<void> {
+    await this.execGit(["remote", "set-url", name, url]);
+  }
+
+  async renameRemote(name: string, newName: string): Promise<void> {
+    await this.execGit(["remote", "rename", name, newName]);
+  }
+
   async getLastCommitMessage(): Promise<string> {
     try {
       const output = await this.execGit(["log", "-1", "--format=%B"]);

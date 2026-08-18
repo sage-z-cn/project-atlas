@@ -12,14 +12,17 @@ import IconLocate from "~icons/codicon/target";
 import IconListTree from "~icons/codicon/list-tree";
 import IconListFlat from "~icons/codicon/list-flat";
 import IconSettings from "~icons/codicon/settings";
+import IconGlobe from "~icons/codicon/globe";
 import { usePanelStore } from "../../shared/store/panel-store";
 
 export function BranchSidebar({
   onTogglePanel,
   onNewBranch,
+  onManageRemotes,
 }: {
   onTogglePanel?: () => void;
   onNewBranch?: () => void;
+  onManageRemotes?: () => void;
 } = {}) {
   const selectedBranches = usePanelStore((s) => s.selectedBranches);
   const selectedBranch =
@@ -37,6 +40,10 @@ export function BranchSidebar({
       bridge.request("createBranchPrompt", {});
     }
   }, [onNewBranch]);
+
+  const handleManageRemotes = useCallback(() => {
+    onManageRemotes?.();
+  }, [onManageRemotes]);
 
   const handleToggleFavorite = useCallback(() => {
     if (selectedBranch) {
@@ -83,6 +90,15 @@ export function BranchSidebar({
           onClick={handleNewBranch}
         >
           <IconAdd />
+        </button>
+      </Tooltip>
+      <Tooltip text={t("Manage Remotes")}>
+        <button
+          type="button"
+          className="branch-sidebar-btn"
+          onClick={handleManageRemotes}
+        >
+          <IconGlobe />
         </button>
       </Tooltip>
       <div className="branch-sidebar-separator" />

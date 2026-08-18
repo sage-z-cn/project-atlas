@@ -1,5 +1,6 @@
 import type { GitHandlerContext } from "../gitContext";
 import { requireGit, withProgress } from "../gitContext";
+import type { GitService } from "../../git/gitService";
 
 /**
  * Push / pull / fetch handlers plus push-panel orchestration.
@@ -11,6 +12,30 @@ import { requireGit, withProgress } from "../gitContext";
  */
 export function registerRemoteHandlers(ctx: GitHandlerContext): void {
   const { messageRouter } = ctx;
+
+  // Fire-and-forget background fetch after a remote config change. Deliberately
+  // NOT awaited by the caller: fetch is a network op that can exceed the
+  // webview bridge's 10s request timeout, so handlers return immediately and
+  // the result surfaces later via gitStateChanged. Reuses gitService.fetch()
+  // (which runs `git fetch <remote>` and invalidates the whole cache itself),
+  // so on success we only broadcast; failures are logged, never propagated,
+  // and the .catch keeps the floating promise from rejecting unhandled.
+  const fetchRemoteInBackground = (
+    gitService: GitService,
+    remote: string,
+  ): void => {
+    gitService
+      .fetch(remote)
+      .then(() => {
+        messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+      })
+      .catch((error) => {
+        console.error(
+          `[Git Atlas] Background fetch of remote "${remote}" failed:`,
+          error,
+        );
+      });
+  };
 
   messageRouter.handle(
     "pushBranch",
@@ -140,6 +165,83 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
         (await gitService.getDefaultRemote());
       const url = await gitService.getRemoteUrl(remote);
       return { success: true, url };
+    }),
+  );
+
+  messageRouter.handle(
+    "getRemotes",
+    requireGit(ctx, async (gitService) => {
+      const remotes = await gitService.getRemotes();
+      return { remotes };
+    }),
+  );
+
+  messageRouter.handle(
+    "addRemote",
+    requireGit(ctx, async (gitService, params) => {
+      const name = ((params.name as string) || "").trim();
+      const url = ((params.url as string) || "").trim();
+      const shouldFetch = params.fetch as boolean | undefined;
+      if (!name) throw new Error("Remote name is required.");
+      if (/\s/.test(name)) throw new Error("Remote name must not contain whitespace.");
+      if (!url) throw new Error("Remote URL is required.");
+      await gitService.addRemote(name, url);
+      // GitWatcher does not watch .git/config, so remote mutations must
+      // invalidate cached branch data and notify webviews manually.
+      gitService.cache.invalidate("branches:v2");
+      messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+      if (shouldFetch) fetchRemoteInBackground(gitService, name);
+      return { success: true };
+    }),
+  );
+
+  messageRouter.handle(
+    "removeRemote",
+    requireGit(ctx, async (gitService, params) => {
+      const name = ((params.name as string) || "").trim();
+      if (!name) throw new Error("Remote name is required.");
+      await gitService.removeRemote(name);
+      gitService.cache.invalidate("branches:v2");
+      messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+      return { success: true };
+    }),
+  );
+
+  messageRouter.handle(
+    "setRemoteUrl",
+    requireGit(ctx, async (gitService, params) => {
+      const name = ((params.name as string) || "").trim();
+      const url = ((params.url as string) || "").trim();
+      const shouldFetch = params.fetch as boolean | undefined;
+      if (!name) throw new Error("Remote name is required.");
+      if (/\s/.test(name)) throw new Error("Remote name must not contain whitespace.");
+      if (!url) throw new Error("Remote URL is required.");
+      await gitService.setRemoteUrl(name, url);
+      gitService.cache.invalidate("branches:v2");
+      messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+      if (shouldFetch) fetchRemoteInBackground(gitService, name);
+      return { success: true };
+    }),
+  );
+
+  messageRouter.handle(
+    "renameRemote",
+    requireGit(ctx, async (gitService, params) => {
+      const name = ((params.name as string) || "").trim();
+      const newName = ((params.newName as string) || "").trim();
+      const shouldFetch = params.fetch as boolean | undefined;
+      if (!name) throw new Error("Remote name is required.");
+      if (/\s/.test(name)) throw new Error("Remote name must not contain whitespace.");
+      if (!newName) throw new Error("New remote name is required.");
+      if (/\s/.test(newName)) throw new Error("New remote name must not contain whitespace.");
+      // `git remote rename` migrates branch.*.remote upstream config too —
+      // a remove+add combo would silently drop it.
+      await gitService.renameRemote(name, newName);
+      gitService.cache.invalidate("branches:v2");
+      messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+      // Post-rename the remote answers to its new name.
+      if (shouldFetch) fetchRemoteInBackground(gitService, newName);
+      return { success: true };
     }),
   );
 
