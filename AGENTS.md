@@ -1,11 +1,12 @@
 # Project Atlas - VSCode Extension
 
-One extension shipping **three** feature sets, each with its own subsystem:
+One extension shipping **four** feature sets, each with its own subsystem:
 - **Project Atlas** — project favorites/groups/recent management (activity bar sidebar)
 - **Task Atlas** — aggregates VSCode tasks + npm scripts across the workspace (activity bar sidebar)
 - **Git Atlas** — multi-repo git log, commit, merge/diff/conflict editor, push, rollback (bottom panel + activity bar)
+- **Todo Atlas** — scans comment tags (TODO/FIXME/XXX/HACK/BUG/NOTE) across workspace files (bottom panel, **disabled by default** via `todoAtlas.enabled`; auto-scan also off by default)
 
-All three subsystems render through the **same** React 19 webview app (`webview/`) and communicate over one formal request/response/event protocol (`MessageRouter`).
+All four subsystems render through the **same** React 19 webview app (`webview/`) and communicate over one formal request/response/event protocol (`MessageRouter`).
 
 ## Agent Working Rules
 
@@ -48,45 +49,52 @@ Build gotchas:
 `src/extension.ts` `activate()` wires:
 - `StorageService`, `ProjectService`, `FavoriteService`, `GroupService` (project data, all via `StorageService`)
 - `TaskService` — **independent**: uses `globalState` directly, exposes its own `onDidChange`, NOT routed through `StorageService`
+- `TodoService` — **independent**: `globalState` (global todo list) + `workspaceState` (per-workspace state), own lifecycle, pushed to `context.subscriptions`
 - `setupProject(context, ...)` — Project Atlas assembly (recent + favorites React views, project handlers, event broadcasting)
 - `setupTask(context, taskService)` — Task Atlas assembly (React view, task handlers, watchers, view/title commands)
-- `setupGit(context)` — Git Atlas assembly (modular, independent of the project/task side)
+- `setupTodo(context, todoService)` — Todo Atlas assembly (todo router + scan watcher + view/title commands)
+- `setupGit(context)` — Git Atlas assembly (modular, independent of the project/task/todo side)
 
 Note: `extension.ts` still defines `const refreshAll = () => {};` as a **no-op**, retained only to minimize changes to `projectCommands`/`groupCommands` signatures. Do not assume it refreshes anything.
 
 ### Key directories
-- `src/models/` — `project.ts` (`ProjectItem`, `ProjectType`), `group.ts` (`GroupItem`, supports `parentId` nesting), `storage.ts` (`ProjectData`), `task.ts` (`TaskItem`, `TaskSource`, `PackageManager`)
-- `src/services/` — `ProjectService`, `FavoriteService`, `GroupService`, `StorageService`, `taskService.ts`
-- `src/setupProject.ts`, `src/setupTask.ts`, `src/git/setupGit.ts` — per-subsystem assembly entry points (router + handlers + ReactViewProvider + event subscriptions)
-- `src/commands/` — `projectCommands`, `groupCommands`, `aiCommands`, `gitCommands` + `gitContext.ts`; handler modules live in subfolders `gitHandlers/`, `projectHandlers/`, `taskHandlers/`
+- `src/models/` — `project.ts` (`ProjectItem`, `ProjectType`), `group.ts` (`GroupItem`, supports `parentId` nesting), `storage.ts` (`ProjectData`), `task.ts` (`TaskItem`, `TaskSource`, `PackageManager`), `todo.ts`
+- `src/services/` — `ProjectService`, `FavoriteService`, `GroupService`, `StorageService`, `taskService.ts`, `todoService.ts`
+- `src/setupProject.ts`, `src/setupTask.ts`, `src/setupTodo.ts`, `src/git/setupGit.ts` — per-subsystem assembly entry points (router + handlers + ReactViewProvider + event subscriptions)
+- `src/commands/` — `projectCommands`, `groupCommands`, `aiCommands`, `gitCommands` + `gitContext.ts`; handler modules live in subfolders `gitHandlers/`, `projectHandlers/`, `taskHandlers/`, `todoHandlers/`
 - `src/ai/` — `aiCommitService.ts` (OpenAI-compatible commit message generation) + `thinkingProviders.ts` (thinking-model support)
 - `src/messages/` — `protocol.ts` (`RequestMessage`/`ResponseMessage`/`EventMessage` + `CommandType`/`EventType` unions + `ErrorCode`), `messageRouter.ts` (the router), `l10nHandler.ts` (serves the l10n bundle to webviews via a `getL10nBundle` request)
-- `src/webview/` — **8 files**: `reactHtml.ts` (shared HTML shell for every React webview), `reactViewProvider.ts` (generic provider keyed by `mode`), and Git-specific managers: `gitContentProvider`, `diffEditorManager`, `mergeEditorManager`, `conflictsManager`, `pushPanel`, `rollbackPanel`. The legacy hand-built HTML providers (recent/favorites/tasks) have been removed.
-- `src/git/` — Git Atlas core: `gitService`, `repoRegistry`, `repoScanner`, `repoPaths`, `graphLayout`, `cache`, `commitViewBadge`, `types`, `setupGit`
-- `src/watchers/` — `gitWatcher.ts` + FileWatchers for `**/.vscode/tasks.json` and `**/package.json` that drive task cache invalidation
-- `src/utils/` — `validator`, `opener`, `projectTypeDetector`, `confirm`, `ideaPatch`
-- `webview/` — **separate npm workspace** (`"workspaces": ["webview"]`), React 19 + zustand + allotment + shiki + diff/node-diff3 + @tanstack/react-virtual + unplugin-icons (SVG icons via `@iconify/json`). Builds a single non-split JS bundle to `../out/webview/assets/main.js` (no code splitting — CSP nonce only covers the entry script). Webview source is organized by feature: `recent/`, `favorites/`, `tasks/`, `commit/`, `conflicts/`, `push/`, `rollback/`, `panel/`, `shared/`.
+- `src/webview/` — **8 files**: `reactHtml.ts` (shared HTML shell for every React webview), `reactViewProvider.ts` (generic provider keyed by `mode`), and Git-specific managers: `gitContentProvider`, `diffEditorManager`, `mergeEditorManager`, `conflictsManager`, `pushPanel`, `rollbackPanel`. No legacy hand-built HTML providers remain.
+- `src/git/` — Git Atlas core: `gitService`, `repoRegistry`, `repoScanner`, `repoPaths`, `graphLayout`, `cache`, `commitViewBadge`, `blameHoverProvider`, `types`, `setupGit`
+- `src/todo/` — `scanner.ts` (comment-tag scanning used by Todo Atlas)
+- `src/watchers/` — only `gitWatcher.ts`. The task cache watchers (`**/.vscode/tasks.json`, `**/package.json`) are created inline in `setupTask.ts`; the todo scan watcher lives in `setupTodo.ts`.
+- `src/utils/` — `validator`, `opener`, `scmUtils`, `projectTypeDetector`, `pathUtils`, `confirm`, `logger`
+- `webview/` — **separate npm workspace** (`"workspaces": ["webview"]`), React 19 + zustand + allotment + shiki + diff/node-diff3 + @tanstack/react-virtual + unplugin-icons (SVG icons via `@iconify/json`). Builds a single non-split JS bundle to `../out/webview/assets/main.js` (no code splitting — CSP nonce only covers the entry script). Webview source is organized by feature: `recent/`, `favorites/`, `tasks/`, `todos/`, `commit/`, `conflicts/`, `push/`, `rollback/`, `panel/`, `shared/`.
 - `l10n/` — runtime localization (`bundle.l10n.zh-cn.json`)
 - `package.nls.json` / `package.nls.zh-cn.json` — manifest NLS bundles
 
 ### Unified webview protocol
-**One protocol for all three subsystems** (Project, Task, Git). The previous "legacy ad-hoc `postMessage` for Project/Task + formal protocol for Git" split no longer exists.
+**One protocol for all four subsystems** (Project, Task, Git, Todo). Each `setup*` creates its own `MessageRouter` instance; webviews only ever talk to their own subsystem's router.
 
 - Webview → extension: `RequestMessage { type: "request", id, command, params }` → `MessageRouter` dispatches to a registered handler → `ResponseMessage { type: "response", id, success, data?, error? }`.
 - Extension → webview: `messageRouter.broadcastEvent(event, data)` fans out `EventMessage { type: "event", event, data }` to **all** registered webviews.
-- `CommandType` / `EventType` unions in `protocol.ts` are git-centric but the router widens `command`/`event` to `string` so project/task command and event names pass through unchanged.
-- Entry dispatch: `<div id="root">` carries `data-mode` (e.g. `"recent"`, `"favorites"`, `"tasks"`, `"gitLog"`, `"commitPanel"`) + extra `data-*` attrs; `webview/src/main.tsx` reads `root.dataset.mode` and mounts the matching root component.
+- `CommandType` / `EventType` unions in `protocol.ts` are git-centric but the router widens `command`/`event` to `string` so project/task/todo command and event names pass through unchanged.
+- Entry dispatch: `<div id="root">` carries `data-mode` + extra `data-*` attrs; `webview/src/main.tsx` reads `root.dataset.mode` and mounts the matching root component. Valid modes: `panel` (git log), `merge`, `conflicts`, `commit`, `push`, `rollback`, `recent`, `tasks`, `todos`, `favorites`.
 
 ### Data flow
-Project mutations go through `storage.updateData(updater)` (serialized via an internal promise queue) → `storage.onDidChange` → `setupProject` broadcasts `projectDataChanged` → React recent/favorites views refetch. Window focus and `openMode`/`workbench.list.openMode` config changes are also wired to broadcast events. TaskService does **not** follow this path — it persists to `globalState` independently and emits its own `tasksChanged` events.
+Project mutations go through `storage.updateData(updater)` (serialized via an internal promise queue) → `storage.onDidChange` → `setupProject` broadcasts `projectDataChanged` → React recent/favorites views refetch. Window focus and `openMode`/`workbench.list.openMode` config changes are also wired to broadcast events. TaskService and TodoService do **not** follow this path — each persists to `globalState` (Todo also uses `workspaceState`) independently and emits its own `tasksChanged`/todo events.
 
 ### Multi-repo Git support
 `RepoRegistry` (`repoScanner.scanRepos`) scans each workspace root + **1 level of direct child directories only** (no recursion — explicit performance contract). Dot-directories and `node_modules`/`.git` are skipped; each repo gets its own `GitService` + `GitWatcher`. "Current repo" is switchable; `GitHandlerContext.gitService` is a getter aliasing `registry.getCurrent()` so handlers follow repo switches.
+
+### Git virtual filesystem
+The manifest declares a `git-atlas` fileSystemProvider scheme (see `src/webview/gitContentProvider.ts`). Diff/file-content views read from `git-atlas:` URIs — this is why `editSource`-style commands check `resourceScheme == 'git-atlas'`. Don't convert these URIs to `file:` URIs.
 
 ### Storage
 - Key: `projectAtlas.data`, via `vscode.globalState`
 - Structure: `{ version, recentProjects[], favoriteProjects[], groups[] }`, current version **2**
 - Migration v1 → v2 splits `projects[]` into `recentProjects` + `favoriteProjects`. **Triggered by shape** (absence of `recentProjects`), not a version-bump check.
+- Todo data lives in its own store (version 1): global list in `globalState`, per-project state in `workspaceState` — separate from `projectAtlas.data`.
 
 ## Critical Constraints
 
@@ -118,7 +126,7 @@ await this.storage.updateData((data) => ({
   recentProjects: data.recentProjects.map(p => /* transform */),
 }));
 ```
-TaskService does NOT follow this — it persists to `globalState` independently.
+TaskService/TodoService do NOT follow this — each persists to `globalState` independently.
 
 ### Webview Communication
 ```typescript
@@ -131,7 +139,7 @@ postMessage({ type: "request", id, command: "getRecentProjects", params: {} });
 ### Command Registration
 ```typescript
 // In commands/*.ts — register("commandName", handlerFn)
-// Command ID becomes: <namespace>.commandName  (project-atlas.* | task-atlas.* | git-atlas.*)
+// Command ID becomes: <namespace>.commandName  (project-atlas.* | task-atlas.* | todo-atlas.* | git-atlas.*)
 ```
 
 ## Common Pitfalls
@@ -141,5 +149,5 @@ postMessage({ type: "request", id, command: "getRecentProjects", params: {} });
   - `vscode.l10n.t("string")` runtime strings → **L10n**: `l10n/bundle.l10n.zh-cn.json`. Key is the English source, value is the Chinese translation. Only `zh-cn` exists (no `bundle.l10n.json` — English is the source string). Webviews fetch this bundle at runtime via the `getL10nBundle` request handled by `src/messages/l10nHandler.ts`.
   - **Never** put `command.*` NLS keys in the l10n bundle, and **never** put runtime strings in the NLS files.
 - Quality gates are manual only: **no CI, no pre-commit hooks, no formatter**. Run `npm run lint` yourself; there is no webview lint. There is no typecheck gate for extension code (see "Type checking").
-- `.codegraph/`, `.opencode/`, `.slim/`, `.docs/`, and `build/` are tooling/build artifacts or internal dirs — not part of the extension runtime. `.vscodeignore` excludes `.docs/`, `AGENTS.md`, source maps, and `**/*.ts` from the packaged `.vsix`.
-- README is current (documents `projectAtlas.*` / `taskAtlas.*` / `gitAtlas.*` config namespaces and all features including AI commit). Trust the README and the manifest together.
+- `.codegraph/`, `.opencode/`, `.slim/`, `.docs/`, `.sisyphus/`, `screenshot/`, and `build/` are tooling/build artifacts or internal dirs — not part of the extension runtime. `.vscodeignore` excludes `.docs/`, `.sisyphus/`, `screenshot/`, `AGENTS.md`, source maps, and `**/*.ts` from the packaged `.vsix`.
+- README is current (documents `projectAtlas.*` / `taskAtlas.*` / `todoAtlas.*` / `gitAtlas.*` config namespaces and all features including AI commit). Trust the README and the manifest together.
