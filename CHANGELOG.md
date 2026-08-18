@@ -4,6 +4,12 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.16.0
+- **远程管理**: 分支面板新增远程管理弹窗,支持查看、新增、编辑(含重命名)、删除远程及复制 URL,保存后可选自动提取
+- **日志面板**: 修复面板启动数秒延迟的问题
+- **日志面板**: 支持调整 git 日志详情面板的位置
+- **Git 路径**: 修复解析 git 路径中引号和转义字符失败的问题
+
 #### 1.15.0
 - **提交并推送**: 仓库未配置远程时禁用"提交并推送"按钮,执行时友好拦截避免 git 推送报错
 - **远程分支**: 删除已不存在的远程分支时优雅处理错误(幂等)
