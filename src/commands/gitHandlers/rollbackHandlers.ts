@@ -75,6 +75,7 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
     if (!filePaths || filePaths.length === 0) return { success: false };
 
     // Multi-repo: resolve the owning repo root for the absolute paths.
+    await ctx.registry.whenReady;
     const repoRoot =
       (params?.repoPath as string) ||
       ctx.registry.getCurrentRepoPath() ||
@@ -256,6 +257,7 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
 
   // refreshGitState tolerates a null gitService — written by hand.
   messageRouter.handle("refreshGitState", async () => {
+    await ctx.registry.whenReady; // 手写 handler 自行兜底首批请求竞态
     const roots = (vscode.workspace.workspaceFolders ?? []).map(
       (f) => f.uri.fsPath,
     );

@@ -23,6 +23,9 @@ export function registerMergeEditorHandlers(ctx: GitHandlerContext): void {
 
   messageRouter.handle("openDiffEditor", async (params) => {
     if (!ctx.diffManager) return undefined;
+    // whenReady: DiffEditorManager.openDiffEditor 内部经 registry.getCurrent()
+    // 解析 GitService，需等首次扫描完成，避免启动竞态下打开空 diff。
+    await ctx.registry.whenReady;
     const commit = params.commit as string;
     const filePathParam = params.filePath as string | undefined;
     const fileParam = params.file as string | DiffFile | undefined;

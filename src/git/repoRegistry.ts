@@ -34,6 +34,17 @@ const CURRENT_REPO_KEY = "gitAtlas.currentRepoPath";
  * In-flight race handling (concurrent GitService operations during a switch)
  * is intentionally NOT addressed here — it belongs to the store layer in a
  * later phase.
+ *
+ * Startup readiness: `whenReady` is a public read-only promise that resolves
+ * once the FIRST init() finishes (scan + service/watcher creation + persisted
+ * current-repo restore). It exists because setupGit fires init() in the
+ * background without awaiting it (so webview providers can register
+ * immediately) — the webview's first batch of requests (initRepo / getRepos /
+ * getGraphData, ...) may therefore arrive before the registry finished its
+ * first scan and would otherwise read empty state with no later correction
+ * signal. Handlers await `whenReady` to gate on first-scan completion; once
+ * resolved it is a no-op microtask. rescan() deliberately never touches it
+ * (it is a first-boot signal, not a per-rescan barrier).
  */
 export class RepoRegistry implements vscode.Disposable {
   private services = new Map<string, GitService>();
@@ -51,23 +62,52 @@ export class RepoRegistry implements vscode.Disposable {
    */
   readonly onGitStateChanged = this._onGitStateChanged.event;
 
+  /**
+   * Resolves when the first init() completes (successfully or not — a failed
+   * first scan also resolves, mirroring the pre-whenReady behaviour where an
+   * init failure left the registry empty but operational). See the class-doc
+   * "Startup readiness" paragraph for why this exists.
+   */
+  readonly whenReady: Promise<void>;
+
+  /**
+   * Deferred resolve handle backing {@link whenReady}. Assigned synchronously
+   * by the Promise executor in the constructor; extra calls after the first
+   * resolve are no-ops (Promise settles once), and rescan() never fires it.
+   * Not readonly: TS only permits readonly assignment directly in the
+   * constructor body, and this is assigned inside the (synchronously-invoked)
+   * Promise executor.
+   */
+  private resolveWhenReady!: (value: void) => void;
+
   constructor(
     private readonly messageRouter: MessageRouter,
     private readonly context: vscode.ExtensionContext,
-  ) {}
+  ) {
+    this.whenReady = new Promise<void>((resolve) => {
+      this.resolveWhenReady = resolve;
+    });
+  }
 
   /**
    * Initial population: scan once, then restore the persisted current repo
    * (validated against the live service map, falling back to the first repo).
    */
   async init(workspaceRoots: string[]): Promise<void> {
-    await this.rescan(workspaceRoots);
+    try {
+      await this.rescan(workspaceRoots);
 
-    const saved = this.context.workspaceState.get<string>(CURRENT_REPO_KEY);
-    if (saved && this.services.has(normalizePath(saved))) {
-      this.currentRepoPath = normalizePath(saved);
-    } else {
-      this.currentRepoPath = this.repoInfos[0]?.path ?? null;
+      const saved = this.context.workspaceState.get<string>(CURRENT_REPO_KEY);
+      if (saved && this.services.has(normalizePath(saved))) {
+        this.currentRepoPath = normalizePath(saved);
+      } else {
+        this.currentRepoPath = this.repoInfos[0]?.path ?? null;
+      }
+    } finally {
+      // Resolve regardless of success: waiting request handlers must not hang
+      // forever on a failed first scan (they will then just see the empty
+      // registry, same as the old awaited-init failure path).
+      this.resolveWhenReady();
     }
   }
 

@@ -15,11 +15,15 @@ import { normalizePath } from "../../git/repoPaths";
 export function registerRepoHandlers(ctx: GitHandlerContext): void {
   const { messageRouter, registry } = ctx;
 
+  // whenReady: 首批 initRepo/getRepos 请求可能与首次扫描竞态（setupGit 不 await
+  // registry.init），手写 handler 需自行兜底，避免读到空仓库列表。
   messageRouter.handle("getRepos", async () => {
+    await registry.whenReady;
     return { repos: registry.getRepoInfos() };
   });
 
   messageRouter.handle("getCurrentRepo", async () => {
+    await registry.whenReady;
     return { repoPath: registry.getCurrentRepoPath() };
   });
 
@@ -33,6 +37,7 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
   );
 
   messageRouter.handle("switchRepo", async (params) => {
+    await registry.whenReady; // setCurrent 校验 services.has()，需首次扫描完成后再切换
     const repoPath = params?.repoPath as string | undefined;
     if (repoPath) {
       await registry.setCurrent(repoPath);
@@ -47,6 +52,7 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
   // failure, detached HEAD) never aborts the whole batch — it just reports
   // null ahead/behind + dirty 0 for that one repo.
   messageRouter.handle("getRepoStatuses", async () => {
+    await registry.whenReady;
     const infos = registry.getRepoInfos();
     const statuses = await Promise.all(
       infos.map(async (info) => {

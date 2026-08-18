@@ -1,6 +1,6 @@
 import type React from "react";
 import { useMemo } from "react";
-import type { BundledLanguage, Highlighter, SpecialLanguage } from "shiki";
+import type { HighlighterCore } from "shiki/core";
 import { useShiki } from "../../shared/hooks/useShiki";
 import type { MergeBlock } from "../../shared/types/merge";
 import { calculateInlineDiffs, type InlineDiff } from "../utils/inline-diff";
@@ -63,27 +63,31 @@ interface MergedSpan {
   backgroundColor?: string;
 }
 
+/** Token options as accepted by `HighlighterCore.codeToTokens`. */
+type CoreTokenOptions = Parameters<HighlighterCore["codeToTokens"]>[1];
+
 /**
  * Get Shiki syntax tokens for a single line, returned as character-range spans.
  */
 function getShikiSpans(
-  highlighter: Highlighter,
+  highlighter: HighlighterCore,
   line: string,
   language: string,
 ): Array<{ start: number; end: number; color?: string }> {
   const lang = normalizeShikiLang(language);
   const theme = getShikiTheme();
+  // `HighlighterCore` (from createHighlighterCore) types lang/theme options
+  // with a `never` literal union since it has no bundled registry. At runtime
+  // it resolves registered names; unknown langs fall back to typescript below.
+  const options = { lang, theme } as unknown as CoreTokenOptions;
   const result = (() => {
     try {
-      return highlighter.codeToTokens(line, {
-        lang,
-        theme,
-      });
+      return highlighter.codeToTokens(line, options);
     } catch {
       return highlighter.codeToTokens(line, {
         lang: "typescript",
         theme,
-      });
+      } as unknown as CoreTokenOptions);
     }
   })();
   const spans: Array<{ start: number; end: number; color?: string }> = [];
@@ -120,9 +124,7 @@ function getShikiTheme(): "github-light" | "github-dark" {
   return "github-light";
 }
 
-function normalizeShikiLang(
-  language: string,
-): BundledLanguage | SpecialLanguage {
+function normalizeShikiLang(language: string): string {
   const lang = language.toLowerCase();
   if (lang === "typescriptreact") return "tsx";
   if (lang === "javascriptreact") return "jsx";

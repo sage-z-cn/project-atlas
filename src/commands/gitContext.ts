@@ -87,8 +87,16 @@ export function withProgress<T>(
  * falling back to the currently-selected repo. Returns the NOT_GIT_REPO
  * sentinel when no service can be resolved.
  *
+ * Startup ordering: setupGit fires registry.init() in the background so
+ * webview providers can register before the first disk scan finishes. A
+ * webview's first requests may therefore race the first scan — awaiting
+ * `whenReady` here ensures requireGit-wrapped handlers resolve against the
+ * fully-scanned registry instead of reading an empty one. Once init has
+ * completed this await is a single resolved-microtask hop.
+ *
  * Handlers that need a different fallback (e.g. getCherryPickState returns
- * { isCherryPicking: false }) should still be written by hand.
+ * { isCherryPicking: false }) should still be written by hand — and must add
+ * the same `await ctx.registry.whenReady` prologue themselves.
  */
 export function requireGit<T>(
   ctx: GitHandlerContext,
@@ -98,6 +106,7 @@ export function requireGit<T>(
   ) => Promise<T>,
 ): CommandHandler {
   return async (params) => {
+    await ctx.registry.whenReady;
     const svc = params?.repoPath
       ? ctx.registry.getService(params.repoPath as string)
       : ctx.registry.getCurrent();

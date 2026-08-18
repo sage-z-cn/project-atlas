@@ -184,13 +184,16 @@ export function registerQueryHandlers(ctx: GitHandlerContext): void {
   );
 
   // Note: returns { isCherryPicking: false } when no gitService, not NOT_GIT_REPO.
+  // whenReady: 手写 handler 不走 requireGit，需自行兜底首批请求与首次扫描的竞态。
   messageRouter.handle("getCherryPickState", async () => {
+    await ctx.registry.whenReady;
     if (!ctx.gitService) return { isCherryPicking: false };
     return ctx.gitService.getCherryPickState();
   });
 
   // Note: returns { isRebasing: false } when no gitService, not NOT_GIT_REPO.
   messageRouter.handle("getRebaseState", async () => {
+    await ctx.registry.whenReady;
     if (!ctx.gitService) return { isRebasing: false };
     return ctx.gitService.getRebaseState();
   });
@@ -234,6 +237,7 @@ export function registerQueryHandlers(ctx: GitHandlerContext): void {
   // scoped down. Written by hand (not via requireGit) to preserve the
   // NOT_GIT_REPO fallback shape exactly.
   messageRouter.handle("getWorkingTreeChanges", async (params) => {
+    await ctx.registry.whenReady;
     const svc = params?.repoPath
       ? ctx.registry.getService(params.repoPath as string)
       : ctx.registry.getCurrent();

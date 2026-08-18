@@ -24,8 +24,15 @@ export function registerGitCommands(
   context: vscode.ExtensionContext,
   ctx: GitHandlerContext,
 ): void {
+  // whenReady: 下列命令读取 registry 派生状态（ctx.gitService /
+  // getCurrentRepoPath / findRepoForPath，含 DiffEditorManager 内部的
+  // getCurrent 调用）。setupGit 后台发起 registry.init，启动早期触发这些命令
+  // （编辑器恢复、右键菜单、面板首次交互）时需等首次扫描完成再解析。
+  // 纯导航/面板类命令（openGitLog / openCommitPanel / openConflicts 等）不
+  // 碰 registry，无需兜底。
   context.subscriptions.push(
     vscode.commands.registerCommand("git-atlas.openPushPanel", async () => {
+      await ctx.registry.whenReady;
       if (!ctx.gitService) return;
       const branch = await ctx.gitService.getCurrentBranch();
       if (branch) {
@@ -41,8 +48,9 @@ export function registerGitCommands(
     ),
     vscode.commands.registerCommand(
       "git-atlas.openDiffEditor",
-      (commit?: string, filePath?: string) => {
+      async (commit?: string, filePath?: string) => {
         if (commit && filePath && ctx.diffManager) {
+          await ctx.registry.whenReady;
           ctx.diffManager.openDiffEditor(commit, filePath);
         }
       },
@@ -101,6 +109,7 @@ export function registerGitCommands(
         if (!fileUri) return;
         // Resolve the OWNING repo from the file path (not the currently-active
         // one) and switch to it, so git log runs against the right repo.
+        await ctx.registry.whenReady;
         const repo = ctx.registry.findRepoForPath(fileUri.fsPath);
         if (!repo) return; // file lives outside every known repo
         if (repo.path !== ctx.registry.getCurrentRepoPath()) {
@@ -137,6 +146,8 @@ export function registerGitCommands(
       const uri = editor.document.uri;
       const line = editor.selection.active.line;
       const character = editor.selection.active.character;
+
+      await ctx.registry.whenReady;
 
       // Multi-repo: resolve the owning repo root — editSource is a plain
       // registerCommand (no bridge params), so use the currently-selected repo
@@ -196,6 +207,7 @@ export function registerGitCommands(
       "git-atlas.locateCommit",
       async (hash?: string, repoPath?: string) => {
         if (!hash || typeof hash !== "string") return;
+        await ctx.registry.whenReady;
         // Switch to the owning repo (the hover resolves it from the file's
         // path) so the log loads the history that contains this commit.
         if (repoPath && repoPath !== ctx.registry.getCurrentRepoPath()) {

@@ -45,11 +45,44 @@ export function getReactWebviewHtml(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}';">
+  <style>
+    /* Boot 占位样式：JS 加载执行前给 #root 一个非白屏的加载指示。
+       CSP 的 style-src 'unsafe-inline' 允许此内联样式。
+       颜色只用 VSCode 变量 + color-mix 透明度分层，无硬编码色值。 */
+    .atlas-boot {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: color-mix(in srgb, var(--vscode-foreground) 70%, transparent);
+    }
+    .atlas-boot-spinner {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid color-mix(in srgb, var(--vscode-foreground) 25%, transparent);
+      border-top-color: var(--vscode-foreground);
+      animation: atlas-boot-spin 0.8s linear infinite;
+    }
+    @keyframes atlas-boot-spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
   <link rel="stylesheet" href="${styleUri}">
   <title>${escapeHtml(title)}</title>
 </head>
 <body>
-  <div id="root" ${dataAttrs.join(" ")}></div>
+  <div id="root" ${dataAttrs.join(" ")}>
+    <!-- Boot 占位：React createRoot(root).render() 首次渲染时会整体替换
+         #root 的现有子节点，因此无需任何清理逻辑。 -->
+    <div class="atlas-boot">
+      <div class="atlas-boot-spinner"></div>
+      <div>${escapeHtml(vscode.l10n.t("Loading..."))}</div>
+    </div>
+  </div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

@@ -31,7 +31,13 @@
   ],
   "activationEvents": [
     "onStartupFinished",
-    "onFileSystem:git-atlas"
+    "onFileSystem:git-atlas",
+    "onView:git-atlas.gitLog",
+    "onView:git-atlas.commitPanel",
+    "onView:todo-atlas.todos",
+    "onView:project-atlas.recent",
+    "onView:project-atlas.favorites",
+    "onView:task-atlas.tasks"
   ],
   "main": "./out/extension.js",
   "l10n": "./l10n",
@@ -105,7 +111,7 @@
           "name": "%view.gitAtlas.gitLog%",
           "icon": "$(history)",
           "type": "webview",
-          "when": "gitAtlas.gitLogEnabled"
+          "when": "config.gitAtlas.enableGitLogPanel != false"
         }
       ],
       "git-atlas-commit": [
@@ -114,7 +120,7 @@
           "name": "%view.gitAtlas.commitPanel%",
           "icon": "$(git-commit)",
           "type": "webview",
-          "when": "gitAtlas.commitEnabled"
+          "when": "config.gitAtlas.enableCommitPanel != false"
         },
         {
           "id": "git-atlas.commitBadgeProxy",
@@ -128,7 +134,7 @@
           "name": "%view.todos.name%",
           "icon": "resources/todo.svg",
           "type": "webview",
-          "when": "todoAtlas.enabled"
+          "when": "config.todoAtlas.enabled"
         }
       ]
     },
@@ -564,12 +570,12 @@
         },
         {
           "command": "git-atlas.openGitLog",
-          "when": "view == git-atlas.commitPanel && gitAtlas.gitLogEnabled",
+          "when": "view == git-atlas.commitPanel && config.gitAtlas.enableGitLogPanel != false",
           "group": "navigation@1"
         },
         {
           "command": "git-atlas.openCommitPanel",
-          "when": "view == git-atlas.gitLog && gitAtlas.commitEnabled",
+          "when": "view == git-atlas.gitLog && config.gitAtlas.enableCommitPanel != false",
           "group": "navigation@5"
         }
       ],

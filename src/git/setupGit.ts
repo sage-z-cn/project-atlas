@@ -32,23 +32,23 @@ import type { GitHandlerContext } from "../commands/gitContext";
  * "当前 repo"。panel / commit / diff editor 通过 ctx.gitService（= registry
  * .getCurrent() 的 getter 别名）共享当前 repo。
  *
- * 装配顺序：
+ * 装配顺序（启动延迟优化后的时序）：
  *   a. MessageRouter 单例（所有 webview 共享）
- *   b. workspace roots → RepoRegistry.init（内部创建 service + watcher）
- *   c. GitContentProvider / DiffEditorManager（绑定到 registry.getCurrent()，
- *      切换 repo 时的适配留后续优化 —— 见 TODO 注释）
- *   d. ReactViewProvider × 2（gitLog / commitPanel）
- *   e. Manager / Panel 实例（merge / conflicts / push / rollback）
- *   f. 构造 GitHandlerContext（registry + getter 形式的 gitService）
- *   g. 注册 handler + command + 临时调试命令
- *   h. 状态栏项
- *   i. 全部 disposable push 到 context.subscriptions
+ *   b. workspace roots → RepoRegistry 创建 → GitContentProvider /
+ *      DiffEditorManager 同步注册（绑定到 registry，不依赖 init 完成）
+ *   c. 后台发起 RepoRegistry.init（不 await：扫盘 + service/watcher 创建
+ *      在后台进行，不阻塞下方装配；早到的 webview 请求由 handler 内的
+ *      `await registry.whenReady` 兜底）
+ *   d. Manager / Panel 实例（merge / conflicts / push / rollback）
+ *   e. 构造 GitHandlerContext（registry + getter 形式的 gitService）
+ *   f. 注册 handler（MessageRouter）+ command（VSCode commands）
+ *   g. 注册 ReactViewProvider × 2（gitLog / commitPanel）——必须在 handler
+ *      之后：provider 可被 resolve 时所有 handler 已就绪，webview 首批
+ *      请求不会打到未注册的 command
+ *   h. 状态栏项 / badge / hover / 监听器等其余装配
+ *   i. 全部 disposable push 到 context.subscriptions（随注册时机就地 push）
  */
 export async function setupGit(context: vscode.ExtensionContext): Promise<void> {
-  // 0. 同步面板可见性配置 → setContext（驱动 package.json 中视图的 when 子句）。
-  //    尽早执行，避免首次激活时视图因 context 默认 false 而短暂不可见。
-  applyPanelVisibility();
-
   // a. MessageRouter 单例（所有 webview 共享）
   const messageRouter = new MessageRouter();
 
@@ -101,36 +101,16 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
 
   const diffManager = new DiffEditorManager(registry);
 
-  // b. 处理 workspace folders → RepoRegistry（异步扫盘，不阻塞 provider 注册）
-  await registry.init(allWorkspaceRoots);
+  // c. 后台发起 RepoRegistry.init（首次扫描，不阻塞装配）
+  //
+  //    关键时序：不 await，扫盘 + service/watcher 创建在后台进行，让下方
+  //    managers / ctx / handler / provider 注册全部同步推进，消除
+  //    "provider 未注册导致 VSCode 无法 resolve 视图"的启动阻塞。
+  //    早到的 webview 首批请求由各 handler 内的 `await registry.whenReady`
+  //    兜底（见 gitContext.requireGit 与各手写 handler）；init 完成 / 仓库
+  //    变化时 rescan 广播 reposChanged 驱动已挂载的 webview 刷新。
+  void registry.init(allWorkspaceRoots);
   context.subscriptions.push(registry);
-
-  // d. 注册 WebviewViewProvider
-  //    gitLog → panel 模式；commitPanel → commit 模式
-  const logProvider = new ReactViewProvider(
-    context.extensionUri,
-    messageRouter,
-    "panel",
-    "Git Atlas",
-  );
-  const commitProvider = new ReactViewProvider(
-    context.extensionUri,
-    messageRouter,
-    "commit",
-    "Git Atlas",
-  );
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      "git-atlas.gitLog",
-      logProvider,
-      { webviewOptions: { retainContextWhenHidden: true } },
-    ),
-    vscode.window.registerWebviewViewProvider(
-      "git-atlas.commitPanel",
-      commitProvider,
-      { webviewOptions: { retainContextWhenHidden: true } },
-    ),
-  );
 
   // e. 创建 Manager / Panel 实例（按各自构造签名）
   const mergeManager = new MergeEditorManager(
@@ -167,11 +147,44 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   // g. 注册 handler（MessageRouter）和 command（VSCode commands）
   registerGitHandlers(ctx);
 
+  // h. 注册 WebviewViewProvider（必须在 handler 之后）
+  //    gitLog → panel 模式；commitPanel → commit 模式
+  //
+  //    时序关键：provider 注册后 VSCode 即可 resolve 视图并挂载 webview，
+  //    webview 首批请求会立刻发出。放在 registerGitHandlers 之后保证
+  //    provider 可被 resolve 时所有 handler 已注册，消除早到请求打到
+  //    未注册 command 的窗口；registry 侧的竞态由 handler 内 whenReady
+  //    兜底。
+  const logProvider = new ReactViewProvider(
+    context.extensionUri,
+    messageRouter,
+    "panel",
+    "Git Atlas",
+  );
+  const commitProvider = new ReactViewProvider(
+    context.extensionUri,
+    messageRouter,
+    "commit",
+    "Git Atlas",
+  );
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      "git-atlas.gitLog",
+      logProvider,
+      { webviewOptions: { retainContextWhenHidden: true } },
+    ),
+    vscode.window.registerWebviewViewProvider(
+      "git-atlas.commitPanel",
+      commitProvider,
+      { webviewOptions: { retainContextWhenHidden: true } },
+    ),
+  );
+
   // 配置变更监听：gitAtlas.* 配置变化时通知 webview 热刷新
+  // （面板显隐由 package.json when 子句的 config.* 键原生驱动，无需 setContext）
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("gitAtlas")) {
-        applyPanelVisibility();
         messageRouter.broadcastEvent("gitConfigChanged", {});
       }
     }),
@@ -272,6 +285,7 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand(
       "git-atlas._debugSwitchRepo",
       async () => {
+        await registry.whenReady;
         const repos = registry.getRepoInfos();
         if (repos.length === 0) {
           void vscode.window.showWarningMessage("No repos found");
@@ -305,27 +319,6 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   // j. Commit 视图活动栏徽标（activity bar 上的更改数量 badge）
   //    受 gitAtlas.commitBadgeMode 控制：total / current / off
   context.subscriptions.push(registerCommitViewBadge(registry));
-}
-
-/**
- * 根据 `gitAtlas.enableGitLogPanel` / `gitAtlas.enableCommitPanel` 配置同步
- * setContext，驱动 package.json 中两个面板视图的 `when` 子句。
- *
- * VSCode 会在容器内所有视图均不可见时自动隐藏该容器（活动栏图标 / 底部
- * 面板页签），因此关闭某面板即隐藏对应容器，无需重载窗口。默认均为开启。
- */
-function applyPanelVisibility(): void {
-  const config = vscode.workspace.getConfiguration("gitAtlas");
-  void vscode.commands.executeCommand(
-    "setContext",
-    "gitAtlas.gitLogEnabled",
-    config.get<boolean>("enableGitLogPanel", true),
-  );
-  void vscode.commands.executeCommand(
-    "setContext",
-    "gitAtlas.commitEnabled",
-    config.get<boolean>("enableCommitPanel", true),
-  );
 }
 
 // ─── vscode.git 导出 API 最小类型（避免引入 @types/vscode-git） ──────────
@@ -515,6 +508,9 @@ function registerGitStatusBar(
    * bare `git.checkout` that lets VSCode prompt for the repository.
    */
   async function onStatusBarClick(): Promise<void> {
+    // whenReady: provider 提前后状态栏随激活早期出现，首次扫描完成前点击
+    // 也要解析到正确 repo（getCurrentRepoPath 依赖 init 恢复的当前仓库）。
+    await registry.whenReady;
     const repoPath = registry.getCurrentRepoPath();
     try {
       const api = await getVscodeGitApi();

@@ -16,10 +16,14 @@ import type { GitHandlerContext } from "../gitContext";
 export function registerUiHandlers(ctx: GitHandlerContext): void {
   const { messageRouter } = ctx;
 
+  // whenReady: 本文件中读取 ctx.registry.getCurrentRepoPath() 的 handler 均先
+  // 等首次扫描完成，避免启动竞态下解析到空 repo 根。纯对话框/剪贴板/广播类
+  // handler 不碰 registry，无需兜底。
   messageRouter.handle("openFile", async (params) => {
     const filePath = params.filePath as string;
     // Multi-repo: resolve the owning repo root — the caller's params.repoPath
     // wins, then the currently-selected repo, then the legacy workspace root.
+    await ctx.registry.whenReady;
     const repoRoot =
       (params?.repoPath as string) ||
       ctx.registry.getCurrentRepoPath() ||
@@ -42,6 +46,7 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
   // in one place. Path resolution mirrors openFile above.
   messageRouter.handle("showFileHistory", async (params) => {
     const filePath = params.filePath as string;
+    await ctx.registry.whenReady;
     const repoRoot =
       (params?.repoPath as string) ||
       ctx.registry.getCurrentRepoPath() ||
@@ -109,6 +114,7 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
   messageRouter.handle("revealInSystemExplorer", async (params) => {
     const filePath = params.filePath as string | undefined;
     if (!ctx.workspaceRoot) return { success: false };
+    await ctx.registry.whenReady;
     const repoRoot =
       (params?.repoPath as string) ||
       ctx.registry.getCurrentRepoPath() ||
@@ -125,6 +131,7 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
   messageRouter.handle("revealInExplorer", async (params) => {
     const filePath = params.filePath as string | undefined;
     if (!ctx.workspaceRoot) return { success: false };
+    await ctx.registry.whenReady;
     const repoRoot =
       (params?.repoPath as string) ||
       ctx.registry.getCurrentRepoPath() ||
@@ -138,6 +145,7 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
 
   // Open an integrated terminal at the repo root.
   messageRouter.handle("openInTerminal", async (params) => {
+    await ctx.registry.whenReady;
     const repoPath =
       (params?.repoPath as string) || ctx.registry.getCurrentRepoPath();
     if (!repoPath) return { success: false };
