@@ -118,7 +118,15 @@ export type CommandType =
   | "cancelCommitMessageGeneration"
   | "setAiApiKey"
   | "openAiSettings"
-  | "openGitSettings";
+  | "openGitSettings"
+  | "getReleaseContext"
+  | "generateReleaseChangelog"
+  | "cancelReleaseChangelogGeneration"
+  | "createRelease"
+  | "pushRelease"
+  | "initChangelog"
+  | "updateReleasePrompt"
+  | "locateCommit";
 
 export interface Bridge {
   request(

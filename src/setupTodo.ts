@@ -9,6 +9,7 @@ import {
 } from "./commands/todoHandlers";
 import { isScanTarget } from "./todo/scanner";
 import type { TodoService } from "./services/todoService";
+import { openExtensionSettings } from "./utils/openSettings";
 
 /**
  * Todo Atlas 模块化装配入口。镜像 setupTask 结构。
@@ -153,7 +154,7 @@ export function setupTodo(
   );
   context.subscriptions.push(
     vscode.commands.registerCommand("todo-atlas.openSettings", () => {
-      vscode.commands.executeCommand("workbench.action.openSettings", "todoAtlas");
+      openExtensionSettings();
     }),
   );
   context.subscriptions.push(

@@ -14,6 +14,7 @@ import { ConflictsManager } from "../webview/conflictsManager";
 import { PushPanel } from "../webview/pushPanel";
 import { RollbackPanel } from "../webview/rollbackPanel";
 import { registerGitHandlers } from "../commands/gitHandlers";
+import { registerReleaseHandlers } from "../commands/gitHandlers/releaseHandlers";
 import { registerGitCommands } from "../commands/gitCommands";
 import { registerAiCommands } from "../commands/aiCommands";
 import { registerCommitViewBadge } from "./commitViewBadge";
@@ -146,6 +147,7 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
 
   // g. 注册 handler（MessageRouter）和 command（VSCode commands）
   registerGitHandlers(ctx);
+  registerReleaseHandlers(ctx);
 
   // h. 注册 WebviewViewProvider（必须在 handler 之后）
   //    gitLog → panel 模式；commitPanel → commit 模式

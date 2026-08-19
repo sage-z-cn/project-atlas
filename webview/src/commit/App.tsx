@@ -8,7 +8,9 @@ import "../shared/components/Tooltip.css";
 import { useCommitStore } from "../shared/store/commit-store";
 import { CommitTab } from "./components/CommitTab";
 import { StashTab } from "./components/StashTab";
+import { ReleaseTab } from "./components/ReleaseTab";
 import { ErrorBanner } from "./components/ErrorBanner";
+import RocketIcon from "~icons/codicon/rocket";
 import "./commit.css";
 import "./commit-vscode.css";
 
@@ -611,6 +613,14 @@ export function CommitApp() {
         >
           {t("Stash")}
         </button>
+        <button
+          type="button"
+          className={`commit-tab ${activeTab === "release" ? "active" : ""}`}
+          onClick={() => setActiveTab("release")}
+        >
+          <RocketIcon className="commit-tab-icon" />
+          {t("Release")}
+        </button>
       </div>
       <ErrorBanner />
       <RebaseBanner />
@@ -620,6 +630,7 @@ export function CommitApp() {
       <div className="commit-content">
         {activeTab === "commit" && <CommitTab />}
         {activeTab === "stash" && <StashTab />}
+        {activeTab === "release" && <ReleaseTab />}
       </div>
     </div>
   );

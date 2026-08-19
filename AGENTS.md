@@ -61,8 +61,8 @@ Note: `extension.ts` still defines `const refreshAll = () => {};` as a **no-op**
 - `src/models/` — `project.ts` (`ProjectItem`, `ProjectType`), `group.ts` (`GroupItem`, supports `parentId` nesting), `storage.ts` (`ProjectData`), `task.ts` (`TaskItem`, `TaskSource`, `PackageManager`), `todo.ts`
 - `src/services/` — `ProjectService`, `FavoriteService`, `GroupService`, `StorageService`, `taskService.ts`, `todoService.ts`
 - `src/setupProject.ts`, `src/setupTask.ts`, `src/setupTodo.ts`, `src/git/setupGit.ts` — per-subsystem assembly entry points (router + handlers + ReactViewProvider + event subscriptions)
-- `src/commands/` — `projectCommands`, `groupCommands`, `aiCommands`, `gitCommands` + `gitContext.ts`; handler modules live in subfolders `gitHandlers/`, `projectHandlers/`, `taskHandlers/`, `todoHandlers/`
-- `src/ai/` — `aiCommitService.ts` (OpenAI-compatible commit message generation) + `thinkingProviders.ts` (thinking-model support)
+- `src/commands/` — `projectCommands`, `groupCommands`, `aiCommands`, `gitCommands` + `gitContext.ts`; handler modules live in subfolders `gitHandlers/` (incl. `releaseHandlers.ts` — release-tab backend), `projectHandlers/`, `taskHandlers/`, `todoHandlers/`
+- `src/ai/` — `aiClient.ts` (shared OpenAI-compatible client: `projectAtlas.ai.*` config + chat with retry/cancel), `aiCommitService.ts` (commit message generation), `releaseNotesService.ts` (release changelog generation + version bump suggestion), `aiConfigMigration.ts` (one-time `gitAtlas.aiCommit.*` → `projectAtlas.ai.*` migration), `thinkingProviders.ts` (thinking-model support)
 - `src/messages/` — `protocol.ts` (`RequestMessage`/`ResponseMessage`/`EventMessage` + `CommandType`/`EventType` unions + `ErrorCode`), `messageRouter.ts` (the router), `l10nHandler.ts` (serves the l10n bundle to webviews via a `getL10nBundle` request)
 - `src/webview/` — **8 files**: `reactHtml.ts` (shared HTML shell for every React webview), `reactViewProvider.ts` (generic provider keyed by `mode`), and Git-specific managers: `gitContentProvider`, `diffEditorManager`, `mergeEditorManager`, `conflictsManager`, `pushPanel`, `rollbackPanel`. No legacy hand-built HTML providers remain.
 - `src/git/` — Git Atlas core: `gitService`, `repoRegistry`, `repoScanner`, `repoPaths`, `graphLayout`, `cache`, `commitViewBadge`, `blameHoverProvider`, `types`, `setupGit`
@@ -78,7 +78,7 @@ Note: `extension.ts` still defines `const refreshAll = () => {};` as a **no-op**
 
 - Webview → extension: `RequestMessage { type: "request", id, command, params }` → `MessageRouter` dispatches to a registered handler → `ResponseMessage { type: "response", id, success, data?, error? }`.
 - Extension → webview: `messageRouter.broadcastEvent(event, data)` fans out `EventMessage { type: "event", event, data }` to **all** registered webviews.
-- `CommandType` / `EventType` unions in `protocol.ts` are git-centric but the router widens `command`/`event` to `string` so project/task/todo command and event names pass through unchanged.
+- `CommandType` / `EventType` unions in `protocol.ts` are git-centric but the router widens `command`/`event` to `string` so project/task/todo command and event names pass through unchanged. `CommandType` also carries the release command group (`getReleaseContext` … `updateReleasePrompt`, handled in `releaseHandlers.ts`), and `EventType` includes `switchTab` (commit-panel tab switching, e.g. `git-atlas.newVersion` → release tab).
 - Entry dispatch: `<div id="root">` carries `data-mode` + extra `data-*` attrs; `webview/src/main.tsx` reads `root.dataset.mode` and mounts the matching root component. Valid modes: `panel` (git log), `merge`, `conflicts`, `commit`, `push`, `rollback`, `recent`, `tasks`, `todos`, `favorites`.
 
 ### Data flow
@@ -95,6 +95,7 @@ The manifest declares a `git-atlas` fileSystemProvider scheme (see `src/webview/
 - Structure: `{ version, recentProjects[], favoriteProjects[], groups[] }`, current version **2**
 - Migration v1 → v2 splits `projects[]` into `recentProjects` + `favoriteProjects`. **Triggered by shape** (absence of `recentProjects`), not a version-bump check.
 - Todo data lives in its own store (version 1): global list in `globalState`, per-project state in `workspaceState` — separate from `projectAtlas.data`.
+- AI config lives under `projectAtlas.ai.*` (API key in SecretStorage under `projectAtlas.ai.apiKey`); legacy `gitAtlas.aiCommit.*` settings are migrated once at activation, idempotent via the `projectAtlas.ai.migrated` globalState flag.
 
 ## Critical Constraints
 
@@ -148,6 +149,7 @@ postMessage({ type: "request", id, command: "getRecentProjects", params: {} });
   - `package.json` `%key%` placeholders → **NLS**: `package.nls.json` (English default), `package.nls.zh-cn.json` (Chinese). Command titles, view names, config descriptions belong here.
   - `vscode.l10n.t("string")` runtime strings → **L10n**: `l10n/bundle.l10n.zh-cn.json`. Key is the English source, value is the Chinese translation. Only `zh-cn` exists (no `bundle.l10n.json` — English is the source string). Webviews fetch this bundle at runtime via the `getL10nBundle` request handled by `src/messages/l10nHandler.ts`.
   - **Never** put `command.*` NLS keys in the l10n bundle, and **never** put runtime strings in the NLS files.
+- The commit panel has **three tabs** (commit / stash / release). Release-tab state lives in `webview/src/shared/store/release-store.ts`, separate from `commit-store`.
 - Quality gates are manual only: **no CI, no pre-commit hooks, no formatter**. Run `npm run lint` yourself; there is no webview lint. There is no typecheck gate for extension code (see "Type checking").
 - `.codegraph/`, `.opencode/`, `.slim/`, `.docs/`, `.sisyphus/`, `screenshot/`, and `build/` are tooling/build artifacts or internal dirs — not part of the extension runtime. `.vscodeignore` excludes `.docs/`, `.sisyphus/`, `screenshot/`, `AGENTS.md`, source maps, and `**/*.ts` from the packaged `.vsix`.
 - README is current (documents `projectAtlas.*` / `taskAtlas.*` / `todoAtlas.*` / `gitAtlas.*` config namespaces and all features including AI commit). Trust the README and the manifest together.

@@ -62,6 +62,9 @@
 **提交操作**
 > 拣选（cherry-pick）、还原、重置（soft/mixed/hard）、删除提交、从提交创建分支/标签、显示文件历史。
 
+**发布（New Version）**
+> 提交面板的第三个 tab（命令 `Git Atlas: New Version`）。查看上个标签以来的提交（点击提交可在 Git Log 中定位），按 patch/minor/major 建议选择版本号，AI 生成 changelog —— 提示词可通过 `projectAtlas.ai.releasePrompt` 自定义，仓库无 changelog 文件时可初始化。支持两种提交模式（未提交更改合并进发布提交 / 仅版本文件），创建轻量标签，一键推送分支与标签。
+
 **三方合并编辑器**
 > 基于 webview 的三方合并编辑器（base / ours / theirs），采用 `node-diff3` 算法与行内词级差异高亮（Shiki）。按冲突块接受左侧/右侧、跳过、撤销、应用并暂存。冲突面板列出所有冲突文件，支持接受我方/他方/合并。
 
@@ -100,6 +103,14 @@
 | `projectAtlas.openMode` | 枚举 | `followIDE` | 点击项目时的行为。可选值：`singleClick`（单击打开）、`doubleClick`（双击打开）、`followIDE`（跟随 IDE 设置） |
 | `projectAtlas.confirmDelete` | 枚举 | `ask` | 删除项目/分组前是否确认。可选值：`ask`（每次询问）、`never`（不确认） |
 | `projectAtlas.showRevealActiveFile` | 布尔 | `true` | 在内置资源管理器视图标题栏显示"定位当前文件"按钮 |
+| `projectAtlas.ai.apiUrl` | 字符串 | `""` | AI API 基础地址或完整端点（OpenAI 兼容） |
+| `projectAtlas.ai.model` | 字符串 | `""` | AI 模型名称（如 gpt-4o-mini、deepseek-chat） |
+| `projectAtlas.ai.language` | 枚举 | `auto` | 生成提交信息的语言。可选值：`auto`（自动检测）、`en`、`zh`、`follow-locale`（跟随显示语言） |
+| `projectAtlas.ai.maxDiffChars` | 数字 | `8000` | 发送给 AI 的最大 diff 字符数（500–50000），超出截断 |
+| `projectAtlas.ai.customInstructions` | 字符串 | `""` | 追加到 AI 提示词的自定义提交规则 |
+| `projectAtlas.ai.timeout` | 数字 | `30` | AI 生成提交信息的超时时间（秒，5–300） |
+| `projectAtlas.ai.enableThinking` | 布尔 | `false` | 生成提交信息时启用模型思考/推理模式 |
+| `projectAtlas.ai.releasePrompt` | 字符串 | `""` | 自定义发布 changelog 生成提示词，留空使用内置默认；`{{language}}` 占位符会被替换为 changelog 语言（缺失时自动追加） |
 | `taskAtlas.showRecentRuns` | 布尔 | `true` | 在任务视图中显示最近运行区域 |
 | `taskAtlas.maxRecentRuns` | 数字 | `5` | 最近运行保留的最大数量（1–20） |
 | `taskAtlas.showPinned` | 布尔 | `true` | 在任务视图中显示固定任务区域 |
@@ -108,12 +119,6 @@
 | `gitAtlas.detailPanelPosition` | 枚举 | `right` | 日志面板详情面板展示位置。可选值：`right`（右侧，默认）、`bottom`（底部） |
 | `gitAtlas.enableGitLogPanel` | 布尔 | `true` | 启用底部面板中的 Git Atlas 面板（Git Log）。即时生效，无需重载 |
 | `gitAtlas.enableCommitPanel` | 布尔 | `true` | 启用活动栏中的提交面板。即时生效，无需重载 |
-| `gitAtlas.aiCommit.apiUrl` | 字符串 | `""` | AI API 基础地址或完整端点（OpenAI 兼容） |
-| `gitAtlas.aiCommit.model` | 字符串 | `""` | AI 模型名称（如 gpt-4o-mini、deepseek-chat） |
-| `gitAtlas.aiCommit.language` | 枚举 | `auto` | 生成提交信息的语言。可选值：`auto`（自动检测）、`en`、`zh`、`follow-locale`（跟随显示语言） |
-| `gitAtlas.aiCommit.maxDiffChars` | 数字 | `8000` | 发送给 AI 的最大 diff 字符数（500–50000），超出截断 |
-| `gitAtlas.aiCommit.customInstructions` | 字符串 | `""` | 追加到 AI 提示词的自定义提交规则 |
-| `gitAtlas.aiCommit.timeout` | 数字 | `30` | AI 生成提交信息的超时时间（秒，5–300） |
 | `todoAtlas.enabled` | 布尔 | `false` | 在底部面板显示 TODO Atlas 面板（即时生效，无需重载） |
 | `todoAtlas.scan.autoScan` | 布尔 | `false` | 启动时、窗口聚焦和保存文件时自动扫描（关闭后仅靠重新扫描按钮触发） |
 | `todoAtlas.scan.tags` | 数组 | `["TODO","FIXME","XXX","HACK","BUG","NOTE"]` | 扫描的注释标签列表 |

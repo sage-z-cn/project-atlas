@@ -3,6 +3,7 @@ import type { GitHandlerContext } from "../gitContext";
 import { requireGit } from "../gitContext";
 import { AiCommitService } from "../../ai/aiCommitService";
 import { logger } from "../../utils/logger";
+import { openExtensionSettings } from "../../utils/openSettings";
 
 export function registerAiHandlers(ctx: GitHandlerContext): void {
   const { messageRouter, context } = ctx;
@@ -70,19 +71,13 @@ export function registerAiHandlers(ctx: GitHandlerContext): void {
 
   // 打开 AI 配置设置页（让用户填写 apiUrl / model）
   messageRouter.handle("openAiSettings", async () => {
-    await vscode.commands.executeCommand(
-      "workbench.action.openSettings",
-      "gitAtlas.aiCommit",
-    );
+    openExtensionSettings();
     return { success: true };
   });
 
   // 打开 Git Atlas 配置设置页
   messageRouter.handle("openGitSettings", async () => {
-    await vscode.commands.executeCommand(
-      "workbench.action.openSettings",
-      "gitAtlas",
-    );
+    openExtensionSettings();
     return { success: true };
   });
 }

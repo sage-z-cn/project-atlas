@@ -11,8 +11,12 @@ import { setupProject } from "./setupProject";
 import { setupTask } from "./setupTask";
 import { setupTodo } from "./setupTodo";
 import { setupGit } from "./git/setupGit";
+import { migrateAiConfig } from "./ai/aiConfigMigration";
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
+  // AI 配置一次性迁移：gitAtlas.aiCommit.* → projectAtlas.ai.*
+  await migrateAiConfig(context);
+
   const storage = new StorageService(context);
   const projectService = new ProjectService(storage);
   const favoriteService = new FavoriteService(storage);

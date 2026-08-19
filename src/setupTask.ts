@@ -8,6 +8,7 @@ import {
   type TaskHandlerContext,
 } from "./commands/taskHandlers";
 import type { TaskService } from "./services/taskService";
+import { openExtensionSettings } from "./utils/openSettings";
 
 /**
  * Task Atlas 模块化装配入口。镜像 setupGit/setupProject 结构。
@@ -94,7 +95,7 @@ export function setupTask(
   );
   context.subscriptions.push(
     vscode.commands.registerCommand("task-atlas.openSettings", () => {
-      vscode.commands.executeCommand("workbench.action.openSettings", "taskAtlas");
+      openExtensionSettings();
     }),
   );
   context.subscriptions.push(

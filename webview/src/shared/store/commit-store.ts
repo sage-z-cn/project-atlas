@@ -24,7 +24,7 @@ export interface StashEntry {
   files: string[];
 }
 
-type TabType = "commit" | "stash";
+type TabType = "commit" | "stash" | "release";
 
 interface CommitStore {
   // ── Multi-repo (phase B') ──────────────────────────────────────────
@@ -983,6 +983,15 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 // (or carries no repoPath, e.g. the global { scope: "all" } broadcasts from
 // command handlers).
 bridge.onEvent((event, data) => {
+  // Host-driven tab switch (e.g. "create release" entry points elsewhere in
+  // the extension). Only valid tab values are honored.
+  if (event === "switchTab") {
+    const { tab } = (data ?? {}) as { tab?: string };
+    if (tab === "commit" || tab === "stash" || tab === "release") {
+      useCommitStore.getState().setActiveTab(tab);
+    }
+    return;
+  }
   if (event === "gitConfigChanged") {
     useCommitStore.getState().fetchGitConfig();
     useCommitStore.getState().fetchAiConfig();

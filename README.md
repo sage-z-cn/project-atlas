@@ -66,6 +66,9 @@
 **Commit Operations**
 > Cherry-pick, revert, reset (soft/mixed/hard), drop commit, create branch/tag from commit, and show file history.
 
+**Release (New Version)**
+> A third tab in the commit panel (`Git Atlas: New Version` command). Review the commits since the last tag (click a commit to locate it in the Git Log), pick a version with patch/minor/major suggestions, and generate the changelog with AI — the prompt is customizable (`projectAtlas.ai.releasePrompt`) and a changelog file can be initialized if the repo has none. Commit in one of two modes (merge uncommitted changes into the release commit, or version files only), create a lightweight tag, and push the branch and tag in one click.
+
 **3-way Merge Editor**
 > A webview-based 3-way merge editor (base / ours / theirs) using `node-diff3` with inline word-diff highlighting (Shiki). Accept left/right per conflict block, skip, undo, and apply with staging. Conflicts panel lists all conflicted files with Accept Yours/Theirs/Merge actions.
 
@@ -104,6 +107,14 @@
 | `projectAtlas.openMode` | `singleClick` / `doubleClick` / `followIDE` | `followIDE` | How a click on a project item opens it |
 | `projectAtlas.confirmDelete` | `ask` / `never` | `ask` | Whether to confirm before deleting projects/groups |
 | `projectAtlas.showRevealActiveFile` | `boolean` | `true` | Show 'Reveal Active File' button in the built-in file explorer view title |
+| `projectAtlas.ai.apiUrl` | `string` | `""` | AI API base URL or full endpoint (OpenAI-compatible) |
+| `projectAtlas.ai.model` | `string` | `""` | AI model name (e.g. gpt-4o-mini, deepseek-chat) |
+| `projectAtlas.ai.language` | `auto` / `en` / `zh` / `follow-locale` | `auto` | Language for generated commit messages |
+| `projectAtlas.ai.maxDiffChars` | `number` | `8000` | Max diff characters sent to the AI (500–50000) |
+| `projectAtlas.ai.customInstructions` | `string` | `""` | Custom instructions appended to the AI prompt |
+| `projectAtlas.ai.timeout` | `number` | `30` | Timeout in seconds for AI generation (5–300) |
+| `projectAtlas.ai.enableThinking` | `boolean` | `false` | Enable the model's thinking/reasoning mode when generating commit messages |
+| `projectAtlas.ai.releasePrompt` | `string` | `""` | Custom system prompt for release changelog generation; the `{{language}}` placeholder is replaced with the changelog language (appended automatically when missing) |
 | `taskAtlas.showRecentRuns` | `boolean` | `true` | Show the recent runs section in the Tasks view |
 | `taskAtlas.maxRecentRuns` | `number` | `5` | Maximum number of recent runs to keep (1–20) |
 | `taskAtlas.showPinned` | `boolean` | `true` | Show the pinned tasks section in the Tasks view |
@@ -112,12 +123,6 @@
 | `gitAtlas.detailPanelPosition` | `right` / `bottom` | `right` | Detail panel position in the Git Log panel |
 | `gitAtlas.enableGitLogPanel` | `boolean` | `true` | Show the Git Atlas panel (Git Log) in the bottom panel |
 | `gitAtlas.enableCommitPanel` | `boolean` | `true` | Show the Commit panel in the activity bar |
-| `gitAtlas.aiCommit.apiUrl` | `string` | `""` | AI API base URL or full endpoint (OpenAI-compatible) |
-| `gitAtlas.aiCommit.model` | `string` | `""` | AI model name (e.g. gpt-4o-mini, deepseek-chat) |
-| `gitAtlas.aiCommit.language` | `auto` / `en` / `zh` / `follow-locale` | `auto` | Language for generated commit messages |
-| `gitAtlas.aiCommit.maxDiffChars` | `number` | `8000` | Max diff characters sent to the AI (500–50000) |
-| `gitAtlas.aiCommit.customInstructions` | `string` | `""` | Custom instructions appended to the AI prompt |
-| `gitAtlas.aiCommit.timeout` | `number` | `30` | Timeout in seconds for AI commit generation (5–300) |
 | `todoAtlas.enabled` | `boolean` | `false` | Show the TODO Atlas panel in the bottom panel (instant, no reload) |
 | `todoAtlas.scan.autoScan` | `boolean` | `false` | Automatically scan on startup, window focus, and file save (use rescan button otherwise) |
 | `todoAtlas.scan.tags` | `array` | `["TODO","FIXME","XXX","HACK","BUG","NOTE"]` | Tags to scan for in source comments |
@@ -125,6 +130,8 @@
 | `todoAtlas.scan.debounceMs` | `number` | `500` | Debounce (ms) for incremental rescans on file save (100–3000) |
 | `todoAtlas.showCompleted` | `boolean` | `true` | Show completed TODOs in the list |
 | `todoAtlas.groupBy` | `scope` / `tag` / `file` / `none` | `scope` | How to group TODOs in the view |
+
+> AI settings previously under `gitAtlas.aiCommit.*` are migrated automatically to `projectAtlas.ai.*` on activation (one-time, including the stored API key).
 
 ## Keyboard Shortcuts
 

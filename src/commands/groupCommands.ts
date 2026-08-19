@@ -3,6 +3,7 @@ import { GroupService } from "../services/groupService";
 import { FavoriteService } from "../services/favoriteService";
 import { ProjectService } from "../services/projectService";
 import { confirmDelete } from "../utils/confirm";
+import { openExtensionSettings } from "../utils/openSettings";
 import type { GroupItem } from "../models/group";
 
 type GroupNode = { type: "group"; item: GroupItem };
@@ -95,10 +96,7 @@ export function registerGroupCommands(
   }
 
   function openSettingsCmd() {
-    vscode.commands.executeCommand(
-      "workbench.action.openSettings",
-      "projectAtlas"
-    );
+    openExtensionSettings();
   }
 
   async function addCurrentToFavoritesCmd() {

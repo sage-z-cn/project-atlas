@@ -219,5 +219,20 @@ export function registerGitCommands(
         ctx.messageRouter.broadcastEvent("focusCommit", { hash });
       },
     ),
+    vscode.commands.registerCommand("git-atlas.newVersion", async () => {
+      // 打开 commit 面板（复用 openCommitPanel 的 reveal 逻辑），再切到
+      // release tab。
+      await vscode.commands.executeCommand("git-atlas.openCommitPanel");
+      ctx.messageRouter.broadcastEvent("switchTab", { tab: "release" });
+      // 首次打开竞态：面板 webview 是异步挂载的，上面的广播可能落在 webview
+      // 注册事件监听之前而被丢弃。locateCommit 的 pendingFocus 模式需要
+      // webview 侧新增 consume 请求（契约变更，webview/ 禁改），故采用双发：
+      // 300ms 后重播一次，此时 webview 已挂载（commitPanel 开了
+      // retainContextWhenHidden，只有"从未打开过"的首次会丢广播；后续触发
+      // 一定有存活监听者，且重复 switchTab 到同一 tab 是幂等的）。
+      setTimeout(() => {
+        ctx.messageRouter.broadcastEvent("switchTab", { tab: "release" });
+      }, 300);
+    }),
   );
 }

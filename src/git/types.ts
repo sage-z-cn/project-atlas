@@ -103,6 +103,14 @@ export interface LogOptions {
   breakHiddenParents?: boolean;
 }
 
+export interface ReleaseCommitSummary {
+  hash: string;
+  subject: string;
+  author: string;
+  /** ISO 日期字符串 YYYY-MM-DD（由 %at unix 秒转换，用本地时区） */
+  shortDate: string;
+}
+
 export interface MergeState {
   isMerging: boolean;
   mergeHead?: string;

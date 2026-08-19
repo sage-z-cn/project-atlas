@@ -330,6 +330,10 @@
       {
         "command": "git-atlas.locateCommit",
         "title": "%command.git-atlas.locateCommit%"
+      },
+      {
+        "command": "git-atlas.newVersion",
+        "title": "%command.git-atlas.newVersion%"
       }
     ],
     "menus": {
@@ -899,19 +903,19 @@
           "default": true,
           "description": "%config.gitAtlas.skipPushConfirmation%"
         },
-        "gitAtlas.aiCommit.apiUrl": {
+        "projectAtlas.ai.apiUrl": {
           "type": "string",
           "default": "",
-          "description": "%config.gitAtlas.aiCommit.apiUrl%",
+          "description": "%config.projectAtlas.ai.apiUrl%",
           "order": 10
         },
-        "gitAtlas.aiCommit.model": {
+        "projectAtlas.ai.model": {
           "type": "string",
           "default": "",
-          "description": "%config.gitAtlas.aiCommit.model%",
+          "description": "%config.projectAtlas.ai.model%",
           "order": 11
         },
-        "gitAtlas.aiCommit.language": {
+        "projectAtlas.ai.language": {
           "type": "string",
           "default": "auto",
           "enum": [
@@ -921,42 +925,49 @@
             "follow-locale"
           ],
           "enumDescriptions": [
-            "%config.gitAtlas.aiCommit.language.auto%",
-            "%config.gitAtlas.aiCommit.language.en%",
-            "%config.gitAtlas.aiCommit.language.zh%",
-            "%config.gitAtlas.aiCommit.language.follow-locale%"
+            "%config.projectAtlas.ai.language.auto%",
+            "%config.projectAtlas.ai.language.en%",
+            "%config.projectAtlas.ai.language.zh%",
+            "%config.projectAtlas.ai.language.follow-locale%"
           ],
-          "description": "%config.gitAtlas.aiCommit.language%",
+          "description": "%config.projectAtlas.ai.language%",
           "order": 12
         },
-        "gitAtlas.aiCommit.maxDiffChars": {
+        "projectAtlas.ai.maxDiffChars": {
           "type": "number",
           "default": 8000,
           "minimum": 500,
           "maximum": 50000,
-          "description": "%config.gitAtlas.aiCommit.maxDiffChars%",
+          "description": "%config.projectAtlas.ai.maxDiffChars%",
           "order": 13
         },
-        "gitAtlas.aiCommit.customInstructions": {
+        "projectAtlas.ai.customInstructions": {
           "type": "string",
           "default": "",
           "editPresentation": "multilineText",
-          "description": "%config.gitAtlas.aiCommit.customInstructions%",
+          "description": "%config.projectAtlas.ai.customInstructions%",
           "order": 14
         },
-        "gitAtlas.aiCommit.timeout": {
+        "projectAtlas.ai.timeout": {
           "type": "number",
           "default": 30,
           "minimum": 5,
           "maximum": 300,
-          "description": "%config.gitAtlas.aiCommit.timeout%",
+          "description": "%config.projectAtlas.ai.timeout%",
           "order": 15
         },
-        "gitAtlas.aiCommit.enableThinking": {
+        "projectAtlas.ai.enableThinking": {
           "type": "boolean",
           "default": false,
-          "description": "%config.gitAtlas.aiCommit.enableThinking%",
+          "description": "%config.projectAtlas.ai.enableThinking%",
           "order": 16
+        },
+        "projectAtlas.ai.releasePrompt": {
+          "type": "string",
+          "default": "",
+          "editPresentation": "multilineText",
+          "description": "%config.projectAtlas.ai.releasePrompt%",
+          "order": 17
         }
       }
     }

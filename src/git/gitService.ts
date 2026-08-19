@@ -16,6 +16,7 @@ import type {
   LogOptions,
   MergeState,
   RefInfo,
+  ReleaseCommitSummary,
   TagInfo,
 } from "./types";
 
@@ -119,6 +120,76 @@ export class GitService {
     const commits = parseLogOutput(output);
     this.cache.set(cacheKey, commits);
     return commits;
+  }
+
+  /**
+   * Commits since a ref (exclusive) up to HEAD, for the release assistant.
+   * fromRef 为 null 时返回从根开始的全部历史（封顶 maxCount 条）。
+   * 返回轻量摘要，供 webview 提交列表 + AI changelog 输入 + 版本号建议共用。
+   *
+   * Not cached: release scenarios re-pull on demand and the result set is small.
+   */
+  async getLogRange(
+    fromRef: string | null,
+    maxCount = 500,
+  ): Promise<ReleaseCommitSummary[]> {
+    const args = [
+      "log",
+      // %x1f = unit separator — subject lines cannot contain it, unlike spaces
+      "--format=%H%x1f%s%x1f%an%x1f%at",
+      `--max-count=${maxCount}`,
+      fromRef ? `${fromRef}..HEAD` : "HEAD",
+    ];
+
+    let output: string;
+    try {
+      output = await this.execGit(args);
+    } catch (err) {
+      // Unborn branch (repo without any commit yet): git exits non-zero with
+      // "your current branch ... does not have any commits yet" — an empty
+      // history, not a failure. Other errors (e.g. bad revision) bubble up.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/does not have any commits yet/i.test(msg)) {
+        return [];
+      }
+      throw err;
+    }
+
+    const commits: ReleaseCommitSummary[] = [];
+    for (const line of output.trim().split("\n")) {
+      if (!line) {
+        continue;
+      }
+      const parts = line.split("\x1f");
+      if (parts.length < 4) {
+        continue;
+      }
+      // %at = unix seconds; Date renders it in the local timezone
+      const d = new Date(parseInt(parts[3] ?? "0", 10) * 1000);
+      commits.push({
+        hash: parts[0] ?? "",
+        subject: parts[1] ?? "",
+        author: parts[2] ?? "",
+        shortDate: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      });
+    }
+    return commits;
+  }
+
+  /**
+   * ref 是否为 rev 的祖先（含 rev 自身）。用于判断 tag 是否在当前历史线上。
+   * ref 可以是任意 revision：hash、分支名、tag 名（附注 tag 会被 git 自动
+   * 解引用到提交，无需先 rev-list 解引用）。
+   * `git merge-base --is-ancestor` 退出码非 0（非祖先）或 git 报错（坏引用
+   * 等）时 execGit 都会抛错，这里统一 catch 返回 false。
+   */
+  async isAncestor(ref: string, rev: string): Promise<boolean> {
+    try {
+      await this.execGit(["merge-base", "--is-ancestor", ref, rev]);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -1239,6 +1310,27 @@ export class GitService {
       const force = amend;
       await this.push(branch, force);
     }
+  }
+
+  /**
+   * Commit ONLY the given pathspecs' working-tree state, ignoring other
+   * staged content. `git commit -m msg -- <paths>`. 返回新提交的 hash。
+   *
+   * On an unborn branch (no commits yet) the same command creates the root
+   * commit with just these paths — no parent to resolve, so no special case.
+   */
+  async commitPaths(message: string, paths: string[]): Promise<string> {
+    if (paths.length === 0) {
+      throw new Error("commitPaths requires at least one path");
+    }
+
+    await this.execGit(["commit", "-m", message, "--", ...paths]);
+    // Same post-commit side effect as commit()
+    this.invalidateCache();
+
+    // Resolve the newly created commit's hash
+    const hash = (await this.execGit(["rev-parse", "HEAD"])).trim();
+    return hash;
   }
 
   async getCurrentBranch(): Promise<string | null> {
