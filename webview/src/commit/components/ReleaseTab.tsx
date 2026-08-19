@@ -28,13 +28,13 @@ import WarningIcon from "~icons/codicon/warning";
  *   .release-tab    — column, fills the panel (like .commit-tab-content)
  *   .release-scroll — flex-1 scroll area (pending commits)
  *   .release-bottom — fixed bottom bar (like .commit-message-area):
- *                     summary → version → changelog → action row,
- *                     or the result panel after a successful release.
+ *                     summary → version → changelog → action row.
+ *   Success and create-confirmation are shown in modals (result panel,
+ *   confirm dialog) rather than replacing the form inline.
  */
 export function ReleaseTab() {
   const context = useReleaseStore((s) => s.context);
   const contextError = useReleaseStore((s) => s.contextError);
-  const result = useReleaseStore((s) => s.result);
   const creating = useReleaseStore((s) => s.creating);
   // Working-tree changes: conflict guard for the Create button + the
   // uncommitted-changes warning in the confirmation card.
@@ -77,34 +77,23 @@ export function ReleaseTab() {
     );
   }
 
-  // Release landed: the bottom bar becomes the result panel; the scroll
-  // area keeps the (already refetched) commit list so the empty state
-  // ("no new commits since last version") confirms the release landed.
-  if (result) {
-    return (
-      <div className="release-tab">
+  // Release landed: the result modal (ReleaseResultPanel) portals to
+  // document.body; the form below stays intact behind it.
+  return (
+    <>
+      <div className="release-tab" inert={creating ? true : undefined}>
         <div className="release-scroll">
           <CommitRangeList commits={context.commits} />
         </div>
         <div className="release-bottom">
-          <ReleaseResultPanel />
+          <ReleaseSummary context={context} />
+          <VersionSection context={context} />
+          <ChangelogSection context={context} />
+          <CreateSection context={context} changes={changes} />
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div className="release-tab" inert={creating ? true : undefined}>
-      <div className="release-scroll">
-        <CommitRangeList commits={context.commits} />
-      </div>
-      <div className="release-bottom">
-        <ReleaseSummary context={context} />
-        <VersionSection context={context} />
-        <ChangelogSection context={context} />
-        <CreateSection context={context} changes={changes} />
-      </div>
-    </div>
+      <ReleaseResultPanel />
+    </>
   );
 }
 

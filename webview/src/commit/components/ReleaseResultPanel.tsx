@@ -1,5 +1,6 @@
 import { t } from "../../shared/i18n";
 import { useReleaseStore } from "../../shared/store/release-store";
+import { ModalOverlay } from "./PromptEditor";
 import ArrowRightIcon from "~icons/codicon/arrow-right";
 import CheckIcon from "~icons/codicon/check";
 import CloseIcon from "~icons/codicon/close";
@@ -7,7 +8,7 @@ import ErrorIcon from "~icons/codicon/error";
 import LoadingIcon from "~icons/codicon/loading";
 import RepoPushIcon from "~icons/codicon/repo-push";
 
-/** Success state: replaces the whole release form until [Done] is clicked. */
+/** Success state: shown as a modal until [Done] (or close) is clicked. */
 export function ReleaseResultPanel() {
   const result = useReleaseStore((s) => s.result);
   const fromVersion = useReleaseStore((s) => s.fromVersion);
@@ -21,43 +22,60 @@ export function ReleaseResultPanel() {
   if (!result) return null;
 
   return (
-    <div className="release-result">
-      <div className="release-result-card">
-        <div className="release-result-head">
+    <ModalOverlay
+      onClose={() => {
+        // Escape / backdrop dismiss = finish (reset the panel). Guard while
+        // the push is in flight so it can't be abandoned mid-way.
+        if (!pushing) void finish();
+      }}
+      ariaLabel={t("Release created")}
+    >
+      <div className="release-modal-head">
+        <span className="release-modal-title release-result-head">
           <CheckIcon />
           {t("Release created")}
-        </div>
-        <div className="release-confirm-row">
-          <span className="release-confirm-label">{t("Version")}</span>
-          <span className="release-confirm-value release-mono">
-            {fromVersion ?? "—"}
-            <ArrowRightIcon className="release-version-arrow" />
-            <span className="release-version-new">{result.version}</span>
-          </span>
-        </div>
-        <div className="release-confirm-row">
-          <span className="release-confirm-label">{t("Tag")}</span>
-          <span className="release-confirm-value release-mono">{result.tagName}</span>
-        </div>
-        <div className="release-confirm-row">
-          <span className="release-confirm-label">{t("Commit")}</span>
-          <span className="release-confirm-value">
-            <button
-              type="button"
-              className="release-link-btn release-mono"
-              title={t("Click to locate this commit in the Git Log")}
-              onClick={() => locateCommit(result.commitHash)}
-            >
-              {result.commitHash.slice(0, 7)}
-            </button>
-          </span>
-        </div>
-        <div className="release-confirm-row">
-          <span className="release-confirm-label">{t("Files")}</span>
-          <span className="release-confirm-value">
-            {t("{0} file(s) updated", result.updatedFiles.length)}
-          </span>
-        </div>
+        </span>
+        <button
+          type="button"
+          className="commit-error-close"
+          aria-label={t("Close")}
+          onClick={() => {
+            if (!pushing) void finish();
+          }}
+        >
+          <CloseIcon />
+        </button>
+      </div>
+      <div className="release-confirm-row">
+        <span className="release-confirm-label">{t("Version")}</span>
+        <span className="release-confirm-value release-mono">
+          {fromVersion ?? "—"}
+          <ArrowRightIcon className="release-version-arrow" />
+          <span className="release-version-new">{result.version}</span>
+        </span>
+      </div>
+      <div className="release-confirm-row">
+        <span className="release-confirm-label">{t("Tag")}</span>
+        <span className="release-confirm-value release-mono">{result.tagName}</span>
+      </div>
+      <div className="release-confirm-row">
+        <span className="release-confirm-label">{t("Commit")}</span>
+        <span className="release-confirm-value">
+          <button
+            type="button"
+            className="release-link-btn release-mono"
+            title={t("Click to locate this commit in the Git Log")}
+            onClick={() => locateCommit(result.commitHash)}
+          >
+            {result.commitHash.slice(0, 7)}
+          </button>
+        </span>
+      </div>
+      <div className="release-confirm-row">
+        <span className="release-confirm-label">{t("Files")}</span>
+        <span className="release-confirm-value">
+          {t("{0} file(s) updated", result.updatedFiles.length)}
+        </span>
       </div>
 
       {pushError && (
@@ -100,6 +118,6 @@ export function ReleaseResultPanel() {
           {t("Done")}
         </button>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

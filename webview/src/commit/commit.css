@@ -1691,24 +1691,7 @@ button.commit-dropdown-item:hover:not(:disabled) {
   gap: 6px;
 }
 
-/* ── Result (occupies the fixed bottom bar after a successful release) ── */
-.release-result {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  animation: release-fade-slide 0.25s ease;
-}
-
-.release-result-card {
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--vscode-debugIcon-startForeground, #89d185);
-  border-radius: 8px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
+/* ── Result modal (success state, rendered via ModalOverlay) ── */
 .release-result-head {
   display: flex;
   align-items: center;
