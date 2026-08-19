@@ -395,7 +395,19 @@ export function PanelApp() {
                   }}
                 >
                   <Allotment.Pane minSize={graphMin} priority={LayoutPriority.High}>
-                    <GitGraphPanel />
+                    {/* Pane containers don't establish a flex context — wrap in
+                        a full-height flex column so GitGraphPanel's flex:1
+                        sizing (and thus the list's scroll) works, mirroring
+                        the right-dock branch. */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        height: "100%",
+                      }}
+                    >
+                      <GitGraphPanel />
+                    </div>
                   </Allotment.Pane>
                   <Allotment.Pane
                     preferredSize={
