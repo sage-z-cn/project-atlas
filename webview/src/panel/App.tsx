@@ -15,7 +15,7 @@ import { ErrorBanner } from "./components/ErrorBanner";
 import { GitGraphPanel } from "./components/GitGraphPanel";
 import { Toolbar } from "./components/Toolbar";
 import IconLayoutPanel from "~icons/codicon/layout-panel";
-import IconLayoutPanelRight from "~icons/codicon/layout-panel-right";
+import IconSidebarRight from "~icons/codicon/layout-sidebar-right";
 import "./panel.css";
 
 // ── Panel layout persistence ────────────────────────────────────────
@@ -444,7 +444,7 @@ export function PanelApp() {
                               className="panel-toggle-btn"
                               onClick={toggleDetailPanelPosition}
                             >
-                              <IconLayoutPanelRight width={16} height={16} />
+                              <IconSidebarRight width={16} height={16} />
                             </button>
                           </Tooltip>
                           <Tooltip text={t("Hide Details")}>
@@ -468,20 +468,10 @@ export function PanelApp() {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "flex-end",
-                          gap: 2,
                           padding: "0 4px",
                           borderTop: "1px solid var(--border)",
                         }}
                       >
-                        <Tooltip text={t("Move to Right")}>
-                          <button
-                            type="button"
-                            className="panel-toggle-btn"
-                            onClick={toggleDetailPanelPosition}
-                          >
-                            <IconLayoutPanelRight width={16} height={16} />
-                          </button>
-                        </Tooltip>
                         <Tooltip text={t("Show Details")}>
                           <button
                             type="button"
@@ -579,22 +569,12 @@ export function PanelApp() {
                     style={{
                       height: "100%",
                       display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 2,
+                      alignItems: "flex-start",
+                      justifyContent: "center",
                       paddingTop: 4,
                       borderLeft: "1px solid var(--border)",
                     }}
                   >
-                    <Tooltip text={t("Move to Bottom")}>
-                      <button
-                        type="button"
-                        className="panel-toggle-btn"
-                        onClick={toggleDetailPanelPosition}
-                      >
-                        <IconLayoutPanel width={16} height={16} />
-                      </button>
-                    </Tooltip>
                     <Tooltip text={t("Show Details")}>
                       <button
                         type="button"
