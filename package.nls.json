@@ -35,7 +35,6 @@
   "command.git-atlas.openPushPanel": "Push...",
   "command.git-atlas.openMergeEditor": "Open Merge Editor",
   "command.git-atlas.openDiffEditor": "Open Diff Editor",
-  "command.git-atlas.refreshLog": "Refresh Git Log",
   "command.git-atlas.nextDiff": "Next File Diff",
   "command.git-atlas.prevDiff": "Previous File Diff",
   "command.git-atlas.openConflicts": "Conflicts",

@@ -280,11 +280,6 @@
         "title": "%command.git-atlas.openDiffEditor%"
       },
       {
-        "command": "git-atlas.refreshLog",
-        "title": "%command.git-atlas.refreshLog%",
-        "icon": "$(refresh)"
-      },
-      {
         "command": "git-atlas.nextDiff",
         "title": "%command.git-atlas.nextDiff%",
         "icon": "$(arrow-down)"
@@ -409,10 +404,6 @@
         },
         {
           "command": "git-atlas.openDiffEditor",
-          "when": "false"
-        },
-        {
-          "command": "git-atlas.refreshLog",
           "when": "false"
         },
         {
@@ -546,11 +537,6 @@
         {
           "command": "todo-atlas.openSettings",
           "when": "view == todo-atlas.todos",
-          "group": "navigation@1"
-        },
-        {
-          "command": "git-atlas.refreshLog",
-          "when": "view == git-atlas.gitLog",
           "group": "navigation@1"
         },
         {

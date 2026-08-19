@@ -302,9 +302,12 @@ function collectVisibleLeaves(
 
 export function BranchTree({
   onTogglePanel,
+  panelVisible = true,
 }: {
   headerAction?: React.ReactNode;
   onTogglePanel?: () => void;
+  /** False = collapse to the sidebar toolbar only (content area hidden). */
+  panelVisible?: boolean;
 } = {}) {
   const branches = usePanelStore((s) => s.branches);
   const tags = usePanelStore((s) => s.tags);
@@ -534,6 +537,7 @@ export function BranchTree({
     >
       <BranchSidebarComponent
         onTogglePanel={onTogglePanel}
+        panelVisible={panelVisible}
         onNewBranch={() =>
           setCreateBranchDialog({ startPoint: "HEAD", defaultName: "" })
         }
@@ -545,6 +549,12 @@ export function BranchTree({
           flex: 1,
           height: "100%",
           overflow: "auto",
+          // Collapsed: keep the subtree mounted so React state (selection,
+          // folder collapse flags, search query) survives, but out of layout.
+          // Scroll position is NOT preserved — Blink resets scrollTop to 0
+          // on display:none. Dialogs/context menus portal to document.body,
+          // unaffected.
+          display: panelVisible ? undefined : "none",
         }}
       >
         <div

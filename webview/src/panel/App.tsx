@@ -321,50 +321,31 @@ export function PanelApp() {
       <ErrorBanner />
       <RepoSelector store="panel" />
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-        {/* Left branch panel — outside Allotment to avoid flicker */}
+        {/* Left branch panel — outside Allotment to avoid flicker.
+            Collapsed = toolbar-only strip: BranchTree keeps rendering (the
+            sidebar toolbar stays interactive) while its content area is
+            hidden; width: "auto" shrink-wraps to the toolbar's intrinsic
+            width (the .branch-sidebar border provides the edge line). */}
         <div
           style={{
-            width: showLeft ? leftWidth : 28,
+            width: showLeft ? leftWidth : "auto",
             height: "100%",
             flexShrink: 0,
             overflow: "hidden",
             display: "flex",
           }}
         >
-          {showLeft ? (
-            <div
-              style={{
-                flex: 1,
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-              }}
-            >
-              <BranchTree onTogglePanel={toggleLeft} />
-            </div>
-          ) : (
-            <div
-              style={{
-                height: "100%",
-                width: "100%",
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "center",
-                paddingTop: 4,
-              }}
-            >
-              <Tooltip text={t("Show Branches")}>
-                <button
-                  type="button"
-                  className="panel-toggle-btn"
-                  onClick={toggleLeft}
-                >
-                  <ChevronRightIcon />
-                </button>
-              </Tooltip>
-            </div>
-          )}
+          <div
+            style={{
+              flex: 1,
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            <BranchTree onTogglePanel={toggleLeft} panelVisible={showLeft} />
+          </div>
           {showLeft && (
             <div
               onMouseDown={startLeftResize}
@@ -385,15 +366,6 @@ export function PanelApp() {
                 }}
               />
             </div>
-          )}
-          {!showLeft && (
-            <div
-              style={{
-                width: 1,
-                flexShrink: 0,
-                background: "var(--border)",
-              }}
-            />
           )}
         </div>
 

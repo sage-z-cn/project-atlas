@@ -35,7 +35,6 @@
   "command.git-atlas.openPushPanel": "推送...",
   "command.git-atlas.openMergeEditor": "打开合并编辑器",
   "command.git-atlas.openDiffEditor": "打开差异编辑器",
-  "command.git-atlas.refreshLog": "刷新 Git 日志",
   "command.git-atlas.nextDiff": "下一个文件差异",
   "command.git-atlas.prevDiff": "上一个文件差异",
   "command.git-atlas.openConflicts": "冲突",

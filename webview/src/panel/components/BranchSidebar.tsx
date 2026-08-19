@@ -6,6 +6,7 @@ import { t } from "../../shared/i18n";
 import IconExpandAll from "~icons/codicon/expand-all";
 import IconCollapseAll from "~icons/codicon/collapse-all";
 import IconChevronLeft from "~icons/codicon/chevron-left";
+import IconChevronRight from "~icons/codicon/chevron-right";
 import IconAdd from "~icons/codicon/add";
 import IconStar from "~icons/codicon/star-full";
 import IconLocate from "~icons/codicon/target";
@@ -13,14 +14,18 @@ import IconListTree from "~icons/codicon/list-tree";
 import IconListFlat from "~icons/codicon/list-flat";
 import IconSettings from "~icons/codicon/settings";
 import IconGlobe from "~icons/codicon/globe";
+import IconRefresh from "~icons/codicon/refresh";
 import { usePanelStore } from "../../shared/store/panel-store";
 
 export function BranchSidebar({
   onTogglePanel,
+  panelVisible = true,
   onNewBranch,
   onManageRemotes,
 }: {
   onTogglePanel?: () => void;
+  /** False = branch content area collapsed; the toolbar stays rendered. */
+  panelVisible?: boolean;
   onNewBranch?: () => void;
   onManageRemotes?: () => void;
 } = {}) {
@@ -44,6 +49,26 @@ export function BranchSidebar({
   const handleManageRemotes = useCallback(() => {
     onManageRemotes?.();
   }, [onManageRemotes]);
+
+  // ── Refresh (mirror of the commit panel toolbar refresh, plus the
+  // host-side refreshGitState rescan) ───────────────────────────────
+  // Refresh: local panel data refetch + remote fetch + host-side rescan.
+  // Note this fires ~3 panel refreshes in total: the local refresh() here,
+  // plus one per gitStateChanged broadcast — fetchAll broadcasts one when
+  // the remote fetch updates refs, and refreshGitState (rescan + cache
+  // invalidation + broadcast) sends another. Same pattern as the commit
+  // panel's refresh; the redundant fetches are idempotent reads.
+  const handleRefresh = useCallback(async () => {
+    void usePanelStore.getState().refresh();
+    bridge.request("fetchAll");
+    try {
+      await bridge.request("refreshGitState");
+    } catch (err) {
+      usePanelStore
+        .getState()
+        .setPanelError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
 
   const handleToggleFavorite = useCallback(() => {
     if (selectedBranch) {
@@ -70,19 +95,28 @@ export function BranchSidebar({
       <div className="branch-sidebar-scroll">
       {onTogglePanel && (
         <>
-          <Tooltip text={t("Hide Branches")}>
+          <Tooltip text={panelVisible ? t("Hide Branches") : t("Show Branches")}>
             <button
               type="button"
               className="branch-sidebar-btn"
               onClick={onTogglePanel}
             >
-              <IconChevronLeft />
+              {panelVisible ? <IconChevronLeft /> : <IconChevronRight />}
             </button>
           </Tooltip>
           <div className="branch-sidebar-separator" />
         </>
       )}
-      {/* Branch add / delete */}
+      {/* Refresh / branch add / remote management */}
+      <Tooltip text={t("Refresh")}>
+        <button
+          type="button"
+          className="branch-sidebar-btn"
+          onClick={handleRefresh}
+        >
+          <IconRefresh />
+        </button>
+      </Tooltip>
       <Tooltip text={t("New Branch")}>
         <button
           type="button"
