@@ -1,5 +1,16 @@
 # Change Log
 
+#### 1.17.0
+**新功能**
+- **分支**: 侧边栏工具栏新增刷新按钮
+- **发布**: 新增版本发布与变更日志生成功能
+
+**Bug 修复**
+- **WebView**: 修复 Git 图形面板布局显示问题
+
+**改进**
+- **UI**: 优化详情面板切换按钮布局，移除冗余按钮并调整样式对齐
+
 All notable changes to the "project-atlas" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
