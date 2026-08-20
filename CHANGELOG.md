@@ -4,6 +4,12 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.17.1
+**改进**
+- **版本**: 优化变更日志生成与插入逻辑，移除空分类并修正插入位置
+- **Git**: 发布标签页全量重命名为“newVersion”，为远程 Release 发布功能腾出命名
+- **UI**: 发布结果页面改为弹窗展示
+
 #### 1.17.0
 **新功能**
 - **分支**: 侧边栏工具栏新增刷新按钮
