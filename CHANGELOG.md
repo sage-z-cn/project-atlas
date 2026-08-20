@@ -4,6 +4,13 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.18.1
+**新功能**
+- **发布**: 支持更新已编辑发布标题中的标签版本
+
+**改进**
+- **WebView**: 移除生成耗时显示中的 loading 图标
+
 #### 1.18.0
 **新功能**
 - **发布**: 支持创建 GitHub 和 Gitee Release 并上传附件
