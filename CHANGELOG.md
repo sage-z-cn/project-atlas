@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.18.0
+**新功能**
+- **发布**: 支持创建 GitHub 和 Gitee Release 并上传附件
+
 #### 1.17.2
 **新功能**
 - **WebView**: 为提交信息和更新日志输入框实现自适应高度
