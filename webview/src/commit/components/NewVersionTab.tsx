@@ -443,7 +443,7 @@ function CreateSection({
               <span className="new-version-prompt-spacer" />
               <button
                 type="button"
-                className="commit-btn commit-btn-secondary"
+                className="btn btn-secondary"
                 disabled={creating}
                 onClick={() => setConfirmOpen(false)}
               >
@@ -451,7 +451,7 @@ function CreateSection({
               </button>
               <button
                 type="button"
-                className="commit-btn commit-btn-primary"
+                className="btn btn-primary"
                 disabled={!canCreate || creating}
                 onClick={() => void createNewVersion()}
               >
@@ -493,7 +493,7 @@ function CreateSection({
         )}
         <button
           type="button"
-          className="commit-btn commit-btn-secondary new-version-generate-btn"
+          className="btn btn-secondary new-version-generate-btn"
           disabled={!generating && !canGenerate}
           title={generateTitle}
           onClick={() => void handleGenerate()}
@@ -507,7 +507,7 @@ function CreateSection({
         </button>
         <button
           type="button"
-          className="commit-btn commit-btn-primary"
+          className="btn btn-primary"
           disabled={!canCreate}
           title={createTitle}
           onClick={() => {

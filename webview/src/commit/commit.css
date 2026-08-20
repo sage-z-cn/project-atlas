@@ -487,13 +487,14 @@
   cursor: pointer;
 }
 
-/* ─── Commit Buttons ───────────────────────────────────────────── */
-.commit-buttons {
+/* ─── Buttons（通用按钮行/按钮，跨面板复用） ──────────────────── */
+.btn-row {
   display: flex;
+  justify-content: flex-end;
   gap: 6px;
 }
 
-.commit-btn {
+.btn {
   padding: 6px 16px;
   border: none;
   border-radius: 6px;
@@ -506,30 +507,30 @@
   box-sizing: border-box;
 }
 
-.commit-btn-primary {
+.btn-primary {
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
 }
 
-.commit-btn-primary:hover {
+.btn-primary:hover {
   background: var(--vscode-button-hoverBackground);
 }
 
-.commit-btn-primary:disabled {
+.btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.commit-btn-secondary {
+.btn-secondary {
   background: var(--vscode-button-secondaryBackground, #3a3d41);
   color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
 }
 
-.commit-btn-secondary:hover:not(:disabled) {
+.btn-secondary:hover:not(:disabled) {
   background: var(--vscode-button-secondaryHoverBackground, #45494e);
 }
 
-.commit-btn-secondary:disabled {
+.btn-secondary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -824,14 +825,14 @@ button.commit-dropdown-item:hover:not(:disabled) {
   font-size: 14px;
 }
 
-.commit-btn {
+.btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
 }
 
-.commit-btn svg {
+.btn svg {
   font-size: 14px;
 }
 

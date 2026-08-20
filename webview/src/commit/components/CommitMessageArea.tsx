@@ -414,20 +414,11 @@ export function CommitMessageArea() {
         </div>
       </div>
 
-      <div className="commit-buttons">
-        <button
-          type="button"
-          className="commit-btn commit-btn-primary"
-          disabled={!canCommit}
-          onClick={handleCommit}
-        >
-          {t("Commit")}
-        </button>
-
+      <div className="btn-row">
         <div className="commit-dropdown" ref={dropdownRef}>
           <button
             type="button"
-            className="commit-btn commit-btn-secondary commit-split-main"
+            className="btn btn-secondary commit-split-main"
             disabled={!canPush}
             title={noRemoteHint}
             onClick={handleCommitAndPush}
@@ -436,7 +427,7 @@ export function CommitMessageArea() {
           </button>
           <button
             type="button"
-            className="commit-btn commit-btn-secondary commit-split-arrow"
+            className="btn btn-secondary commit-split-arrow"
             disabled={!canPush}
             title={noRemoteHint}
             onClick={() => setShowDropdown(!showDropdown)}
@@ -481,6 +472,15 @@ export function CommitMessageArea() {
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={!canCommit}
+          onClick={handleCommit}
+        >
+          {t("Commit")}
+        </button>
       </div>
     </div>
   );

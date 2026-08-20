@@ -93,10 +93,10 @@ export function NewVersionResultPanel() {
         </div>
       )}
 
-      <div className="commit-buttons">
+      <div className="btn-row">
         <button
           type="button"
-          className="commit-btn commit-btn-secondary"
+          className="btn btn-secondary"
           disabled={pushing || pushed}
           onClick={() => void pushCreatedNewVersion()}
         >
@@ -111,7 +111,7 @@ export function NewVersionResultPanel() {
         </button>
         <button
           type="button"
-          className="commit-btn commit-btn-primary"
+          className="btn btn-primary"
           disabled={pushing}
           onClick={() => void finish()}
         >

@@ -103,7 +103,7 @@ export function ChangelogInitForm({ defaultLanguage }: { defaultLanguage: "zh" |
       <div>
         <button
           type="button"
-          className="commit-btn commit-btn-primary"
+          className="btn btn-primary"
           disabled={!nameOk || initializing}
           onClick={() => void handleInit()}
         >

@@ -208,7 +208,7 @@ function PromptModal({ onClose }: { onClose: () => void }) {
       <div className="new-version-prompt-actions">
         <button
           type="button"
-          className="commit-btn commit-btn-secondary"
+          className="btn btn-secondary"
           disabled={saving}
           onClick={() => void handleRestore()}
         >
@@ -220,7 +220,7 @@ function PromptModal({ onClose }: { onClose: () => void }) {
         )}
         <button
           type="button"
-          className="commit-btn commit-btn-secondary"
+          className="btn btn-secondary"
           disabled={saving}
           onClick={onClose}
         >
@@ -228,7 +228,7 @@ function PromptModal({ onClose }: { onClose: () => void }) {
         </button>
         <button
           type="button"
-          className="commit-btn commit-btn-primary"
+          className="btn btn-primary"
           disabled={saving}
           onClick={() => void handleSave()}
         >
