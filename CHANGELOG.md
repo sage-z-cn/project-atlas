@@ -4,6 +4,13 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.17.2
+**新功能**
+- **WebView**: 为提交信息和更新日志输入框实现自适应高度
+
+**改进**
+- **WebView**: 重构 CSS 类名以复用通用按钮样式
+
 #### 1.17.1
 **改进**
 - **版本**: 优化变更日志生成与插入逻辑，移除空分类并修正插入位置
