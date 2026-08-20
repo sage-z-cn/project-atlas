@@ -62,6 +62,44 @@ export function targetKey(platform: string, remoteName: string): string {
   return `${platform}:${remoteName}`;
 }
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Swap the embedded old-tag occurrence in a hand-edited release title when
+ * the user picks a different tag. Matches the full old tag first (e.g.
+ * "v1.2.3"), then the bare version ("1.2.3"); v/V prefix on the old value is
+ * optional so "Release 1.2.3" also updates. Returns the updated title, or
+ * null when no tag-like occurrence was found (title stays untouched).
+ */
+export function swapTagInTitle(
+  title: string,
+  oldTag: string,
+  newTag: string,
+): string | null {
+  const bare = (t: string) => t.replace(/^[vV]/, "");
+  const oldFull = oldTag.trim();
+  const oldBare = bare(oldFull);
+  if (!oldBare || !newTag.trim()) return null;
+  const replacement = newTag.trim();
+  const replacementBare = bare(replacement);
+  // Longest first so "v1.2.3" wins over "1.2.3".
+  for (const [pattern, value] of [
+    [oldFull, replacement],
+    [oldBare, replacementBare],
+  ] as const) {
+    if (!pattern) continue;
+    const re = new RegExp(
+      `(?<![\\w.])${escapeRegExp(pattern)}(?![\\w.])`,
+    );
+    if (re.test(title)) {
+      return title.replace(re, value);
+    }
+  }
+  return null;
+}
+
 function defaultForm() {
   return {
     tagName: "",
@@ -303,10 +341,19 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
   },
 
   selectTag(tagName) {
+    const prevTag = get().tagName;
     set({ tagName, isNewTag: false });
-    // Title follows the tag while the user hasn't edited it by hand.
-    if (!get().titleTouched && tagName) {
+    if (!tagName) return;
+    const s = get();
+    if (!s.titleTouched) {
       set({ title: `v${tagName.replace(/^[vV]/, "")}` });
+    } else if (prevTag) {
+      // Hand-edited title: swap the embedded tag occurrence (full tag form
+      // first, then bare version) so surrounding custom text survives.
+      const swapped = swapTagInTitle(s.title, prevTag, tagName);
+      if (swapped !== null) {
+        set({ title: swapped });
+      }
     }
     if (!tagName || get().notesTouched) {
       // Hand-edited notes are never clobbered by a tag re-pick.
