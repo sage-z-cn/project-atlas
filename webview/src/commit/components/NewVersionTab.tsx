@@ -475,12 +475,11 @@ function CreateSection({
           )}
           {showAiIcon && (
             <div className="new-version-check-row-right">
-              {generating && (
+              {generating && elapsed != null && (
                 <span
                   className="new-version-elapsed"
                   title={t("Generating changelog...")}
                 >
-                  <LoadingIcon className="new-version-spin" />
                   {elapsed}
                 </span>
               )}
