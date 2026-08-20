@@ -1,5 +1,9 @@
 # Change Log
 
+All notable changes to the "project-atlas" extension will be documented in this file.
+
+Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+
 #### 1.17.0
 **新功能**
 - **分支**: 侧边栏工具栏新增刷新按钮
@@ -10,10 +14,6 @@
 
 **改进**
 - **UI**: 优化详情面板切换按钮布局，移除冗余按钮并调整样式对齐
-
-All notable changes to the "project-atlas" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
 #### 1.16.0
 - **远程管理**: 分支面板新增远程管理弹窗,支持查看、新增、编辑(含重命名)、删除远程及复制 URL,保存后可选自动提取

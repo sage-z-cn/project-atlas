@@ -11,8 +11,8 @@ uncommitted file changes since the last release, write the
 changelog entry for the new version.
 
 Group changes by category, in this order, using bold headings
-followed by \`-\` list items (one line per change, skip empty
-categories):
+followed by \`-\` list items (one line per change). Only categories
+that have at least one entry may appear:
 
 **New Features** — new capabilities (feat)
 **Bug Fixes** — bug fixes (fix)
@@ -21,6 +21,9 @@ categories):
 
 Rules:
 - {{language}}
+- Never output a heading for an empty category: if a category has
+  no entries, omit both the heading and its list entirely — no
+  empty sections and no placeholder lines like "None".
 - When a changelog excerpt is provided, follow its grouping style:
   if it groups entries under category headings, reuse those heading
   names and their order; if it uses a flat layout with no headings,
@@ -63,8 +66,8 @@ export function buildNewVersionMessages(
   const langName = language === "zh" ? "Chinese (中文)" : "English";
   const langInstruction =
     language === "zh"
-      ? `Write the changelog in ${langName}, including the category headings (e.g. 新功能 / Bug 修复 / 改进 / 其他). The output language is mandatory and overrides the language of any provided changelog excerpt.`
-      : `Write the changelog in ${langName}, including the category headings. The output language is mandatory and overrides the language of any provided changelog excerpt.`;
+      ? `Write the changelog in ${langName}, with category headings only for categories that have entries (e.g. 新功能 / Bug 修复 / 改进 / 其他); never output a heading for an empty category. The output language is mandatory and overrides the language of any provided changelog excerpt.`
+      : `Write the changelog in ${langName}, with category headings only for categories that have entries; never output a heading for an empty category. The output language is mandatory and overrides the language of any provided changelog excerpt.`;
 
   let system: string;
   if (prompt.includes("{{language}}")) {
@@ -143,7 +146,76 @@ export async function generateNewVersionChangelog(
     user,
     cancelSignal,
   );
-  return cleanChangelog(response);
+  return stripEmptyCategoryHeadings(cleanChangelog(response));
+}
+
+/**
+ * 兜底清理：剔除没有任何条目的分组标题行。
+ *
+ * 处理两类残留（即使提示词已要求省略空分组，模型仍可能输出）：
+ * - 加粗标题：`**新功能**`、`**Bug Fixes**` 等独立成行，其后直到下一个
+ *   标题/非列表内容之间没有 `- ` 列表项；
+ * - Markdown 标题：`## 新功能`、`### Bug Fixes` 同理。
+ *
+ * 判定规则：某标题行之后、到下一个同级或更高级标题之前，若不存在任何
+ * `\`-\` 列表项行，则该标题（及其紧邻的空行）被视为空分组而移除。
+ * 已有条目的分组不受影响；连续多个空分组标题一并移除。
+ */
+function stripEmptyCategoryHeadings(text: string): string {
+  const lines = text.split("\n");
+  const headingRe = /^\s*(?:\*\*(.+?)\*\*|#{1,6}\s+(.+?))\s*:?\s*$/;
+  const listItemRe = /^\s*[-*]\s+/;
+
+  const isHeading = (line: string) => headingRe.test(line);
+
+  const kept: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (!isHeading(lines[i])) {
+      kept.push(lines[i]);
+      i++;
+      continue;
+    }
+    // 收集从当前标题开始、由连续标题+非列表内容构成的块，
+    // 直到遇到首个列表项（有内容）或下一个"带内容的标题"为止。
+    const block: string[] = [];
+    let hasItems = false;
+    let j = i;
+    while (j < lines.length) {
+      const line = lines[j];
+      if (listItemRe.test(line)) {
+        hasItems = true;
+        break;
+      }
+      if (isHeading(line) && block.length > 0) {
+        // 连续标题：先停下，外层会逐个评估。
+        break;
+      }
+      if (isHeading(line) && block.length === 0) {
+        block.push(line);
+        j++;
+        continue;
+      }
+      // 非列表、非标题的普通行（如说明文字）归属当前分组
+      block.push(line);
+      j++;
+    }
+    if (hasItems) {
+      kept.push(...lines.slice(i, j));
+      i = j;
+    } else {
+      // 空分组：跳过标题及其后连续空行
+      let k = j;
+      while (k < lines.length && lines[k].trim() === "") {
+        k++;
+      }
+      i = k;
+    }
+  }
+
+  // 移除因剔除产生的首尾多余空行
+  const result = kept.join("\n").replace(/^\n+/, "").replace(/\n+$/, "");
+  return result;
 }
 
 /** 剥代码围栏与首尾引号（与 AiCommitService.cleanMessage 逻辑一致）。 */

@@ -272,7 +272,9 @@ export function registerNewVersionHandlers(ctx: GitHandlerContext): void {
         );
       }
 
-      // 2. changelog 插入：首个 `#` 标题行之后 / 无标题则顶部补一个
+      // 2. changelog 插入：插在首个版本条目标题之前（顶部大标题与
+      //    描述文本/注释保持在上方）；无版本条目时插在顶部标题及其后
+      //    空行/HTML 注释之后；完全没有标题则顶部补一个。
       const writtenFiles: string[] = [];
       const changelogFile = findChangelogFile(repoRoot);
       if (changelogEntry.trim() && changelogFile) {
@@ -280,16 +282,46 @@ export function registerNewVersionHandlers(ctx: GitHandlerContext): void {
           const absPath = path.join(repoRoot, changelogFile);
           const original = fs.readFileSync(absPath, "utf-8");
           const lines = original.split("\n");
-          const headingIdx = lines.findIndex((l) => l.startsWith("#"));
+          // 版本条目标题：`#### 1.2.3` / `## [1.2.3]` / `# v1.2.3` 等
+          // （容忍 v/V 前缀与方括号，用于与普通小节标题区分）
+          const versionHeadingRe = /^#{1,6}\s*\[?\s*[vV]?\d+(?:\.\d+)+/;
+          const firstVersionIdx = lines.findIndex((l) =>
+            versionHeadingRe.test(l),
+          );
           let updated: string;
-          if (headingIdx === -1) {
-            updated =
-              `# Changelog\n\n#### ${version}\n${changelogEntry}\n` + original;
+          if (firstVersionIdx !== -1) {
+            const before = lines
+              .slice(0, firstVersionIdx)
+              .join("\n")
+              .trimEnd();
+            const after = lines.slice(firstVersionIdx).join("\n");
+            updated = `${before}\n\n#### ${version}\n${changelogEntry}\n\n${after}`;
           } else {
-            const before = lines.slice(0, headingIdx + 1).join("\n") + "\n";
-            const after = lines.slice(headingIdx + 1).join("\n");
-            updated =
-              before + `\n#### ${version}\n${changelogEntry}\n` + after;
+            const headingIdx = lines.findIndex((l) => l.startsWith("#"));
+            if (headingIdx === -1) {
+              updated =
+                `# Changelog\n\n#### ${version}\n${changelogEntry}\n` +
+                original;
+            } else {
+              // 顶部标题之后跳过空行与 HTML 注释（init 模板的 preamble）
+              let insertIdx = headingIdx + 1;
+              while (insertIdx < lines.length) {
+                const trimmed = lines[insertIdx].trim();
+                if (trimmed === "" || trimmed.startsWith("<!--")) {
+                  insertIdx++;
+                } else {
+                  break;
+                }
+              }
+              const before = lines
+                .slice(0, insertIdx)
+                .join("\n")
+                .trimEnd();
+              const after = lines.slice(insertIdx).join("\n");
+              updated = after
+                ? `${before}\n\n#### ${version}\n${changelogEntry}\n\n${after}`
+                : `${before}\n\n#### ${version}\n${changelogEntry}\n`;
+            }
           }
           fs.writeFileSync(absPath, updated, "utf-8");
           writtenFiles.push(changelogFile);
