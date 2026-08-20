@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
+import { useAutoResizeTextarea } from "../../shared/hooks/useAutoResizeTextarea";
 import { useCommitStore } from "../../shared/store/commit-store";
 import { useNewVersionStore } from "../../shared/store/new-version-store";
 import type { NewVersionContext } from "../../shared/store/new-version-store";
@@ -12,9 +13,9 @@ import ErrorIcon from "~icons/codicon/error";
 /**
  * Bottom-bar changelog area (mirrors CommitMessageArea's compactness):
  * header row (file + language + prompt gear), AI banners, and the editable
- * draft. The Generate button and its elapsed timer live in the action row
- * next to Create New Version (see NewVersionTab's CreateSection).
- * No changelog file yet → compact init form instead.
+ * draft. The AI generate icon and its elapsed timer live in the checkbox row
+ * below the textarea (see NewVersionTab's CreateSection) — same position as
+ * the commit panel's AI button. No changelog file yet → compact init form.
  */
 export function ChangelogSection({ context }: { context: NewVersionContext }) {
   const genError = useNewVersionStore((s) => s.genError);
@@ -24,6 +25,9 @@ export function ChangelogSection({ context }: { context: NewVersionContext }) {
   const langOverride = useNewVersionStore((s) => s.changelogLanguageOverride);
   const setLangOverride = useNewVersionStore((s) => s.setChangelogLanguageOverride);
   const aiConfigured = useCommitStore((s) => s.aiConfigured);
+  // 动态高度：JS 量 scrollHeight 设定 height，CSS min/max-height 负责上下限
+  // （最少 5 行、最多 20 行，超限后内部滚动）。
+  const taRef = useAutoResizeTextarea(changelogDraft);
 
   if (!context.changelogFile) {
     return <ChangelogInitForm defaultLanguage={context.changelogLanguage} />;
@@ -91,12 +95,12 @@ export function ChangelogSection({ context }: { context: NewVersionContext }) {
       )}
 
       <textarea
+        ref={taRef}
         className="new-version-changelog-textarea"
         value={changelogDraft}
         placeholder={t("Changelog draft for the new version")}
         onChange={(e) => setChangelogDraft(e.target.value)}
         spellCheck={false}
-        rows={20}
       />
     </>
   );

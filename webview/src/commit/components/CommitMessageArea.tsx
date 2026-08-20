@@ -4,6 +4,7 @@ import { bridge } from "../../shared/bridge";
 import { Tooltip } from "../../shared/components/Tooltip";
 import "../../shared/components/Tooltip.css";
 import { t } from "../../shared/i18n";
+import { useAutoResizeTextarea } from "../../shared/hooks/useAutoResizeTextarea";
 import { useCommitStore } from "../../shared/store/commit-store";
 import SparkleIcon from "~icons/codicon/sparkle";
 import LoadingIcon from "~icons/codicon/loading";
@@ -43,6 +44,9 @@ export function CommitMessageArea() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const historyBtnRef = useRef<HTMLSpanElement>(null);
   const historyDropdownRef = useRef<HTMLDivElement>(null);
+  // 动态高度：JS 量 scrollHeight 设定 height，CSS min/max-height 负责上下限
+  // （最少 5 行、最多 20 行，超限后内部滚动），与 changelog 输入框共用逻辑。
+  const taRef = useAutoResizeTextarea(commitMessage);
 
   // Submit-button enablement follows the active list style:
   //  - JetBrains: files are picked via checkboxes → require selectedFiles.
@@ -287,12 +291,12 @@ export function CommitMessageArea() {
         </div>
       )}
       <textarea
+        ref={taRef}
         className="commit-message-textarea"
         placeholder={t("Commit message (Ctrl+Enter to commit)")}
         value={commitMessage}
         onChange={(e) => setCommitMessage(e.target.value)}
         onKeyDown={handleKeyDown}
-        rows={5}
       />
 
       <div className="commit-amend-row">

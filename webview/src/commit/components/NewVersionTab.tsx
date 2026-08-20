@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Tooltip } from "../../shared/components/Tooltip";
+import "../../shared/components/Tooltip.css";
 import { t } from "../../shared/i18n";
 import { useCommitStore } from "../../shared/store/commit-store";
 import type { WorkingTreeFile } from "../../shared/store/commit-store";
@@ -262,13 +264,14 @@ function CreateSection({
   const setConfirmOpen = useNewVersionStore((s) => s.setConfirmOpen);
   const createNewVersion = useNewVersionStore((s) => s.createNewVersion);
 
-  // AI generate (button lives here, next to Create New Version).
+  // AI generate (icon lives in the checkbox row, right-aligned — the same
+  // position as the commit panel's AI button in its amend row).
   const generating = useNewVersionStore((s) => s.generating);
   const generateChangelog = useNewVersionStore((s) => s.generateChangelog);
   const cancelGeneration = useNewVersionStore((s) => s.cancelGeneration);
   const aiConfigured = useCommitStore((s) => s.aiConfigured);
 
-  // Elapsed timer while generating — rendered left of the Generate button
+  // Elapsed timer while generating — rendered left of the AI icon
   // (CommitMessageArea pattern, condensed).
   const genStartRef = useRef<number | null>(null);
   const [elapsed, setElapsed] = useState<string | null>(null);
@@ -316,27 +319,6 @@ function CreateSection({
     : conflicted && missing.length === 0
       ? t("Resolve conflicts before creating a new version")
       : `${t("Cannot create new version:")}\n${missing.map((m) => `• ${m}`).join("\n")}`;
-
-  // Generated notes cover lastTag..HEAD commits only (the store always sends
-  // includeFiles: []), so generation needs pending commits to work from.
-  const canGenerate = aiConfigured && hasCommits;
-
-  const handleGenerate = async () => {
-    if (generating) {
-      await cancelGeneration();
-      return;
-    }
-    if (!canGenerate) return;
-    await generateChangelog();
-  };
-
-  const generateTitle = generating
-    ? t("Stop generating")
-    : !aiConfigured
-      ? t("AI is not configured")
-      : !hasCommits
-        ? t("No new commits since last version")
-        : t("Generate with AI");
 
   // ── Confirmation modal (reuses the prompt editor's ModalOverlay) ──
   // Stays open while creating (both buttons disabled + loading state);
@@ -465,46 +447,56 @@ function CreateSection({
     </ModalOverlay>
   );
 
-  // ── Action row: [update package.json] … [Generate] [Create New Version] ──
+  // Generated notes cover lastTag..HEAD commits only, so generation needs
+  // pending commits to work from. Without a changelog file the draft has
+  // nowhere to land → hide the icon entirely (like the missing checkbox).
+  const canGenerate = aiConfigured && hasCommits;
+  const showAiIcon = context.changelogFile != null;
+
+  // ── Action rows (CommitMessageArea pattern): checkbox + AI icon row,
+  // then a right-aligned .btn-row ──
   return (
     <>
       {confirmModal}
-      <div className="new-version-action-row">
-      {context.currentVersion && (
-        <label
-          className="new-version-action-check"
-          title={t("Update package.json version")}
-        >
-          <input
-            type="checkbox"
-            checked={updatePackageJson}
-            onChange={(e) => setUpdatePackageJson(e.target.checked)}
-          />
-          {t("Update package.json version")}
-        </label>
-      )}
-      <span className="new-version-action-spacer" />
-      <div className="new-version-action-buttons">
-        {generating && (
-          <span className="new-version-elapsed" title={t("Generating changelog...")}>
-            <LoadingIcon className="new-version-spin" />
-            {elapsed}
-          </span>
-        )}
-        <button
-          type="button"
-          className="btn btn-secondary new-version-generate-btn"
-          disabled={!generating && !canGenerate}
-          title={generateTitle}
-          onClick={() => void handleGenerate()}
-        >
-          {generating ? (
-            <StopIcon className="new-version-stop-icon" />
-          ) : (
-            <SparkleIcon />
+      {(context.currentVersion || showAiIcon) && (
+        <div className="new-version-check-row">
+          {context.currentVersion && (
+            <label
+              className="new-version-action-check"
+              title={t("Update package.json version")}
+            >
+              <input
+                type="checkbox"
+                checked={updatePackageJson}
+                onChange={(e) => setUpdatePackageJson(e.target.checked)}
+              />
+              {t("Update package.json version")}
+            </label>
           )}
-          {generating ? t("Stop") : t("Generate")}
-        </button>
+          {showAiIcon && (
+            <div className="new-version-check-row-right">
+              {generating && (
+                <span
+                  className="new-version-elapsed"
+                  title={t("Generating changelog...")}
+                >
+                  <LoadingIcon className="new-version-spin" />
+                  {elapsed}
+                </span>
+              )}
+              <AiGenerateIcon
+                generating={generating}
+                canGenerate={canGenerate}
+                aiConfigured={aiConfigured}
+                hasCommits={hasCommits}
+                onStart={() => void generateChangelog()}
+                onStop={() => void cancelGeneration()}
+              />
+            </div>
+          )}
+        </div>
+      )}
+      <div className="btn-row">
         <button
           type="button"
           className="btn btn-primary"
@@ -517,7 +509,93 @@ function CreateSection({
           {t("Create New Version")}
         </button>
       </div>
-      </div>
     </>
+  );
+}
+
+// ── AI generate icon (CommitMessageArea pattern) ────────────────────────────
+
+/**
+ * Sparkle icon button that starts changelog generation; while generating it
+ * spins (hover reveals a stop icon) — visual/interaction twin of the commit
+ * message area's AI button. Sits right-aligned in the checkbox row.
+ */
+function AiGenerateIcon({
+  generating,
+  canGenerate,
+  aiConfigured,
+  hasCommits,
+  onStart,
+  onStop,
+}: {
+  generating: boolean;
+  canGenerate: boolean;
+  aiConfigured: boolean;
+  hasCommits: boolean;
+  onStart: () => void;
+  onStop: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  const clickable = generating || canGenerate;
+  const baseOpacity = generating ? 1 : clickable ? 0.6 : 0.3;
+  const tooltip = generating
+    ? t("Stop generating")
+    : !aiConfigured
+      ? t("AI is not configured")
+      : !hasCommits
+        ? t("No new commits since last version")
+        : t("Generate with AI");
+
+  return (
+    <Tooltip text={tooltip}>
+      <span
+        onClick={() => {
+          if (!clickable) return;
+          generating ? onStop() : onStart();
+        }}
+        style={{
+          cursor: clickable ? "pointer" : "default",
+          display: "inline-flex",
+          alignItems: "center",
+          borderRadius: 3,
+          padding: 2,
+          opacity: baseOpacity,
+          transition: "background 0.15s, opacity 0.15s",
+        }}
+        onMouseEnter={(e) => {
+          setHover(true);
+          if (clickable) (e.currentTarget as HTMLElement).style.opacity = "1";
+        }}
+        onMouseLeave={(e) => {
+          setHover(false);
+          if (clickable)
+            (e.currentTarget as HTMLElement).style.opacity = String(baseOpacity);
+        }}
+        onMouseDown={(e) => {
+          (e.currentTarget as HTMLElement).style.background =
+            "var(--vscode-toolbar-activeBackground, rgba(0,0,0,0.15))";
+        }}
+        onMouseUp={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "transparent";
+        }}
+      >
+        {generating ? (
+          hover ? (
+            <StopIcon className="new-version-stop-icon" style={{ fontSize: 14 }} />
+          ) : (
+            <LoadingIcon className="new-version-spin" style={{ fontSize: 14 }} />
+          )
+        ) : (
+          <SparkleIcon
+            style={{
+              fontSize: 14,
+              color: canGenerate
+                ? "var(--vscode-textLink-foreground, #3794ff)"
+                : undefined,
+            }}
+          />
+        )}
+      </span>
+    </Tooltip>
   );
 }

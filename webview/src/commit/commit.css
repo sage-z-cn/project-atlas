@@ -396,8 +396,10 @@
 
 .commit-message-textarea {
   width: 100%;
-  min-height: 90px;
-  max-height: 240px;
+  /* 动态高度：JS 设定 height（随内容增长），这里限定 5~20 行 */
+  min-height: calc(1.5em * 5 + 14px);
+  max-height: calc(1.5em * 20 + 14px);
+  overflow-y: auto;
   resize: none;
   border: 1px solid
     var(--vscode-input-border, var(--vscode-panel-border, #3c3c3c));
@@ -409,6 +411,7 @@
   border-radius: 6px;
   outline: none;
   box-sizing: border-box;
+  line-height: 1.5;
 }
 
 .commit-message-textarea:focus {
@@ -1207,37 +1210,31 @@ button.commit-dropdown-item:hover:not(:disabled) {
   gap: 6px;
 }
 
-/* ── Action row (bottom bar) ──
- * [update package.json] …… [Generate] [Create New Version]. Wraps on narrow
- * panels: the checkbox group stays on the first line, the button group
- * drops below and stays right-aligned via margin-left:auto. */
-.new-version-action-row {
+/* ── Action rows (bottom bar, CommitMessageArea pattern) ──
+ * Checkbox + right-aligned AI icon row (like .commit-amend-row), then a
+ * right-aligned .btn-row. Both are direct children of the flex-column
+ * .new-version-bottom, so they stack with its gap. */
+.new-version-check-row {
   display: flex;
   align-items: center;
-  gap: 6px 8px;
-  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.new-version-check-row-right {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .new-version-action-check {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-size: 12px;
   cursor: pointer;
-  min-height: 28px;
   white-space: nowrap;
-}
-
-.new-version-action-spacer {
-  flex: 1 1 8px;
-}
-
-.new-version-action-buttons {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  flex-shrink: 0;
 }
 
 /* ── Version controls (bottom bar) ──
@@ -1409,10 +1406,6 @@ button.commit-dropdown-item:hover:not(:disabled) {
   font-variant-numeric: tabular-nums;
 }
 
-.new-version-generate-btn svg {
-  font-size: 14px;
-}
-
 .new-version-stop-icon {
   color: var(--vscode-errorForeground, #f48771);
 }
@@ -1420,7 +1413,10 @@ button.commit-dropdown-item:hover:not(:disabled) {
 .new-version-changelog-textarea {
   width: 100%;
   box-sizing: border-box;
-  min-height: 20em;
+  /* 动态高度：JS 设定 height（随内容增长），这里限定 5~20 行 */
+  min-height: calc(1.5em * 5 + 14px);
+  max-height: calc(1.5em * 20 + 14px);
+  overflow-y: auto;
   resize: none;
   border: 1px solid var(--vscode-input-border, var(--border));
   background: var(--vscode-input-background);
