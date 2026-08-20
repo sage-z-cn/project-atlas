@@ -126,7 +126,7 @@
 
 1. 发布页提供 tag 下拉选择（读取 `git tag` 已有 tag）
 2. 选中某 tag 后，自动从 CHANGELOG 文件读取该版本对应的条目内容，填充 Notes 编辑器
-3. 解析规则：在 CHANGELOG 中查找版本标题行（匹配 `#### {version}`、`## [{version}]`、`# v{version}` 等标题格式，去 `v/V` 前缀后比对版本号），提取该标题之后到下一个标题之前的全部内容作为条目。其中 `#### {version}` 是本扩展 createRelease 写入 CHANGELOG 的原生格式（无 `v` 前缀、无方括号）
+3. 解析规则：在 CHANGELOG 中查找版本标题行（匹配 `#### {version}`、`## [{version}]`、`# v{version}` 等标题格式，去 `v/V` 前缀后比对版本号），提取该标题**所在行行尾**之后到**下一个版本标题**（同一条版本标题正则匹配）之前的全部内容作为条目——不能以"任意 markdown 标题"为结束边界，否则 Keep a Changelog 条目内的 `### Added`/`### Fixed` 子标题会截断正文。其中 `#### {version}` 是本扩展 createRelease 写入 CHANGELOG 的原生格式（无 `v` 前缀、无方括号）；版本标题正则以 `newVersionHandlers.ts` 导出的共享常量为唯一定义，插入与提取两端共用
 4. 无 CHANGELOG 文件或未匹配到该版本 → Notes 留空，不报错
 5. tag 重新选择时，Notes 被新选中版本的内容覆盖（除非用户已手动编辑过）
 
@@ -170,7 +170,7 @@ GitHub 认证走 gh CLI 自身登录态（`gh auth login`），不额外存 toke
 3. Webview 发送 `createRelease`（新命令，参数：`{ targets, tagName, title, notes, targetBranch, prerelease, draft, attachments[] }`）
 4. 扩展侧逐平台执行：GitHub 走 gh CLI 子进程（显式 `-R owner/repo`），Gitee 走 HTTP API；每个平台先 `git push <remoteName> <tag>` 确保 tag 已到达该平台远程，再创建 Release，再逐个上传附件
 5. 返回每平台结果 `{ platform, remoteName, success, url?, error? }[]`
-6. Webview 展示结果弹窗（成功平台含 Release 链接，失败平台含错误信息）
+6. Webview 在发布按钮上方展示内联结果区（每平台一行：成功含 Release 链接文本 + 复制按钮，失败含错误信息；不使用弹窗）
 
 **联动跳转（需求三）：**
 

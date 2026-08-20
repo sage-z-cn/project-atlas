@@ -57,6 +57,7 @@ export type CommandType =
   | "confirmCancelMerge"
   | "closeMergeEditor"
   | "openFile"
+  | "openExternalUrl"
   | "showFileHistory"
   | "checkoutBranch"
   | "createBranch"
@@ -144,7 +145,13 @@ export type CommandType =
   | "pushNewVersion"
   | "initNewVersionChangelog"
   | "updateNewVersionPrompt"
-  | "locateCommit";
+  | "locateCommit"
+  // 远程发布（Release）— GitHub/Gitee 远程 Release 发布（commit 面板第四个 tab）
+  | "getRemoteReleaseTargets"
+  | "createRelease"
+  | "getChangelogEntryForTag"
+  | "selectReleaseAttachments"
+  | "promptGiteeToken";
 
 export type EventType =
   | "gitStateChanged"

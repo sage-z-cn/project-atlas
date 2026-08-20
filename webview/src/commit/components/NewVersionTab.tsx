@@ -15,7 +15,7 @@ import {
 import type { NewVersionContext } from "../../shared/store/new-version-store";
 import { ChangelogSection } from "./ChangelogSection";
 import { CommitRangeList } from "./CommitRangeList";
-import { ModalOverlay } from "./PromptEditor";
+import { ModalOverlay } from "./Modal";
 import { NewVersionResultPanel } from "./NewVersionResultPanel";
 import ArrowRightIcon from "~icons/codicon/arrow-right";
 import CloseIcon from "~icons/codicon/close";

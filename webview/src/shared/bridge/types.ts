@@ -49,6 +49,7 @@ export type CommandType =
   | "confirmCancelMerge"
   | "closeMergeEditor"
   | "openFile"
+  | "openExternalUrl"
   | "checkoutBranch"
   | "createBranch"
   | "createBranchFromCommit"
@@ -126,7 +127,12 @@ export type CommandType =
   | "pushNewVersion"
   | "initNewVersionChangelog"
   | "updateNewVersionPrompt"
-  | "locateCommit";
+  | "locateCommit"
+  | "getRemoteReleaseTargets"
+  | "createRelease"
+  | "getChangelogEntryForTag"
+  | "selectReleaseAttachments"
+  | "promptGiteeToken";
 
 export interface Bridge {
   request(

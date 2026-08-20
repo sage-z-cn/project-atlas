@@ -9,6 +9,7 @@ import { useCommitStore } from "../shared/store/commit-store";
 import { CommitTab } from "./components/CommitTab";
 import { StashTab } from "./components/StashTab";
 import { NewVersionTab } from "./components/NewVersionTab";
+import { ReleaseTab } from "./components/ReleaseTab";
 import { ErrorBanner } from "./components/ErrorBanner";
 import "./commit.css";
 import "./commit-vscode.css";
@@ -619,6 +620,13 @@ export function CommitApp() {
         >
           {t("New Version")}
         </button>
+        <button
+          type="button"
+          className={`commit-tab ${activeTab === "release" ? "active" : ""}`}
+          onClick={() => setActiveTab("release")}
+        >
+          {t("Release")}
+        </button>
       </div>
       <ErrorBanner />
       <RebaseBanner />
@@ -629,6 +637,7 @@ export function CommitApp() {
         {activeTab === "commit" && <CommitTab />}
         {activeTab === "stash" && <StashTab />}
         {activeTab === "newVersion" && <NewVersionTab />}
+        {activeTab === "release" && <ReleaseTab />}
       </div>
     </div>
   );

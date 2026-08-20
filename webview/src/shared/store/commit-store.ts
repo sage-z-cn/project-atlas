@@ -24,7 +24,7 @@ export interface StashEntry {
   files: string[];
 }
 
-type TabType = "commit" | "stash" | "newVersion";
+type TabType = "commit" | "stash" | "newVersion" | "release";
 
 interface CommitStore {
   // ── Multi-repo (phase B') ──────────────────────────────────────────
@@ -987,7 +987,12 @@ bridge.onEvent((event, data) => {
   // the extension). Only valid tab values are honored.
   if (event === "switchTab") {
     const { tab } = (data ?? {}) as { tab?: string };
-    if (tab === "commit" || tab === "stash" || tab === "newVersion") {
+    if (
+      tab === "commit" ||
+      tab === "stash" ||
+      tab === "newVersion" ||
+      tab === "release"
+    ) {
       useCommitStore.getState().setActiveTab(tab);
     }
     return;

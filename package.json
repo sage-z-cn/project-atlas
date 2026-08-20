@@ -334,6 +334,14 @@
       {
         "command": "git-atlas.newVersion",
         "title": "%command.git-atlas.newVersion%"
+      },
+      {
+        "command": "git-atlas.setGiteeToken",
+        "title": "%command.git-atlas.setGiteeToken%"
+      },
+      {
+        "command": "git-atlas.clearGiteeToken",
+        "title": "%command.git-atlas.clearGiteeToken%"
       }
     ],
     "menus": {

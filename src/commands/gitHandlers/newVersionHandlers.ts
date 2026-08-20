@@ -24,8 +24,22 @@ import {
  * Node 环境，webview 不可用这些 API，故全部在 handler 内完成。
  */
 
-/** repo 根 changelog 文件名（相对路径）或 null。 */
-function findChangelogFile(repoRoot: string): string | null {
+/**
+ * 版本标题行的共享正则源（`#### 1.2.3` / `## [1.2.3]` / `# v1.2.3` 等，
+ * 容忍 v/V 前缀与方括号）。newVersion 插入逻辑与 release tab 的 changelog
+ * 条目提取（releaseHandlers.ts）共用，勿漂移：
+ * - 插入处：`new RegExp(VERSION_HEADING_RE_SOURCE)` 单行 test；
+ * - 提取处：`new RegExp(VERSION_HEADING_RE_SOURCE, "gm")` 全文扫描，exec
+ *   捕获组为标题中的版本号（不含 v/V 前缀）。
+ */
+export const VERSION_HEADING_RE_SOURCE =
+  "^#{1,6}\\s*\\[?\\s*[vV]?(\\d+(?:\\.\\d+)+)";
+
+/**
+ * repo 根 changelog 文件名（相对路径）或 null。
+ * 同时被 releaseHandlers.ts（发布 tab 的 getChangelogEntryForTag）复用。
+ */
+export function findChangelogFile(repoRoot: string): string | null {
   try {
     const entries = fs.readdirSync(repoRoot, { withFileTypes: true });
     const hit = entries.find(
@@ -283,8 +297,9 @@ export function registerNewVersionHandlers(ctx: GitHandlerContext): void {
           const original = fs.readFileSync(absPath, "utf-8");
           const lines = original.split("\n");
           // 版本条目标题：`#### 1.2.3` / `## [1.2.3]` / `# v1.2.3` 等
-          // （容忍 v/V 前缀与方括号，用于与普通小节标题区分）
-          const versionHeadingRe = /^#{1,6}\s*\[?\s*[vV]?\d+(?:\.\d+)+/;
+          // （容忍 v/V 前缀与方括号，用于与普通小节标题区分；
+          // 正则源与 releaseHandlers 的条目提取共享，见 VERSION_HEADING_RE_SOURCE）
+          const versionHeadingRe = new RegExp(VERSION_HEADING_RE_SOURCE);
           const firstVersionIdx = lines.findIndex((l) =>
             versionHeadingRe.test(l),
           );

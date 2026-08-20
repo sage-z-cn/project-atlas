@@ -102,5 +102,7 @@
   "command.git-atlas.setAiApiKey": "Git Atlas: Set AI API Key",
   "command.git-atlas.clearAiApiKey": "Git Atlas: Clear AI API Key",
   "command.git-atlas.locateCommit": "Git Atlas: Locate Commit",
-  "command.git-atlas.newVersion": "Git Atlas: New Version"
+  "command.git-atlas.newVersion": "Git Atlas: New Version",
+  "command.git-atlas.setGiteeToken": "Git Atlas: Set Gitee Token",
+  "command.git-atlas.clearGiteeToken": "Git Atlas: Clear Gitee Token"
 }

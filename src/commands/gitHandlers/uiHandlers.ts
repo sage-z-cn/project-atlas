@@ -107,6 +107,25 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
     return { success: true };
   });
 
+  // Open an external http(s) URL in the system browser. Webviews cannot open
+  // external links themselves (no window.open to the outside), so they
+  // forward the URL here. Scheme is validated so openExternal can never be
+  // abused for file:/vscode: or other non-web URIs.
+  messageRouter.handle("openExternalUrl", async (params) => {
+    const url = params.url as string;
+    let uri: vscode.Uri;
+    try {
+      uri = vscode.Uri.parse(url, true);
+    } catch {
+      return { success: false };
+    }
+    if (uri.scheme !== "http" && uri.scheme !== "https") {
+      return { success: false };
+    }
+    await vscode.env.openExternal(uri);
+    return { success: true };
+  });
+
   // Reveal a file in the OS file manager (Windows Explorer / Finder / etc.).
   // `filePath` is repo-relative; when omitted the repo root itself is revealed
   // (used by the repo-chip context menu). Multi-repo: resolve the owning repo

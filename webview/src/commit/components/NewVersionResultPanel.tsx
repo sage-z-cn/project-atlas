@@ -1,6 +1,8 @@
 import { t } from "../../shared/i18n";
+import { useCommitStore } from "../../shared/store/commit-store";
 import { useNewVersionStore } from "../../shared/store/new-version-store";
-import { ModalOverlay } from "./PromptEditor";
+import { useReleaseStore } from "../../shared/store/release-store";
+import { ModalOverlay } from "./Modal";
 import ArrowRightIcon from "~icons/codicon/arrow-right";
 import CheckIcon from "~icons/codicon/check";
 import CloseIcon from "~icons/codicon/close";
@@ -94,6 +96,31 @@ export function NewVersionResultPanel() {
       )}
 
       <div className="btn-row">
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={pushing}
+          onClick={() => {
+            // Requirement 3 link: prefill the release form with the just
+            // created version, switch tabs, and close this result modal.
+            // Cross-store access goes through getState() (no hook nesting).
+            const nv = useNewVersionStore.getState();
+            useReleaseStore.getState().setPrefill({
+              tagName: result.tagName,
+              version: result.version,
+              title: `v${result.version}`,
+              notes: nv.changelogDraft,
+              // No current-branch source in this webview — ReleaseTab
+              // falls back to branches[0] (the host lists the current
+              // branch first).
+              targetBranch: "",
+            });
+            useCommitStore.getState().setActiveTab("release");
+            void finish();
+          }}
+        >
+          {t("Publish Release")}
+        </button>
         <button
           type="button"
           className="btn btn-secondary"
