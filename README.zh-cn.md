@@ -62,8 +62,8 @@
 **提交操作**
 > 拣选（cherry-pick）、还原、重置（soft/mixed/hard）、删除提交、从提交创建分支/标签、显示文件历史。
 
-**发布（New Version）**
-> 提交面板的第三个 tab（命令 `Git Atlas: New Version`）。查看上个标签以来的提交（点击提交可在 Git Log 中定位），按 patch/minor/major 建议选择版本号，AI 生成 changelog —— 提示词可通过 `projectAtlas.ai.releasePrompt` 自定义，仓库无 changelog 文件时可初始化。支持两种提交模式（未提交更改合并进发布提交 / 仅版本文件），创建轻量标签，一键推送分支与标签。
+**新版本（New Version）**
+> 提交面板的第三个 tab（命令 `Git Atlas: New Version`）。查看上个标签以来的提交（点击提交可在 Git Log 中定位），按 patch/minor/major 建议选择版本号，AI 生成 changelog —— 提示词可通过 `projectAtlas.ai.newVersionPrompt` 自定义，仓库无 changelog 文件时可初始化。支持两种提交模式（未提交更改合并进新版本提交 / 仅版本文件），创建轻量标签，一键推送分支与标签。
 
 **三方合并编辑器**
 > 基于 webview 的三方合并编辑器（base / ours / theirs），采用 `node-diff3` 算法与行内词级差异高亮（Shiki）。按冲突块接受左侧/右侧、跳过、撤销、应用并暂存。冲突面板列出所有冲突文件，支持接受我方/他方/合并。
@@ -110,7 +110,7 @@
 | `projectAtlas.ai.customInstructions` | 字符串 | `""` | 追加到 AI 提示词的自定义提交规则 |
 | `projectAtlas.ai.timeout` | 数字 | `30` | AI 生成提交信息的超时时间（秒，5–300） |
 | `projectAtlas.ai.enableThinking` | 布尔 | `false` | 生成提交信息时启用模型思考/推理模式 |
-| `projectAtlas.ai.releasePrompt` | 字符串 | `""` | 自定义发布 changelog 生成提示词，留空使用内置默认；`{{language}}` 占位符会被替换为 changelog 语言（缺失时自动追加） |
+| `projectAtlas.ai.newVersionPrompt` | 字符串 | `""` | 自定义新版本 changelog 生成提示词，留空使用内置默认；`{{language}}` 占位符会被替换为 changelog 语言（缺失时自动追加） |
 | `taskAtlas.showRecentRuns` | 布尔 | `true` | 在任务视图中显示最近运行区域 |
 | `taskAtlas.maxRecentRuns` | 数字 | `5` | 最近运行保留的最大数量（1–20） |
 | `taskAtlas.showPinned` | 布尔 | `true` | 在任务视图中显示固定任务区域 |

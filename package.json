@@ -962,11 +962,11 @@
           "description": "%config.projectAtlas.ai.enableThinking%",
           "order": 16
         },
-        "projectAtlas.ai.releasePrompt": {
+        "projectAtlas.ai.newVersionPrompt": {
           "type": "string",
           "default": "",
           "editPresentation": "multilineText",
-          "description": "%config.projectAtlas.ai.releasePrompt%",
+          "description": "%config.projectAtlas.ai.newVersionPrompt%",
           "order": 17
         }
       }

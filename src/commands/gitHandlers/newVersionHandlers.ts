@@ -4,21 +4,21 @@ import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
 import { requireGit } from "../gitContext";
 import type { GitService } from "../../git/gitService";
-import type { ReleaseCommitSummary } from "../../git/types";
+import type { NewVersionCommitSummary } from "../../git/types";
 import { readAiSettings } from "../../ai/aiClient";
 import {
-  generateReleaseChangelog,
-  getEffectiveReleasePrompt,
+  generateNewVersionChangelog,
+  getEffectiveNewVersionPrompt,
   suggestBump,
-} from "../../ai/releaseNotesService";
+} from "../../ai/newVersionNotesService";
 
 /**
- * Release (发布助手) handlers — commit 面板 release tab 的后端。
+ * New Version（新版本）handlers — commit 面板 newVersion tab 的后端。
  *
  * 依赖：
  * - gitService.getTags / getLogRange / commitPaths / createTag / pushTag /
  *   push / getWorkingTreeChanges / stageFiles（仓库根 = gitService.cwd）
- * - aiClient.readAiSettings + releaseNotesService（changelog 生成 / bump 建议）
+ * - aiClient.readAiSettings + newVersionNotesService（changelog 生成 / bump 建议）
  *
  * 文件读写（package.json / CHANGELOG*）用 node:fs 直读仓库根，属扩展侧
  * Node 环境，webview 不可用这些 API，故全部在 handler 内完成。
@@ -78,7 +78,7 @@ function readChangelogMeta(
   }
 }
 
-interface ReleaseContextInputs {
+interface NewVersionContextInputs {
   lastTag: string | null;
   /**
    * true = 仓库有 tag 但没有一个在 HEAD 历史上（如最新 tag 打在已放弃的
@@ -88,22 +88,22 @@ interface ReleaseContextInputs {
   lastTagDetached: boolean;
   /** lastTagDetached 时被跳过的"最新"tag 名（警告文案用），其余场景为 undefined。 */
   detachedTagName?: string;
-  commits: ReleaseCommitSummary[];
+  commits: NewVersionCommitSummary[];
   changelogFile: string | null;
   changelogLanguage: "zh" | "en";
   changelogExcerpt: string | undefined;
 }
 
 /**
- * getReleaseContext / generateReleaseChangelog 共用的采集逻辑：
+ * getNewVersionContext / generateNewVersionChangelog 共用的采集逻辑：
  * lastTag + since-tag commits + changelog 文件与语言 + 风格摘录。
  */
-async function collectReleaseContext(
+async function collectNewVersionContext(
   gitService: GitService,
-): Promise<ReleaseContextInputs> {
+): Promise<NewVersionContextInputs> {
   // getTags() 按 --sort=-creatordate 排序（新→旧）。取"最新且在 HEAD
   // 历史上"的 tag 作为 lastTag——直接取 tags[0] 会在最新 tag 打在已放弃
-  // 的分支上时，把 HEAD 可达而 tag 不可达的大量提交误标为"待发布"。
+  // 的分支上时，把 HEAD 可达而 tag 不可达的大量提交误标为"待纳入新版本"。
   // 附注 tag 传 tag 名即可：isAncestor 内 git 会自动解引用到提交。
   // tags 通常个位数，逐个 merge-base 可接受；找到即停。
   const tags = await gitService.getTags();
@@ -135,27 +135,27 @@ async function collectReleaseContext(
   };
 }
 
-/** 读 projectAtlas.ai.releasePrompt 原始配置值（未回退默认）。 */
-function getRawReleasePrompt(): string {
+/** 读 projectAtlas.ai.newVersionPrompt 原始配置值（未回退默认）。 */
+function getRawNewVersionPrompt(): string {
   return vscode.workspace
     .getConfiguration("projectAtlas.ai")
-    .get<string>("releasePrompt", "");
+    .get<string>("newVersionPrompt", "");
 }
 
-export function registerReleaseHandlers(ctx: GitHandlerContext): void {
+export function registerNewVersionHandlers(ctx: GitHandlerContext): void {
   const { messageRouter } = ctx;
 
   // 当前进行中的 changelog 生成的 AbortController；null 表示无在途请求。
   // 模式照搬 AiCommitService.currentAbort（见 aiHandlers 取消链路）。
-  let releaseAbort: AbortController | null = null;
+  let newVersionAbort: AbortController | null = null;
 
-  // 发布 tab 首屏数据
+  // 新版本 tab 首屏数据
   messageRouter.handle(
-    "getReleaseContext",
+    "getNewVersionContext",
     requireGit(ctx, async (gitService) => {
       const { lastTag, lastTagDetached, detachedTagName, commits, changelogFile, changelogLanguage } =
-        await collectReleaseContext(gitService);
-      const rawPrompt = getRawReleasePrompt();
+        await collectNewVersionContext(gitService);
+      const rawPrompt = getRawNewVersionPrompt();
       const settings = await readAiSettings(ctx.context);
       return {
         currentVersion: readPackageVersion(gitService.cwd),
@@ -166,7 +166,7 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
         changelogFile,
         changelogLanguage,
         suggestedBump: suggestBump(commits.map((c) => c.subject)),
-        effectivePrompt: getEffectiveReleasePrompt(rawPrompt),
+        effectivePrompt: getEffectiveNewVersionPrompt(rawPrompt),
         promptCustomized: rawPrompt.trim().length > 0,
         aiConfigured: !!(
           settings.apiUrl &&
@@ -177,9 +177,9 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
-  // AI 生成 release changelog
+  // AI 生成新版本 changelog
   messageRouter.handle(
-    "generateReleaseChangelog",
+    "generateNewVersionChangelog",
     requireGit(ctx, async (gitService, params) => {
       const includeFiles =
         (params.includeFiles as { path: string; status: string }[] | undefined) ??
@@ -202,12 +202,12 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
 
       // 建立本次生成的 AbortController 并登记，cancel handler 可据此中止。
       const controller = new AbortController();
-      releaseAbort = controller;
+      newVersionAbort = controller;
 
       try {
         const { commits, changelogLanguage, changelogExcerpt } =
-          await collectReleaseContext(gitService);
-        const changelog = await generateReleaseChangelog(
+          await collectNewVersionContext(gitService);
+        const changelog = await generateNewVersionChangelog(
           cfg,
           {
             commits,
@@ -215,13 +215,13 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
             changelogExcerpt,
           },
           languageOverride ?? changelogLanguage,
-          getEffectiveReleasePrompt(getRawReleasePrompt()),
+          getEffectiveNewVersionPrompt(getRawNewVersionPrompt()),
           controller.signal,
         );
         return { changelog };
       } finally {
-        if (releaseAbort === controller) {
-          releaseAbort = null;
+        if (newVersionAbort === controller) {
+          newVersionAbort = null;
         }
       }
     }),
@@ -229,16 +229,16 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
 
   // 取消进行中的 changelog 生成（中止 in-flight 的 fetch + 重试循环）
   messageRouter.handle(
-    "cancelReleaseChangelogGeneration",
+    "cancelNewVersionChangelogGeneration",
     requireGit(ctx, async () => {
-      releaseAbort?.abort();
+      newVersionAbort?.abort();
       return { success: true };
     }),
   );
 
-  // 创建 release：changelog / package.json 更新 + 提交 + 打 tag
+  // 创建新版本：changelog / package.json 更新 + 提交 + 打 tag
   messageRouter.handle(
-    "createRelease",
+    "createNewVersion",
     requireGit(ctx, async (gitService, params) => {
       const version = ((params.version as string | undefined) ?? "").trim();
       const tagName = ((params.tagName as string | undefined) ?? "").trim();
@@ -261,7 +261,7 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
       const changes = await gitService.getWorkingTreeChanges();
       if (changes.some((f) => f.status === "conflicted")) {
         throw new Error(
-          vscode.l10n.t("Resolve merge conflicts before creating a release."),
+          vscode.l10n.t("Resolve merge conflicts before creating a new version."),
         );
       }
       if (!version || !tagName || !commitMessage) {
@@ -296,7 +296,7 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
         } catch (err) {
           throw new Error(
             vscode.l10n.t(
-              "Release aborted while updating the changelog file: {0}",
+              "New version creation aborted while updating the changelog file: {0}",
               err instanceof Error ? err.message : String(err),
             ),
           );
@@ -346,7 +346,7 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
         } catch (err) {
           throw new Error(
             vscode.l10n.t(
-              "Release aborted while updating package.json (changelog may already be written): {0}",
+              "New version creation aborted while updating package.json (changelog may already be written): {0}",
               err instanceof Error ? err.message : String(err),
             ),
           );
@@ -354,12 +354,12 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
       }
 
       // 4-6. 提交路径：仅版本文件（changelog / package.json）。未提交的
-      // 工作区更改不属于发布提交 —— webview 侧已提示用户确认后才走到这里。
+      // 工作区更改不属于新版本提交 —— webview 侧已提示用户确认后才走到这里。
       const commitPathList = [...writtenFiles];
       if (commitPathList.length === 0) {
         throw new Error(
           vscode.l10n.t(
-            "Nothing to commit for this release: no changelog or package.json update was made.",
+            "Nothing to commit for this new version: no changelog or package.json update was made.",
           ),
         );
       }
@@ -375,7 +375,7 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
         } catch (err) {
           throw new Error(
             vscode.l10n.t(
-              "Release aborted while staging files (changelog/package.json may already be written): {0}",
+              "New version creation aborted while staging files (changelog/package.json may already be written): {0}",
               err instanceof Error ? err.message : String(err),
             ),
           );
@@ -388,7 +388,7 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
       } catch (err) {
         throw new Error(
           vscode.l10n.t(
-            "Release aborted while creating the release commit (file updates are kept in the working tree): {0}",
+            "New version creation aborted while creating the version commit (file updates are kept in the working tree): {0}",
             err instanceof Error ? err.message : String(err),
           ),
         );
@@ -400,7 +400,7 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
       } catch (err) {
         throw new Error(
           vscode.l10n.t(
-            'The release commit was created, but tagging it as "{0}" failed: {1}',
+            'The new version commit was created, but tagging it as "{0}" failed: {1}',
             tagName,
             err instanceof Error ? err.message : String(err),
           ),
@@ -416,16 +416,16 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
-  // 推送 release：当前分支 + tag
+  // 推送新版本：当前分支 + tag
   messageRouter.handle(
-    "pushRelease",
+    "pushNewVersion",
     requireGit(ctx, async (gitService, params) => {
       const tagName = params.tagName as string;
       const branch = await gitService.getCurrentBranch();
       if (!branch) {
         throw new Error(
           vscode.l10n.t(
-            "Cannot push the release: the repository has no active branch.",
+            "Cannot push the new version: the repository has no active branch.",
           ),
         );
       }
@@ -437,7 +437,7 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
 
   // 初始化 changelog 文件
   messageRouter.handle(
-    "initChangelog",
+    "initNewVersionChangelog",
     requireGit(ctx, async (gitService, params) => {
       const filename = (params.filename as string | undefined) ?? "";
       const language =
@@ -477,9 +477,9 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
-  // 更新自定义 release 提示词（空串 = 清除恢复默认）
+  // 更新自定义新版本提示词（空串 = 清除恢复默认）
   messageRouter.handle(
-    "updateReleasePrompt",
+    "updateNewVersionPrompt",
     requireGit(ctx, async (gitService, params) => {
       void gitService;
       const value = (params.value as string | undefined) ?? "";
@@ -487,18 +487,18 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
       // workspace 级已有取值时写 Workspace，否则 Global——固定写 Global 会被
       // 残留的 workspace 值继续遮蔽，"恢复默认"看起来不生效。
       const target =
-        config.inspect("releasePrompt")?.workspaceValue !== undefined
+        config.inspect("newVersionPrompt")?.workspaceValue !== undefined
           ? vscode.ConfigurationTarget.Workspace
           : vscode.ConfigurationTarget.Global;
       // update(undefined) 删除用户对该键的覆盖，回落到默认值。
       await config.update(
-        "releasePrompt",
+        "newVersionPrompt",
         value === "" ? undefined : value,
         target,
       );
-      const raw = getRawReleasePrompt();
+      const raw = getRawNewVersionPrompt();
       return {
-        effectivePrompt: getEffectiveReleasePrompt(raw),
+        effectivePrompt: getEffectiveNewVersionPrompt(raw),
         promptCustomized: raw.trim().length > 0,
       };
     }),

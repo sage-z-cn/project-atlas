@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
-import { useReleaseStore } from "../../shared/store/release-store";
+import { useNewVersionStore } from "../../shared/store/new-version-store";
 import ErrorIcon from "~icons/codicon/error";
 import LoadingIcon from "~icons/codicon/loading";
 import NewFileIcon from "~icons/codicon/new-file";
 
 /**
- * Rendered when getReleaseContext reports no changelog file. On success the
+ * Rendered when getNewVersionContext reports no changelog file. On success the
  * host drops the new file into the working tree (untracked) and the section
  * flips to its normal form via applyChangelogFile.
  */
@@ -26,12 +26,12 @@ export function ChangelogInitForm({ defaultLanguage }: { defaultLanguage: "zh" |
     setError(null);
     try {
       const result = (await bridge.request(
-        "initChangelog",
+        "initNewVersionChangelog",
         { filename: trimmed, language },
         { timeout: 15_000 },
       )) as { changelogFile?: string };
       if (result?.changelogFile) {
-        useReleaseStore
+        useNewVersionStore
           .getState()
           .applyChangelogFile(result.changelogFile, language);
       }
@@ -43,16 +43,16 @@ export function ChangelogInitForm({ defaultLanguage }: { defaultLanguage: "zh" |
   };
 
   return (
-    <div className="release-init-box">
-      <div className="release-init-hint">
-        {t("No changelog file found. Initialize one to record release notes.")}
+    <div className="new-version-init-box">
+      <div className="new-version-init-hint">
+        {t("No changelog file found. Initialize one to record version notes.")}
       </div>
 
-      <div className="release-init-row">
-        <div className="release-field">
-          <label className="release-field-label">{t("File name")}</label>
+      <div className="new-version-init-row">
+        <div className="new-version-field">
+          <label className="new-version-field-label">{t("File name")}</label>
           <input
-            className="release-input release-mono"
+            className="new-version-input new-version-mono"
             value={filename}
             placeholder="CHANGELOG.md"
             spellCheck={false}
@@ -62,14 +62,14 @@ export function ChangelogInitForm({ defaultLanguage }: { defaultLanguage: "zh" |
             }}
           />
         </div>
-        <div className="release-field release-init-lang">
-          <label className="release-field-label">{t("Language")}</label>
-          <div className="release-bump-group" role="radiogroup" aria-label={t("Language")}>
+        <div className="new-version-field new-version-init-lang">
+          <label className="new-version-field-label">{t("Language")}</label>
+          <div className="new-version-bump-group" role="radiogroup" aria-label={t("Language")}>
             <button
               type="button"
               role="radio"
               aria-checked={language === "zh"}
-              className={`release-bump-btn${language === "zh" ? " active" : ""}`}
+              className={`new-version-bump-btn${language === "zh" ? " active" : ""}`}
               onClick={() => setLanguage("zh")}
             >
               {t("Chinese")}
@@ -78,7 +78,7 @@ export function ChangelogInitForm({ defaultLanguage }: { defaultLanguage: "zh" |
               type="button"
               role="radio"
               aria-checked={language === "en"}
-              className={`release-bump-btn${language === "en" ? " active" : ""}`}
+              className={`new-version-bump-btn${language === "en" ? " active" : ""}`}
               onClick={() => setLanguage("en")}
             >
               {t("English")}
@@ -88,7 +88,7 @@ export function ChangelogInitForm({ defaultLanguage }: { defaultLanguage: "zh" |
       </div>
 
       {!nameOk && trimmed.length > 0 && (
-        <div className="release-hint-error">
+        <div className="new-version-hint-error">
           <ErrorIcon />
           {t('Filename must contain "changelog"')}
         </div>
@@ -107,7 +107,7 @@ export function ChangelogInitForm({ defaultLanguage }: { defaultLanguage: "zh" |
           disabled={!nameOk || initializing}
           onClick={() => void handleInit()}
         >
-          {initializing ? <LoadingIcon className="release-spin" /> : <NewFileIcon />}
+          {initializing ? <LoadingIcon className="new-version-spin" /> : <NewFileIcon />}
           {t("Initialize")}
         </button>
       </div>

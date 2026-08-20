@@ -2,7 +2,7 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { t } from "../../shared/i18n";
-import { useReleaseStore } from "../../shared/store/release-store";
+import { useNewVersionStore } from "../../shared/store/new-version-store";
 import CloseIcon from "~icons/codicon/close";
 import ErrorIcon from "~icons/codicon/error";
 import LoadingIcon from "~icons/codicon/loading";
@@ -65,13 +65,13 @@ export function ModalOverlay({
 
   return createPortal(
     <div
-      className="release-modal-overlay"
+      className="new-version-modal-overlay"
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className={`release-modal${cardClass ? ` ${cardClass}` : ""}`}
+        className={`new-version-modal${cardClass ? ` ${cardClass}` : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
@@ -91,12 +91,12 @@ export function ModalOverlay({
 /**
  * Gear icon button in the bottom-bar changelog header. Opens a centered
  * modal for editing the AI changelog prompt. The "customized" dot mirrors
- * promptCustomized from the release context.
+ * promptCustomized from the new version context.
  */
 export function PromptEditor() {
-  const context = useReleaseStore((s) => s.context);
-  const promptOpen = useReleaseStore((s) => s.promptOpen);
-  const setPromptOpen = useReleaseStore((s) => s.setPromptOpen);
+  const context = useNewVersionStore((s) => s.context);
+  const promptOpen = useNewVersionStore((s) => s.promptOpen);
+  const setPromptOpen = useNewVersionStore((s) => s.setPromptOpen);
 
   if (!context) return null;
 
@@ -108,7 +108,7 @@ export function PromptEditor() {
     <>
       <button
         type="button"
-        className={`release-prompt-trigger${
+        className={`new-version-prompt-trigger${
           context.promptCustomized ? " customized" : ""
         }`}
         title={label}
@@ -117,7 +117,7 @@ export function PromptEditor() {
       >
         <SettingsGearIcon />
         {context.promptCustomized && (
-          <span className="release-prompt-dot" aria-hidden="true" />
+          <span className="new-version-prompt-dot" aria-hidden="true" />
         )}
       </button>
       {promptOpen && <PromptModal onClose={() => setPromptOpen(false)} />}
@@ -126,10 +126,10 @@ export function PromptEditor() {
 }
 
 function PromptModal({ onClose }: { onClose: () => void }) {
-  const promptDraft = useReleaseStore((s) => s.promptDraft);
-  const promptError = useReleaseStore((s) => s.promptError);
-  const setPromptDraft = useReleaseStore((s) => s.setPromptDraft);
-  const setPromptError = useReleaseStore((s) => s.setPromptError);
+  const promptDraft = useNewVersionStore((s) => s.promptDraft);
+  const promptError = useNewVersionStore((s) => s.promptError);
+  const setPromptDraft = useNewVersionStore((s) => s.setPromptDraft);
+  const setPromptError = useNewVersionStore((s) => s.setPromptError);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
 
@@ -139,7 +139,7 @@ function PromptModal({ onClose }: { onClose: () => void }) {
     if (saving) return;
     setSaving(true);
     try {
-      await useReleaseStore.getState().savePrompt();
+      await useNewVersionStore.getState().savePrompt();
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 1600);
     } finally {
@@ -151,7 +151,7 @@ function PromptModal({ onClose }: { onClose: () => void }) {
     if (saving) return;
     setSaving(true);
     try {
-      await useReleaseStore.getState().restorePrompt();
+      await useNewVersionStore.getState().restorePrompt();
     } finally {
       setSaving(false);
     }
@@ -160,11 +160,11 @@ function PromptModal({ onClose }: { onClose: () => void }) {
   return (
     <ModalOverlay
       onClose={onClose}
-      ariaLabel={t("Release Prompt")}
+      ariaLabel={t("New Version Prompt")}
       initialFocusRef={textareaRef}
     >
-      <div className="release-modal-head">
-        <span className="release-modal-title">{t("Release Prompt")}</span>
+      <div className="new-version-modal-head">
+        <span className="new-version-modal-title">{t("New Version Prompt")}</span>
         <button
           type="button"
           className="commit-error-close"
@@ -175,7 +175,7 @@ function PromptModal({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      <div className="release-prompt-help">
+      <div className="new-version-prompt-help">
         {t("The {{language}} placeholder is replaced with the changelog language.")}
         {" "}
         {t("Edits are kept as a draft until saved.")}
@@ -183,7 +183,7 @@ function PromptModal({ onClose }: { onClose: () => void }) {
 
       <textarea
         ref={textareaRef}
-        className="release-prompt-textarea release-modal-textarea"
+        className="new-version-prompt-textarea new-version-modal-textarea"
         value={promptDraft}
         onChange={(e) => setPromptDraft(e.target.value)}
         spellCheck={false}
@@ -205,7 +205,7 @@ function PromptModal({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      <div className="release-prompt-actions">
+      <div className="new-version-prompt-actions">
         <button
           type="button"
           className="commit-btn commit-btn-secondary"
@@ -214,9 +214,9 @@ function PromptModal({ onClose }: { onClose: () => void }) {
         >
           {t("Restore Default")}
         </button>
-        <span className="release-prompt-spacer" />
+        <span className="new-version-prompt-spacer" />
         {savedFlash && (
-          <span className="release-saved-flash">{t("Saved")}</span>
+          <span className="new-version-saved-flash">{t("Saved")}</span>
         )}
         <button
           type="button"
@@ -232,7 +232,7 @@ function PromptModal({ onClose }: { onClose: () => void }) {
           disabled={saving}
           onClick={() => void handleSave()}
         >
-          {saving && <LoadingIcon className="release-spin" />}
+          {saving && <LoadingIcon className="new-version-spin" />}
           {t("Save")}
         </button>
       </div>

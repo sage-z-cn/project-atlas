@@ -1,5 +1,5 @@
 import { t } from "../../shared/i18n";
-import { useReleaseStore } from "../../shared/store/release-store";
+import { useNewVersionStore } from "../../shared/store/new-version-store";
 import { ModalOverlay } from "./PromptEditor";
 import ArrowRightIcon from "~icons/codicon/arrow-right";
 import CheckIcon from "~icons/codicon/check";
@@ -9,15 +9,15 @@ import LoadingIcon from "~icons/codicon/loading";
 import RepoPushIcon from "~icons/codicon/repo-push";
 
 /** Success state: shown as a modal until [Done] (or close) is clicked. */
-export function ReleaseResultPanel() {
-  const result = useReleaseStore((s) => s.result);
-  const fromVersion = useReleaseStore((s) => s.fromVersion);
-  const pushing = useReleaseStore((s) => s.pushing);
-  const pushed = useReleaseStore((s) => s.pushed);
-  const pushError = useReleaseStore((s) => s.pushError);
-  const pushCreatedRelease = useReleaseStore((s) => s.pushCreatedRelease);
-  const finish = useReleaseStore((s) => s.finish);
-  const locateCommit = useReleaseStore((s) => s.locateCommit);
+export function NewVersionResultPanel() {
+  const result = useNewVersionStore((s) => s.result);
+  const fromVersion = useNewVersionStore((s) => s.fromVersion);
+  const pushing = useNewVersionStore((s) => s.pushing);
+  const pushed = useNewVersionStore((s) => s.pushed);
+  const pushError = useNewVersionStore((s) => s.pushError);
+  const pushCreatedNewVersion = useNewVersionStore((s) => s.pushCreatedNewVersion);
+  const finish = useNewVersionStore((s) => s.finish);
+  const locateCommit = useNewVersionStore((s) => s.locateCommit);
 
   if (!result) return null;
 
@@ -28,12 +28,12 @@ export function ReleaseResultPanel() {
         // the push is in flight so it can't be abandoned mid-way.
         if (!pushing) void finish();
       }}
-      ariaLabel={t("Release created")}
+      ariaLabel={t("New version created")}
     >
-      <div className="release-modal-head">
-        <span className="release-modal-title release-result-head">
+      <div className="new-version-modal-head">
+        <span className="new-version-modal-title new-version-result-head">
           <CheckIcon />
-          {t("Release created")}
+          {t("New version created")}
         </span>
         <button
           type="button"
@@ -46,24 +46,24 @@ export function ReleaseResultPanel() {
           <CloseIcon />
         </button>
       </div>
-      <div className="release-confirm-row">
-        <span className="release-confirm-label">{t("Version")}</span>
-        <span className="release-confirm-value release-mono">
+      <div className="new-version-confirm-row">
+        <span className="new-version-confirm-label">{t("Version")}</span>
+        <span className="new-version-confirm-value new-version-mono">
           {fromVersion ?? "—"}
-          <ArrowRightIcon className="release-version-arrow" />
-          <span className="release-version-new">{result.version}</span>
+          <ArrowRightIcon className="new-version-version-arrow" />
+          <span className="new-version-version-new">{result.version}</span>
         </span>
       </div>
-      <div className="release-confirm-row">
-        <span className="release-confirm-label">{t("Tag")}</span>
-        <span className="release-confirm-value release-mono">{result.tagName}</span>
+      <div className="new-version-confirm-row">
+        <span className="new-version-confirm-label">{t("Tag")}</span>
+        <span className="new-version-confirm-value new-version-mono">{result.tagName}</span>
       </div>
-      <div className="release-confirm-row">
-        <span className="release-confirm-label">{t("Commit")}</span>
-        <span className="release-confirm-value">
+      <div className="new-version-confirm-row">
+        <span className="new-version-confirm-label">{t("Commit")}</span>
+        <span className="new-version-confirm-value">
           <button
             type="button"
-            className="release-link-btn release-mono"
+            className="new-version-link-btn new-version-mono"
             title={t("Click to locate this commit in the Git Log")}
             onClick={() => locateCommit(result.commitHash)}
           >
@@ -71,9 +71,9 @@ export function ReleaseResultPanel() {
           </button>
         </span>
       </div>
-      <div className="release-confirm-row">
-        <span className="release-confirm-label">{t("Files")}</span>
-        <span className="release-confirm-value">
+      <div className="new-version-confirm-row">
+        <span className="new-version-confirm-label">{t("Files")}</span>
+        <span className="new-version-confirm-value">
           {t("{0} file(s) updated", result.updatedFiles.length)}
         </span>
       </div>
@@ -86,7 +86,7 @@ export function ReleaseResultPanel() {
             type="button"
             className="commit-error-close"
             aria-label={t("Dismiss")}
-            onClick={() => useReleaseStore.setState({ pushError: null })}
+            onClick={() => useNewVersionStore.setState({ pushError: null })}
           >
             <CloseIcon />
           </button>
@@ -98,10 +98,10 @@ export function ReleaseResultPanel() {
           type="button"
           className="commit-btn commit-btn-secondary"
           disabled={pushing || pushed}
-          onClick={() => void pushCreatedRelease()}
+          onClick={() => void pushCreatedNewVersion()}
         >
           {pushing ? (
-            <LoadingIcon className="release-spin" />
+            <LoadingIcon className="new-version-spin" />
           ) : pushed ? (
             <CheckIcon />
           ) : (

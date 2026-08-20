@@ -119,13 +119,13 @@ export type CommandType =
   | "setAiApiKey"
   | "openAiSettings"
   | "openGitSettings"
-  | "getReleaseContext"
-  | "generateReleaseChangelog"
-  | "cancelReleaseChangelogGeneration"
-  | "createRelease"
-  | "pushRelease"
-  | "initChangelog"
-  | "updateReleasePrompt"
+  | "getNewVersionContext"
+  | "generateNewVersionChangelog"
+  | "cancelNewVersionChangelogGeneration"
+  | "createNewVersion"
+  | "pushNewVersion"
+  | "initNewVersionChangelog"
+  | "updateNewVersionPrompt"
   | "locateCommit";
 
 export interface Bridge {

@@ -16,7 +16,7 @@ import type {
   LogOptions,
   MergeState,
   RefInfo,
-  ReleaseCommitSummary,
+  NewVersionCommitSummary,
   TagInfo,
 } from "./types";
 
@@ -123,16 +123,16 @@ export class GitService {
   }
 
   /**
-   * Commits since a ref (exclusive) up to HEAD, for the release assistant.
+   * Commits since a ref (exclusive) up to HEAD, for the new version assistant.
    * fromRef 为 null 时返回从根开始的全部历史（封顶 maxCount 条）。
    * 返回轻量摘要，供 webview 提交列表 + AI changelog 输入 + 版本号建议共用。
    *
-   * Not cached: release scenarios re-pull on demand and the result set is small.
+   * Not cached: new version scenarios re-pull on demand and the result set is small.
    */
   async getLogRange(
     fromRef: string | null,
     maxCount = 500,
-  ): Promise<ReleaseCommitSummary[]> {
+  ): Promise<NewVersionCommitSummary[]> {
     const args = [
       "log",
       // %x1f = unit separator — subject lines cannot contain it, unlike spaces
@@ -155,7 +155,7 @@ export class GitService {
       throw err;
     }
 
-    const commits: ReleaseCommitSummary[] = [];
+    const commits: NewVersionCommitSummary[] = [];
     for (const line of output.trim().split("\n")) {
       if (!line) {
         continue;

@@ -9,7 +9,7 @@ import { logger } from "../utils/logger";
 /**
  * 共享 AI 客户端：配置读取（projectAtlas.ai.*）+ OpenAI 兼容 chat 调用。
  *
- * 从 AiCommitService 抽取，供 commit message 与 release changelog 生成共用。
+ * 从 AiCommitService 抽取，供 commit message 与新版本 changelog 生成共用。
  * 请求构造（thinking 字段注入、Kimi 去 temperature、max_tokens）、空响应
  * 重试、超时/取消联动等行为与原 AiCommitService 完全一致。
  */
@@ -37,7 +37,7 @@ export interface AiSettings {
   customInstructions: string;
   timeout: number;
   enableThinking: boolean;
-  releasePrompt: string;
+  newVersionPrompt: string;
   apiKey: string;
 }
 
@@ -54,7 +54,7 @@ export async function readAiSettings(
     customInstructions: config.get<string>("customInstructions", "").trim(),
     timeout: config.get<number>("timeout", 30),
     enableThinking: config.get<boolean>("enableThinking", false),
-    releasePrompt: config.get<string>("releasePrompt", "").trim(),
+    newVersionPrompt: config.get<string>("newVersionPrompt", "").trim(),
     apiKey: (await context.secrets.get(AI_SECRET_KEY)) ?? "",
   };
 }

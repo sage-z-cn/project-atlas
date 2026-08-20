@@ -2,11 +2,11 @@ import type { AiChatConfig } from "./aiClient";
 import { chat } from "./aiClient";
 
 /**
- * Release changelog 生成服务：内置默认提示词、提示词/消息构造、
- * 版本号 bump 建议，以及基于共享 aiClient 的生成入口。
+ * 新版本（New Version）changelog 生成服务：内置默认提示词、提示词/消息
+ * 构造、版本号 bump 建议，以及基于共享 aiClient 的生成入口。
  */
 
-export const DEFAULT_RELEASE_PROMPT = `You are a release changelog writer. Based on the commits and
+export const DEFAULT_NEW_VERSION_PROMPT = `You are a release changelog writer. Based on the commits and
 uncommitted file changes since the last release, write the
 changelog entry for the new version.
 
@@ -35,17 +35,17 @@ Rules:
   body is wanted.
 - Output plain text only. No explanations, no code fences.`;
 
-/** 生成 release changelog 所需的输入数据。 */
-export interface ReleaseChangelogInput {
+/** 生成新版本 changelog 所需的输入数据。 */
+export interface NewVersionChangelogInput {
   commits: { hash: string; subject: string; author: string; shortDate: string }[];
   fileChanges: { path: string; status: string }[];
   changelogExcerpt?: string;
 }
 
 /** 配置值 trim 后为空则回退内置默认提示词。 */
-export function getEffectiveReleasePrompt(configValue: string): string {
+export function getEffectiveNewVersionPrompt(configValue: string): string {
   const trimmed = configValue.trim();
-  return trimmed ? trimmed : DEFAULT_RELEASE_PROMPT;
+  return trimmed ? trimmed : DEFAULT_NEW_VERSION_PROMPT;
 }
 
 /**
@@ -55,8 +55,8 @@ export function getEffectiveReleasePrompt(configValue: string): string {
  * 该占位符时在末尾追加语言指令行。
  * user：固定三段——commits、未提交文件变更（非空时）、changelog 风格参考（非空时，截前 40 行）。
  */
-export function buildReleaseMessages(
-  input: ReleaseChangelogInput,
+export function buildNewVersionMessages(
+  input: NewVersionChangelogInput,
   language: "zh" | "en",
   prompt: string,
 ): { system: string; user: string } {
@@ -127,15 +127,15 @@ export function suggestBump(subjects: string[]): "major" | "minor" | "patch" {
   return "patch";
 }
 
-/** 调用共享 AI 客户端生成 release changelog，并清理模型输出。 */
-export async function generateReleaseChangelog(
+/** 调用共享 AI 客户端生成新版本 changelog，并清理模型输出。 */
+export async function generateNewVersionChangelog(
   cfg: AiChatConfig,
-  input: ReleaseChangelogInput,
+  input: NewVersionChangelogInput,
   language: "zh" | "en",
   prompt: string,
   cancelSignal: AbortSignal,
 ): Promise<string> {
-  const { system, user } = buildReleaseMessages(input, language, prompt);
+  const { system, user } = buildNewVersionMessages(input, language, prompt);
   // changelog 远长于 commit message，覆盖默认 500 token 截断上限。
   const response = await chat(
     { ...cfg, maxTokens: cfg.maxTokens ?? 2000 },

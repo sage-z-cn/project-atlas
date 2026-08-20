@@ -136,14 +136,14 @@ export type CommandType =
   | "setAiApiKey"
   | "openAiSettings"
   | "openGitSettings"
-  // 发布（Release）— Git Atlas 发布助手（commit 面板第三个 tab）
-  | "getReleaseContext"
-  | "generateReleaseChangelog"
-  | "cancelReleaseChangelogGeneration"
-  | "createRelease"
-  | "pushRelease"
-  | "initChangelog"
-  | "updateReleasePrompt"
+  // 新版本（New Version）— Git Atlas 新版本助手（commit 面板第三个 tab）
+  | "getNewVersionContext"
+  | "generateNewVersionChangelog"
+  | "cancelNewVersionChangelogGeneration"
+  | "createNewVersion"
+  | "pushNewVersion"
+  | "initNewVersionChangelog"
+  | "updateNewVersionPrompt"
   | "locateCommit";
 
 export type EventType =
@@ -160,7 +160,7 @@ export type EventType =
   | "gitConfigChanged"
   | "aiConfigChanged"
   | "focusCommit"
-  // commit 面板内部 tab 切换（git-atlas.newVersion 命令 → release tab）
+  // commit 面板内部 tab 切换（git-atlas.newVersion 命令 → newVersion tab）
   | "switchTab";
 
 export interface RemoteBranchGroup {

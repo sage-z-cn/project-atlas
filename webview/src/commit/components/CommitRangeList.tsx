@@ -1,43 +1,43 @@
 import { useState } from "react";
 import { t } from "../../shared/i18n";
-import { useReleaseStore } from "../../shared/store/release-store";
-import type { ReleaseCommit } from "../../shared/store/release-store";
+import { useNewVersionStore } from "../../shared/store/new-version-store";
+import type { NewVersionCommit } from "../../shared/store/new-version-store";
 import ChevronIcon from "~icons/codicon/chevron-right";
 
-export function CommitRangeList({ commits }: { commits: ReleaseCommit[] }) {
+export function CommitRangeList({ commits }: { commits: NewVersionCommit[] }) {
   const [open, setOpen] = useState(true);
-  const locateCommit = useReleaseStore((s) => s.locateCommit);
+  const locateCommit = useNewVersionStore((s) => s.locateCommit);
 
   return (
-    <section className="release-section">
+    <section className="new-version-section">
       <button
         type="button"
-        className="release-collapsible-header"
+        className="new-version-collapsible-header"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        <span className={`release-chevron${open ? " open" : ""}`}>
+        <span className={`new-version-chevron${open ? " open" : ""}`}>
           <ChevronIcon />
         </span>
-        <span>{t("Commits to Release")}</span>
-        <span className="release-count-badge">{commits.length}</span>
+        <span>{t("Commits for New Version")}</span>
+        <span className="new-version-count-badge">{commits.length}</span>
       </button>
 
       {open &&
         (commits.length === 0 ? (
-          <div className="release-empty">{t("No new commits since last version")}</div>
+          <div className="new-version-empty">{t("No new commits since last version")}</div>
         ) : (
           <>
-            <div className="release-commit-list">
+            <div className="new-version-commit-list">
               {commits.map((c) => (
                 <div
                   key={c.hash}
-                  className="release-commit-row"
+                  className="new-version-commit-row"
                   title={c.subject}
                   onClick={() => locateCommit(c.hash)}
                 >
-                  <span className="release-commit-subject">{c.subject}</span>
-                  <span className="release-commit-meta">
+                  <span className="new-version-commit-subject">{c.subject}</span>
+                  <span className="new-version-commit-meta">
                     {c.author} · {c.shortDate}
                   </span>
                 </div>

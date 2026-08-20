@@ -2,23 +2,23 @@ import { create } from "zustand";
 import { bridge } from "../bridge";
 import { useCommitStore } from "./commit-store";
 
-// ── Protocol shapes (mirror of the extension-side release handlers) ──────────
+// ── Protocol shapes (mirror of the extension-side newVersion handlers) ──────────
 
-export interface ReleaseCommit {
+export interface NewVersionCommit {
   hash: string;
   subject: string;
   author: string;
   shortDate: string;
 }
 
-export interface ReleaseContext {
+export interface NewVersionContext {
   currentVersion: string | null;
   lastTag: string | null;
   /** true = 仓库有 tag 但均不在 HEAD 历史上（此时 lastTag 为 null、commits 全量）。 */
   lastTagDetached: boolean;
   /** lastTagDetached 时被跳过的"最新"tag 名（警告文案用）。 */
   detachedTagName?: string;
-  commits: ReleaseCommit[];
+  commits: NewVersionCommit[];
   changelogFile: string | null;
   changelogLanguage: "zh" | "en";
   suggestedBump: "patch" | "minor" | "major";
@@ -27,7 +27,7 @@ export interface ReleaseContext {
   aiConfigured: boolean;
 }
 
-export interface ReleaseResult {
+export interface NewVersionResult {
   commitHash: string;
   tagName: string;
   version: string;
@@ -82,7 +82,7 @@ export function compareVersions(a: string, b: string): number | null {
     Math.sign(pa.minor - pb.minor) ||
     Math.sign(pa.patch - pb.patch);
   if (byCore !== 0) return byCore;
-  // Equal cores: a release outranks any of its own prereleases.
+  // Equal cores: a final version outranks any of its own prereleases.
   if (pa.prerelease && pb.prerelease) {
     return pa.prerelease === pb.prerelease ? 0 : pa.prerelease < pb.prerelease ? -1 : 1;
   }
@@ -155,7 +155,7 @@ export function locateBump(tag: string, baseVersion: string | null): BumpChoice 
 function defaultForm() {
   return {
     bump: "none" as BumpChoice,
-    releaseTag: "",
+    versionTag: "",
     commitMessage: "",
     commitMessageTouched: false,
     updatePackageJson: false,
@@ -169,9 +169,9 @@ function defaultForm() {
   };
 }
 
-interface ReleaseState {
+interface NewVersionState {
   // Context
-  context: ReleaseContext | null;
+  context: NewVersionContext | null;
   /** Repo path the loaded context belongs to (staleness guard on repo events). */
   contextRepoPath: string | null;
   loading: boolean;
@@ -181,7 +181,7 @@ interface ReleaseState {
   // Form
   bump: BumpChoice;
   /** Merged tag/version field — the single version entry (e.g. "v1.6.4"). */
-  releaseTag: string;
+  versionTag: string;
   commitMessage: string;
   commitMessageTouched: boolean;
   updatePackageJson: boolean;
@@ -201,8 +201,8 @@ interface ReleaseState {
   // Execution
   creating: boolean;
   createError: string | null;
-  result: ReleaseResult | null;
-  /** Version before the release (for the result panel's old → new display). */
+  result: NewVersionResult | null;
+  /** Version before the new version (for the result panel's old → new display). */
   fromVersion: string | null;
   pushing: boolean;
   pushed: boolean;
@@ -213,14 +213,14 @@ interface ReleaseState {
   ensureLoaded: () => Promise<void>;
   markDirty: () => void;
   resetAll: () => void;
-  resetForm: (ctx: ReleaseContext) => void;
+  resetForm: (ctx: NewVersionContext) => void;
   applyChangelogFile: (file: string, language?: "zh" | "en") => void;
 
   // Actions — form
   /** Preset shortcut: fill the tag with `v{derivation}` and mark it active. */
   applyBump: (bump: "patch" | "minor" | "major") => void;
   /** User typed into the tag field: store it and re-recognize the preset. */
-  setReleaseTag: (v: string) => void;
+  setVersionTag: (v: string) => void;
   setCommitMessage: (v: string) => void;
   setUpdatePackageJson: (v: boolean) => void;
   setChangelogDraft: (v: string) => void;
@@ -237,8 +237,8 @@ interface ReleaseState {
   // Actions — execution
   generateChangelog: () => Promise<void>;
   cancelGeneration: () => Promise<void>;
-  createRelease: () => Promise<void>;
-  pushCreatedRelease: () => Promise<void>;
+  createNewVersion: () => Promise<void>;
+  pushCreatedNewVersion: () => Promise<void>;
   finish: () => Promise<void>;
   locateCommit: (hash: string) => void;
 }
@@ -248,7 +248,7 @@ let fetchSeq = 0;
 /** Set when a dirty-marking event arrives while a fetch is in flight. */
 let pendingRefetch = false;
 
-export const useReleaseStore = create<ReleaseState>((set, get) => ({
+export const useNewVersionStore = create<NewVersionState>((set, get) => ({
   context: null,
   contextRepoPath: null,
   loading: false,
@@ -272,9 +272,9 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
     const repoPath = useCommitStore.getState().currentRepoPath;
     set({ loading: true, contextError: null });
     try {
-      const ctx = (await bridge.request("getReleaseContext", {
+      const ctx = (await bridge.request("getNewVersionContext", {
         repoPath,
-      })) as ReleaseContext;
+      })) as NewVersionContext;
       if (mySeq !== fetchSeq) return;
       set({ context: ctx, contextRepoPath: repoPath, dirty: false, loading: false });
       if (resetForm) get().resetForm(ctx);
@@ -289,7 +289,7 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
         // A git event landed while this fetch was in flight — the response
         // may predate it. Fetch once more.
         pendingRefetch = false;
-        if (useCommitStore.getState().activeTab === "release") {
+        if (useCommitStore.getState().activeTab === "newVersion") {
           void get().fetchContext(false);
         }
       }
@@ -317,7 +317,7 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
     if (s.loading || s.creating) return;
     if (s.context && !s.dirty) return;
     // First load always resets; a dirty reload keeps the result panel intact
-    // (the just-created release shouldn't be wiped by its own tag events).
+    // (the just-created version shouldn't be wiped by its own tag events).
     const reset = s.context === null || !s.result;
     await get().fetchContext(reset);
   },
@@ -330,14 +330,14 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
       return;
     }
     // Tab is on screen → live-refresh the context without clobbering the form.
-    if (useCommitStore.getState().activeTab === "release") {
+    if (useCommitStore.getState().activeTab === "newVersion") {
       void get().fetchContext(false);
     }
   },
 
   resetAll() {
     if (get().generating) {
-      void bridge.request("cancelReleaseChangelogGeneration").catch(() => {});
+      void bridge.request("cancelNewVersionChangelogGeneration").catch(() => {});
     }
     fetchSeq++;
     pendingRefetch = false;
@@ -372,7 +372,7 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
       // indicator naturally lands on suggestedBump. No usable base at all
       // → nothing to derive, tag starts empty ("none").
       bump: nextVersion ? ctx.suggestedBump : "none",
-      releaseTag: nextVersion ? `v${nextVersion}` : "",
+      versionTag: nextVersion ? `v${nextVersion}` : "",
       commitMessage: nextVersion ? `chore(release): v${nextVersion}` : "",
       // package.json updating only applies where a version field exists.
       updatePackageJson: ctx.currentVersion != null,
@@ -386,7 +386,7 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
         ? {
             ...st.context,
             changelogFile: file,
-            // initChangelog 按表单选择的语言建文件，语言角标同步为该值。
+            // initNewVersionChangelog 按表单选择的语言建文件，语言角标同步为该值。
             ...(language ? { changelogLanguage: language } : {}),
           }
         : st.context,
@@ -401,14 +401,14 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
       bump,
     );
     if (!next) return;
-    set({ releaseTag: `v${next}`, bump });
+    set({ versionTag: `v${next}`, bump });
     rederiveMessage(get, set);
   },
 
-  setReleaseTag(v) {
+  setVersionTag(v) {
     const ctx = get().context;
     set({
-      releaseTag: v,
+      versionTag: v,
       bump: locateBump(v, ctx ? resolveBaseVersion(ctx) : null),
     });
     rederiveMessage(get, set);
@@ -450,7 +450,7 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
     // Empty value = restore default (protocol contract).
     const value = get().promptDraft.trim();
     try {
-      const result = (await bridge.request("updateReleasePrompt", {
+      const result = (await bridge.request("updateNewVersionPrompt", {
         value,
       })) as { effectivePrompt?: string; promptCustomized?: boolean };
       set((st) => ({
@@ -472,7 +472,7 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
 
   async restorePrompt() {
     try {
-      const result = (await bridge.request("updateReleasePrompt", {
+      const result = (await bridge.request("updateNewVersionPrompt", {
         value: "",
       })) as { effectivePrompt?: string; promptCustomized?: boolean };
       set((st) => ({
@@ -501,12 +501,12 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
     const s = get();
     if (s.generating || !s.context) return;
     const repoAtStart = useCommitStore.getState().currentRepoPath;
-    // Release notes cover lastTag..HEAD only — uncommitted working-tree
+    // Generated notes cover lastTag..HEAD only — uncommitted working-tree
     // content is not part of the version, so includeFiles is always empty.
     set({ generating: true, genCancelling: false, genError: null });
     try {
       const result = (await bridge.request(
-        "generateReleaseChangelog",
+        "generateNewVersionChangelog",
         {
           includeFiles: [],
           // Manual language pick wins; omitted → host uses the detected one.
@@ -534,23 +534,23 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
     if (!get().generating) return;
     set({ genCancelling: true });
     try {
-      await bridge.request("cancelReleaseChangelogGeneration");
+      await bridge.request("cancelNewVersionChangelogGeneration");
     } catch {
       // ignore — the generation request will still return and clear state
     }
   },
 
-  async createRelease() {
+  async createNewVersion() {
     const s = get();
     if (s.creating || !s.context) return;
     // Version derives from the tag (strip v/V); the tag itself ships as typed.
-    const version = deriveVersionFromTag(s.releaseTag);
-    const tagName = s.releaseTag.trim();
+    const version = deriveVersionFromTag(s.versionTag);
+    const tagName = s.versionTag.trim();
     if (!version || !isValidLooseSemver(version) || !tagName) return;
     set({ creating: true, createError: null });
     try {
       const result = (await bridge.request(
-        "createRelease",
+        "createNewVersion",
         {
           version,
           tagName,
@@ -560,12 +560,12 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
           // is hidden in that case and the state must not leak stale true.
           updatePackageJson:
             s.context.currentVersion != null ? s.updatePackageJson : false,
-          // versionOnly + empty includePaths: the release commit carries
+          // versionOnly + empty includePaths: the version commit carries
           // only the version files (changelog / package.json). Omitted —
           // the handler defaults to exactly this behavior.
         },
         { timeout: 60_000 },
-      )) as ReleaseResult;
+      )) as NewVersionResult;
       set({
         creating: false,
         result,
@@ -584,13 +584,13 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
     }
   },
 
-  async pushCreatedRelease() {
+  async pushCreatedNewVersion() {
     const s = get();
     if (!s.result || s.pushing || s.pushed) return;
     set({ pushing: true, pushError: null });
     try {
       await bridge.request(
-        "pushRelease",
+        "pushNewVersion",
         { tagName: s.result.tagName },
         { timeout: 60_000 },
       );
@@ -629,12 +629,12 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
  * until the user edits the message by hand (commitMessageTouched decouples).
  */
 function rederiveMessage(
-  get: () => ReleaseState,
-  set: (partial: Partial<ReleaseState>) => void,
+  get: () => NewVersionState,
+  set: (partial: Partial<NewVersionState>) => void,
 ): void {
   const s = get();
   if (s.commitMessageTouched) return;
-  const version = deriveVersionFromTag(s.releaseTag);
+  const version = deriveVersionFromTag(s.versionTag);
   set({ commitMessage: version ? `chore(release): v${version}` : "" });
 }
 
@@ -643,14 +643,14 @@ function rederiveMessage(
 // repo switches hard-reset the panel, everything else just marks it dirty.
 // (commit-store's own listener runs first — it owns currentRepoPath truth.)
 bridge.onEvent((event, data) => {
-  const st = useReleaseStore.getState();
+  const st = useNewVersionStore.getState();
 
   if (event === "repoChanged") {
     const { repoPath } = (data ?? {}) as { repoPath?: string | null };
     if ((repoPath ?? null) === st.contextRepoPath && st.context) return;
     st.resetAll();
-    if (useCommitStore.getState().activeTab === "release") {
-      void useReleaseStore.getState().fetchContext(true);
+    if (useCommitStore.getState().activeTab === "newVersion") {
+      void useNewVersionStore.getState().fetchContext(true);
     }
     return;
   }
@@ -661,8 +661,8 @@ bridge.onEvent((event, data) => {
     const active = useCommitStore.getState().currentRepoPath;
     if (active && active !== st.contextRepoPath) {
       st.resetAll();
-      if (useCommitStore.getState().activeTab === "release") {
-        void useReleaseStore.getState().fetchContext(true);
+      if (useCommitStore.getState().activeTab === "newVersion") {
+        void useNewVersionStore.getState().fetchContext(true);
       }
     }
     return;
@@ -671,8 +671,8 @@ bridge.onEvent((event, data) => {
   if (event === "aiConfigChanged") {
     // aiConfigured lives in the context; refetch when the tab is on screen
     // (commit-store refreshes its own aiConfigured independently).
-    if (st.context && useCommitStore.getState().activeTab === "release") {
-      void useReleaseStore.getState().fetchContext(false);
+    if (st.context && useCommitStore.getState().activeTab === "newVersion") {
+      void useNewVersionStore.getState().fetchContext(false);
     }
     return;
   }

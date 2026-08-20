@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
 import { useCommitStore } from "../../shared/store/commit-store";
-import { useReleaseStore } from "../../shared/store/release-store";
-import type { ReleaseContext } from "../../shared/store/release-store";
+import { useNewVersionStore } from "../../shared/store/new-version-store";
+import type { NewVersionContext } from "../../shared/store/new-version-store";
 import { ChangelogInitForm } from "./ChangelogInitForm";
 import { PromptEditor } from "./PromptEditor";
 import CloseIcon from "~icons/codicon/close";
@@ -13,16 +13,16 @@ import ErrorIcon from "~icons/codicon/error";
  * Bottom-bar changelog area (mirrors CommitMessageArea's compactness):
  * header row (file + language + prompt gear), AI banners, and the editable
  * draft. The Generate button and its elapsed timer live in the action row
- * next to Create Release (see ReleaseTab's CreateSection).
+ * next to Create New Version (see NewVersionTab's CreateSection).
  * No changelog file yet → compact init form instead.
  */
-export function ChangelogSection({ context }: { context: ReleaseContext }) {
-  const genError = useReleaseStore((s) => s.genError);
-  const setGenError = useReleaseStore((s) => s.setGenError);
-  const changelogDraft = useReleaseStore((s) => s.changelogDraft);
-  const setChangelogDraft = useReleaseStore((s) => s.setChangelogDraft);
-  const langOverride = useReleaseStore((s) => s.changelogLanguageOverride);
-  const setLangOverride = useReleaseStore((s) => s.setChangelogLanguageOverride);
+export function ChangelogSection({ context }: { context: NewVersionContext }) {
+  const genError = useNewVersionStore((s) => s.genError);
+  const setGenError = useNewVersionStore((s) => s.setGenError);
+  const changelogDraft = useNewVersionStore((s) => s.changelogDraft);
+  const setChangelogDraft = useNewVersionStore((s) => s.setChangelogDraft);
+  const langOverride = useNewVersionStore((s) => s.changelogLanguageOverride);
+  const setLangOverride = useNewVersionStore((s) => s.setChangelogLanguageOverride);
   const aiConfigured = useCommitStore((s) => s.aiConfigured);
 
   if (!context.changelogFile) {
@@ -33,36 +33,36 @@ export function ChangelogSection({ context }: { context: ReleaseContext }) {
 
   return (
     <>
-      <div className="release-changelog-head">
-        <span className="release-changelog-file release-mono" title={context.changelogFile}>
+      <div className="new-version-changelog-head">
+        <span className="new-version-changelog-file new-version-mono" title={context.changelogFile}>
           {context.changelogFile}
         </span>
         <LanguageChip
           value={effectiveLang}
           onSelect={(lang) => setLangOverride(lang)}
         />
-        <div className="release-changelog-actions">
+        <div className="new-version-changelog-actions">
           <PromptEditor />
         </div>
       </div>
 
       {!aiConfigured && (
-        <div className="release-ai-banner" role="alert">
+        <div className="new-version-ai-banner" role="alert">
           <ErrorIcon />
-          <span className="release-ai-banner-text">
+          <span className="new-version-ai-banner-text">
             {t("AI is not configured. Set it up to generate changelog drafts.")}
           </span>
-          <span className="release-ai-banner-actions">
+          <span className="new-version-ai-banner-actions">
             <button
               type="button"
-              className="release-link-btn"
+              className="new-version-link-btn"
               onClick={() => void bridge.request("openAiSettings").catch(() => {})}
             >
               {t("Open Settings")}
             </button>
             <button
               type="button"
-              className="release-link-btn"
+              className="new-version-link-btn"
               onClick={() =>
                 void bridge
                   .request("setAiApiKey", {}, { timeout: 120_000 })
@@ -91,9 +91,9 @@ export function ChangelogSection({ context }: { context: ReleaseContext }) {
       )}
 
       <textarea
-        className="release-changelog-textarea"
+        className="new-version-changelog-textarea"
         value={changelogDraft}
-        placeholder={t("Changelog draft for this release")}
+        placeholder={t("Changelog draft for the new version")}
         onChange={(e) => setChangelogDraft(e.target.value)}
         spellCheck={false}
         rows={20}
@@ -140,10 +140,10 @@ function LanguageChip({
   const label = t("Changelog language");
 
   return (
-    <span className="release-lang-wrap" ref={wrapRef}>
+    <span className="new-version-lang-wrap" ref={wrapRef}>
       <button
         type="button"
-        className="release-lang-chip interactive"
+        className="new-version-lang-chip interactive"
         title={label}
         aria-label={label}
         aria-haspopup="menu"
@@ -153,14 +153,14 @@ function LanguageChip({
         {value}
       </button>
       {open && (
-        <span className="release-lang-menu" role="menu">
+        <span className="new-version-lang-menu" role="menu">
           {(["zh", "en"] as const).map((lang) => (
             <button
               key={lang}
               type="button"
               role="menuitemradio"
               aria-checked={value === lang}
-              className={`release-lang-option${value === lang ? " active" : ""}`}
+              className={`new-version-lang-option${value === lang ? " active" : ""}`}
               onClick={() => {
                 onSelect(lang);
                 setOpen(false);

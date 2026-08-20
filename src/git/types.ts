@@ -103,7 +103,7 @@ export interface LogOptions {
   breakHiddenParents?: boolean;
 }
 
-export interface ReleaseCommitSummary {
+export interface NewVersionCommitSummary {
   hash: string;
   subject: string;
   author: string;

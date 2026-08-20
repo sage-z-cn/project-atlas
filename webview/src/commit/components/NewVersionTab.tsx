@@ -8,13 +8,13 @@ import {
   deriveVersionFromTag,
   isValidLooseSemver,
   resolveBaseVersion,
-  useReleaseStore,
-} from "../../shared/store/release-store";
-import type { ReleaseContext } from "../../shared/store/release-store";
+  useNewVersionStore,
+} from "../../shared/store/new-version-store";
+import type { NewVersionContext } from "../../shared/store/new-version-store";
 import { ChangelogSection } from "./ChangelogSection";
 import { CommitRangeList } from "./CommitRangeList";
 import { ModalOverlay } from "./PromptEditor";
-import { ReleaseResultPanel } from "./ReleaseResultPanel";
+import { NewVersionResultPanel } from "./NewVersionResultPanel";
 import ArrowRightIcon from "~icons/codicon/arrow-right";
 import CloseIcon from "~icons/codicon/close";
 import ErrorIcon from "~icons/codicon/error";
@@ -25,17 +25,17 @@ import WarningIcon from "~icons/codicon/warning";
 
 /**
  * Layout mirrors the Commit tab's information architecture:
- *   .release-tab    — column, fills the panel (like .commit-tab-content)
- *   .release-scroll — flex-1 scroll area (pending commits)
- *   .release-bottom — fixed bottom bar (like .commit-message-area):
+ *   .new-version-tab    — column, fills the panel (like .commit-tab-content)
+ *   .new-version-scroll — flex-1 scroll area (pending commits)
+ *   .new-version-bottom — fixed bottom bar (like .commit-message-area):
  *                     summary → version → changelog → action row.
  *   Success and create-confirmation are shown in modals (result panel,
  *   confirm dialog) rather than replacing the form inline.
  */
-export function ReleaseTab() {
-  const context = useReleaseStore((s) => s.context);
-  const contextError = useReleaseStore((s) => s.contextError);
-  const creating = useReleaseStore((s) => s.creating);
+export function NewVersionTab() {
+  const context = useNewVersionStore((s) => s.context);
+  const contextError = useNewVersionStore((s) => s.contextError);
+  const creating = useNewVersionStore((s) => s.creating);
   // Working-tree changes: conflict guard for the Create button + the
   // uncommitted-changes warning in the confirmation card.
   const changes = useCommitStore((s) => s.changes);
@@ -43,18 +43,18 @@ export function ReleaseTab() {
   // Tab activation = component mount (App renders tabs conditionally):
   // fetch on first load, refetch when an event marked the context dirty.
   useEffect(() => {
-    void useReleaseStore.getState().ensureLoaded();
+    void useNewVersionStore.getState().ensureLoaded();
   }, []);
 
   if (!context) {
     return (
-      <div className="release-tab">
-        <div className="release-scroll-center">
+      <div className="new-version-tab">
+        <div className="new-version-scroll-center">
           {contextError ? (
             <div className="commit-error-banner" role="alert">
               <ErrorIcon className="commit-error-icon" />
               <span className="commit-error-message">
-                {t("Failed to load release context")}
+                {t("Failed to load new version context")}
                 {contextError ? `: ${contextError}` : ""}
               </span>
               <button
@@ -63,65 +63,65 @@ export function ReleaseTab() {
                 aria-label={t("Retry")}
                 title={t("Retry")}
                 onClick={() =>
-                  void useReleaseStore.getState().fetchContext(true)
+                  void useNewVersionStore.getState().fetchContext(true)
                 }
               >
                 <LoadingIcon />
               </button>
             </div>
           ) : (
-            <LoadingIcon className="release-spin" />
+            <LoadingIcon className="new-version-spin" />
           )}
         </div>
       </div>
     );
   }
 
-  // Release landed: the result modal (ReleaseResultPanel) portals to
+  // New version landed: the result modal (NewVersionResultPanel) portals to
   // document.body; the form below stays intact behind it.
   return (
     <>
-      <div className="release-tab" inert={creating ? true : undefined}>
-        <div className="release-scroll">
+      <div className="new-version-tab" inert={creating ? true : undefined}>
+        <div className="new-version-scroll">
           <CommitRangeList commits={context.commits} />
         </div>
-        <div className="release-bottom">
-          <ReleaseSummary context={context} />
+        <div className="new-version-bottom">
+          <NewVersionSummary context={context} />
           <VersionSection context={context} />
           <ChangelogSection context={context} />
           <CreateSection context={context} changes={changes} />
         </div>
       </div>
-      <ReleaseResultPanel />
+      <NewVersionResultPanel />
     </>
   );
 }
 
 // ─── Context summary (bottom bar, compact inline strip) ──────────────────────
 
-function ReleaseSummary({ context }: { context: ReleaseContext }) {
+function NewVersionSummary({ context }: { context: NewVersionContext }) {
   return (
-    <div className="release-summary-bar">
-      <div className="release-summary-inline">
+    <div className="new-version-summary-bar">
+      <div className="new-version-summary-inline">
         {/* Non-Node projects have no package.json version — the tag line
          * alone carries the version story then. */}
         {context.currentVersion != null && (
-          <span className="release-summary-item">
-            <span className="release-summary-k">{t("Current Version")}</span>
-            <span className="release-summary-v release-mono">
+          <span className="new-version-summary-item">
+            <span className="new-version-summary-k">{t("Current Version")}</span>
+            <span className="new-version-summary-v new-version-mono">
               {context.currentVersion}
             </span>
           </span>
         )}
-        <span className="release-summary-item">
-          <span className="release-summary-k">{t("Latest Tag")}</span>
-          <span className="release-summary-v release-mono">
+        <span className="new-version-summary-item">
+          <span className="new-version-summary-k">{t("Latest Tag")}</span>
+          <span className="new-version-summary-v new-version-mono">
             {context.lastTag ?? "—"}
           </span>
         </span>
       </div>
       {context.lastTagDetached && (
-        <div className="release-summary-warn-inline" role="note">
+        <div className="new-version-summary-warn-inline" role="note">
           <WarningIcon />
           <span>
             {t(
@@ -144,18 +144,18 @@ function ReleaseSummary({ context }: { context: ReleaseContext }) {
 // No preset matches (prerelease tags, typos, no currentVersion) → the group
 // simply shows no active segment.
 
-function VersionSection({ context }: { context: ReleaseContext }) {
-  const bump = useReleaseStore((s) => s.bump);
-  const releaseTag = useReleaseStore((s) => s.releaseTag);
-  const commitMessage = useReleaseStore((s) => s.commitMessage);
-  const applyBump = useReleaseStore((s) => s.applyBump);
-  const setReleaseTag = useReleaseStore((s) => s.setReleaseTag);
-  const setCommitMessage = useReleaseStore((s) => s.setCommitMessage);
+function VersionSection({ context }: { context: NewVersionContext }) {
+  const bump = useNewVersionStore((s) => s.bump);
+  const versionTag = useNewVersionStore((s) => s.versionTag);
+  const commitMessage = useNewVersionStore((s) => s.commitMessage);
+  const applyBump = useNewVersionStore((s) => s.applyBump);
+  const setVersionTag = useNewVersionStore((s) => s.setVersionTag);
+  const setCommitMessage = useNewVersionStore((s) => s.setCommitMessage);
 
   // Derivations run off the base: package.json version, else the latest
   // tag's version. Null only when neither is usable.
   const baseVersion = resolveBaseVersion(context);
-  const derived = deriveVersionFromTag(releaseTag);
+  const derived = deriveVersionFromTag(versionTag);
   const formatInvalid = derived.length > 0 && !isValidLooseSemver(derived);
   const notHigher =
     !formatInvalid &&
@@ -170,10 +170,10 @@ function VersionSection({ context }: { context: ReleaseContext }) {
   ] as const;
 
   return (
-    <section className="release-version-compact">
-      <div className="release-version-controls">
+    <section className="new-version-version-compact">
+      <div className="new-version-version-controls">
         <div
-          className="release-bump-group"
+          className="new-version-bump-group"
           role="radiogroup"
           aria-label={t("Version")}
           title={baseVersion ? undefined : t("No version base found")}
@@ -185,7 +185,7 @@ function VersionSection({ context }: { context: ReleaseContext }) {
               role="radio"
               aria-checked={bump === opt.value}
               disabled={!baseVersion}
-              className={`release-bump-btn${bump === opt.value ? " active" : ""}${
+              className={`new-version-bump-btn${bump === opt.value ? " active" : ""}${
                 context.suggestedBump === opt.value ? " recommended" : ""
               }`}
               title={
@@ -200,22 +200,22 @@ function VersionSection({ context }: { context: ReleaseContext }) {
           ))}
         </div>
         <input
-          className="release-input release-mono release-version-input"
-          value={releaseTag}
-          onChange={(e) => setReleaseTag(e.target.value)}
+          className="new-version-input new-version-mono new-version-version-input"
+          value={versionTag}
+          onChange={(e) => setVersionTag(e.target.value)}
           placeholder={
             baseVersion
               ? `v${computeNextVersion(baseVersion, context.suggestedBump) ?? "1.7.0"}`
               : "v1.7.0"
           }
-          aria-label={t("Release Tag")}
-          title={t("Release Tag")}
+          aria-label={t("New Version Tag")}
+          title={t("New Version Tag")}
           spellCheck={false}
         />
       </div>
 
       <input
-        className="release-input"
+        className="new-version-input"
         value={commitMessage}
         placeholder={
           derived ? `chore(release): v${derived}` : "chore(release): v1.7.0"
@@ -227,13 +227,13 @@ function VersionSection({ context }: { context: ReleaseContext }) {
       />
 
       {formatInvalid && (
-        <div className="release-hint-error">
+        <div className="new-version-hint-error">
           <ErrorIcon />
           {t("Invalid version format")}
         </div>
       )}
       {notHigher && (
-        <div className="release-hint-warn">
+        <div className="new-version-hint-warn">
           <WarningIcon />
           {t("Version is not higher than the current version")}
         </div>
@@ -248,24 +248,24 @@ function CreateSection({
   context,
   changes,
 }: {
-  context: ReleaseContext;
+  context: NewVersionContext;
   changes: WorkingTreeFile[];
 }) {
-  const releaseTag = useReleaseStore((s) => s.releaseTag);
-  const commitMessage = useReleaseStore((s) => s.commitMessage);
-  const updatePackageJson = useReleaseStore((s) => s.updatePackageJson);
-  const setUpdatePackageJson = useReleaseStore((s) => s.setUpdatePackageJson);
-  const changelogDraft = useReleaseStore((s) => s.changelogDraft);
-  const confirmOpen = useReleaseStore((s) => s.confirmOpen);
-  const creating = useReleaseStore((s) => s.creating);
-  const createError = useReleaseStore((s) => s.createError);
-  const setConfirmOpen = useReleaseStore((s) => s.setConfirmOpen);
-  const createRelease = useReleaseStore((s) => s.createRelease);
+  const versionTag = useNewVersionStore((s) => s.versionTag);
+  const commitMessage = useNewVersionStore((s) => s.commitMessage);
+  const updatePackageJson = useNewVersionStore((s) => s.updatePackageJson);
+  const setUpdatePackageJson = useNewVersionStore((s) => s.setUpdatePackageJson);
+  const changelogDraft = useNewVersionStore((s) => s.changelogDraft);
+  const confirmOpen = useNewVersionStore((s) => s.confirmOpen);
+  const creating = useNewVersionStore((s) => s.creating);
+  const createError = useNewVersionStore((s) => s.createError);
+  const setConfirmOpen = useNewVersionStore((s) => s.setConfirmOpen);
+  const createNewVersion = useNewVersionStore((s) => s.createNewVersion);
 
-  // AI generate (button lives here, next to Create Release).
-  const generating = useReleaseStore((s) => s.generating);
-  const generateChangelog = useReleaseStore((s) => s.generateChangelog);
-  const cancelGeneration = useReleaseStore((s) => s.cancelGeneration);
+  // AI generate (button lives here, next to Create New Version).
+  const generating = useNewVersionStore((s) => s.generating);
+  const generateChangelog = useNewVersionStore((s) => s.generateChangelog);
+  const cancelGeneration = useNewVersionStore((s) => s.cancelGeneration);
   const aiConfigured = useCommitStore((s) => s.aiConfigured);
 
   // Elapsed timer while generating — rendered left of the Generate button
@@ -291,17 +291,17 @@ function CreateSection({
 
   // Version derives from the merged tag input (strip v/V); the tag itself
   // ships as typed. One field feeds both constraints.
-  const version = deriveVersionFromTag(releaseTag);
+  const version = deriveVersionFromTag(versionTag);
   const trimmed = version.trim();
   const versionOk = trimmed.length > 0 && isValidLooseSemver(trimmed);
-  const tagOk = releaseTag.trim().length > 0;
+  const tagOk = versionTag.trim().length > 0;
   const messageOk = commitMessage.trim().length > 0;
-  // Nothing to release: no commits since the last tag → nothing to publish.
+  // No new version possible: no commits since the last tag → nothing to publish.
   const hasCommits = context.commits.length > 0;
   // Conflict guard (kept from the removed changes section): unresolved
-  // conflicts block the release entirely.
+  // conflicts block the new version entirely.
   const conflicted = changes.some((f) => f.status === "conflicted");
-  // Changelog draft is deliberately NOT part of this gate — a release may
+  // Changelog draft is deliberately NOT part of this gate — a new version may
   // ship without changelog changes (no file, or the user chose not to write).
   const canCreate = versionOk && tagOk && messageOk && hasCommits && !conflicted;
 
@@ -310,14 +310,14 @@ function CreateSection({
   if (!versionOk) missing.push(t("Enter a valid version"));
   if (!tagOk) missing.push(t("Enter a tag name"));
   if (!messageOk) missing.push(t("Enter a commit message"));
-  if (!hasCommits) missing.push(t("No commits to release since the last tag"));
+  if (!hasCommits) missing.push(t("No commits to include since the last tag"));
   const createTitle = canCreate
     ? undefined
     : conflicted && missing.length === 0
-      ? t("Resolve conflicts before creating a release")
-      : `${t("Cannot create release:")}\n${missing.map((m) => `• ${m}`).join("\n")}`;
+      ? t("Resolve conflicts before creating a new version")
+      : `${t("Cannot create new version:")}\n${missing.map((m) => `• ${m}`).join("\n")}`;
 
-  // Release notes cover lastTag..HEAD commits only (the store always sends
+  // Generated notes cover lastTag..HEAD commits only (the store always sends
   // includeFiles: []), so generation needs pending commits to work from.
   const canGenerate = aiConfigured && hasCommits;
 
@@ -346,18 +346,18 @@ function CreateSection({
       onClose={() => {
         if (!creating) setConfirmOpen(false);
       }}
-      ariaLabel={t("Confirm Release")}
+      ariaLabel={t("Confirm New Version")}
     >
       {(() => {
         const updatesChangelog =
           context.changelogFile != null && changelogDraft.trim().length > 0;
-        // Version files the release commit will actually carry (changelog +
-        // package.json) — mirrors what createRelease writes/commits.
+        // Version files the version commit will actually carry (changelog +
+        // package.json) — mirrors what createNewVersion writes/commits.
         const versionFileCount =
           (updatesChangelog ? 1 : 0) +
           (updatePackageJson && context.currentVersion ? 1 : 0);
         // Uncommitted working-tree files excluding the version files
-        // themselves (they're written and committed by the release flow —
+        // themselves (they're written and committed by the new version flow —
         // not "left behind").
         const uncommittedCount = changes.filter((f) => {
           if (f.path === "package.json") return false;
@@ -366,8 +366,8 @@ function CreateSection({
         }).length;
         return (
           <>
-            <div className="release-modal-head">
-              <span className="release-modal-title">{t("Confirm Release")}</span>
+            <div className="new-version-modal-head">
+              <span className="new-version-modal-title">{t("Confirm New Version")}</span>
               <button
                 type="button"
                 className="commit-error-close"
@@ -379,41 +379,41 @@ function CreateSection({
               </button>
             </div>
 
-            <div className="release-modal-rows">
-              <div className="release-confirm-row">
-                <span className="release-confirm-label">{t("Version")}</span>
-                <span className="release-confirm-value release-mono">
+            <div className="new-version-modal-rows">
+              <div className="new-version-confirm-row">
+                <span className="new-version-confirm-label">{t("Version")}</span>
+                <span className="new-version-confirm-value new-version-mono">
                   {context.currentVersion ?? "—"}
-                  <ArrowRightIcon className="release-version-arrow" />
-                  <span className="release-version-new">{trimmed}</span>
+                  <ArrowRightIcon className="new-version-version-arrow" />
+                  <span className="new-version-version-new">{trimmed}</span>
                 </span>
               </div>
-              <div className="release-confirm-row">
-                <span className="release-confirm-label">{t("Tag")}</span>
-                <span className="release-confirm-value release-mono">
-                  {releaseTag.trim()}
+              <div className="new-version-confirm-row">
+                <span className="new-version-confirm-label">{t("Tag")}</span>
+                <span className="new-version-confirm-value new-version-mono">
+                  {versionTag.trim()}
                 </span>
               </div>
-              <div className="release-confirm-row">
-                <span className="release-confirm-label">{t("Commit Message")}</span>
-                <span className="release-confirm-value">{commitMessage}</span>
+              <div className="new-version-confirm-row">
+                <span className="new-version-confirm-label">{t("Commit Message")}</span>
+                <span className="new-version-confirm-value">{commitMessage}</span>
               </div>
-              <div className="release-confirm-row">
-                <span className="release-confirm-label">{t("Files included")}</span>
-                <span className="release-confirm-value">
+              <div className="new-version-confirm-row">
+                <span className="new-version-confirm-label">{t("Files included")}</span>
+                <span className="new-version-confirm-value">
                   {t("{0} file(s)", versionFileCount)}
                 </span>
               </div>
-              <div className="release-confirm-row">
-                <span className="release-confirm-label">{t("Changelog")}</span>
-                <span className="release-confirm-value">
+              <div className="new-version-confirm-row">
+                <span className="new-version-confirm-label">{t("Changelog")}</span>
+                <span className="new-version-confirm-value">
                   {updatesChangelog ? t("Yes") : t("No")}
                 </span>
               </div>
               {context.currentVersion && (
-                <div className="release-confirm-row">
-                  <span className="release-confirm-label">{t("package.json")}</span>
-                  <span className="release-confirm-value">
+                <div className="new-version-confirm-row">
+                  <span className="new-version-confirm-label">{t("package.json")}</span>
+                  <span className="new-version-confirm-value">
                     {updatePackageJson ? t("Yes") : t("No")}
                   </span>
                 </div>
@@ -421,11 +421,11 @@ function CreateSection({
             </div>
 
             {uncommittedCount > 0 && (
-              <div className="release-confirm-warn" role="note">
+              <div className="new-version-confirm-warn" role="note">
                 <WarningIcon />
                 <span>
                   {t(
-                    "{0} uncommitted change(s) detected. They will NOT be included in the release commit.",
+                    "{0} uncommitted change(s) detected. They will NOT be included in the new version commit.",
                     uncommittedCount,
                   )}
                 </span>
@@ -439,8 +439,8 @@ function CreateSection({
               </div>
             )}
 
-            <div className="release-prompt-actions">
-              <span className="release-prompt-spacer" />
+            <div className="new-version-prompt-actions">
+              <span className="new-version-prompt-spacer" />
               <button
                 type="button"
                 className="commit-btn commit-btn-secondary"
@@ -453,10 +453,10 @@ function CreateSection({
                 type="button"
                 className="commit-btn commit-btn-primary"
                 disabled={!canCreate || creating}
-                onClick={() => void createRelease()}
+                onClick={() => void createNewVersion()}
               >
-                {creating && <LoadingIcon className="release-spin" />}
-                {creating ? t("Creating release...") : t("Confirm")}
+                {creating && <LoadingIcon className="new-version-spin" />}
+                {creating ? t("Creating new version...") : t("Confirm")}
               </button>
             </div>
           </>
@@ -465,14 +465,14 @@ function CreateSection({
     </ModalOverlay>
   );
 
-  // ── Action row: [update package.json] … [Generate] [Create Release] ──
+  // ── Action row: [update package.json] … [Generate] [Create New Version] ──
   return (
     <>
       {confirmModal}
-      <div className="release-action-row">
+      <div className="new-version-action-row">
       {context.currentVersion && (
         <label
-          className="release-action-check"
+          className="new-version-action-check"
           title={t("Update package.json version")}
         >
           <input
@@ -483,23 +483,23 @@ function CreateSection({
           {t("Update package.json version")}
         </label>
       )}
-      <span className="release-action-spacer" />
-      <div className="release-action-buttons">
+      <span className="new-version-action-spacer" />
+      <div className="new-version-action-buttons">
         {generating && (
-          <span className="release-elapsed" title={t("Generating changelog...")}>
-            <LoadingIcon className="release-spin" />
+          <span className="new-version-elapsed" title={t("Generating changelog...")}>
+            <LoadingIcon className="new-version-spin" />
             {elapsed}
           </span>
         )}
         <button
           type="button"
-          className="commit-btn commit-btn-secondary release-generate-btn"
+          className="commit-btn commit-btn-secondary new-version-generate-btn"
           disabled={!generating && !canGenerate}
           title={generateTitle}
           onClick={() => void handleGenerate()}
         >
           {generating ? (
-            <StopIcon className="release-stop-icon" />
+            <StopIcon className="new-version-stop-icon" />
           ) : (
             <SparkleIcon />
           )}
@@ -514,7 +514,7 @@ function CreateSection({
             if (canCreate) setConfirmOpen(true);
           }}
         >
-          {t("Create Release")}
+          {t("Create New Version")}
         </button>
       </div>
       </div>
