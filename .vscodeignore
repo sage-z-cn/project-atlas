@@ -1,9 +1,6 @@
 .vscode/**
 .vscode-test/**
 src/**
-webview/src/**
-webview/index.html
-webview/vite.config.ts
 .gitignore
 .yarnrc
 vsc-extension-quickstart.md
@@ -19,10 +16,20 @@ vite.config.ts
 screenshot/**
 AGENTS.md
 
+# 内部工具目录与本地生成文件不打包
+.codegraph/**
+.opencode/**
+.slim/**
+.sisyphus/**
+.ignore
+
+# 构建/开发脚本不打包（build-and-install.js 仅本地安装用）
+scripts/**
+
 node_modules/**
 
-# webview 子包的 node_modules 不打包（依赖已由 vite 打包进 out/webview/assets/main.js）
-webview/node_modules/**
+# webview 子包整体不打包（源码与依赖已由 vite 打包进 out/webview/assets/main.js）
+webview/**
 
 # webview 构建产物保留（out/webview/** 默认随 out/ 包含，此处显式声明以防后续调整）
 !out/webview/**
