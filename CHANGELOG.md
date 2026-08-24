@@ -4,6 +4,11 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.19.0
+**新功能**
+- **命令**: 添加拉取全部仓库和刷新全部仓库的功能
+
+
 #### 1.18.1
 **新功能**
 - **发布**: 支持更新已编辑发布标题中的标签版本
