@@ -587,7 +587,7 @@
         {
           "command": "git-atlas.openGitLog",
           "when": "view == git-atlas.commitPanel && config.gitAtlas.enableGitLogPanel != false",
-          "group": "navigation@1"
+          "group": "navigation@3"
         },
         {
           "command": "git-atlas.openCommitPanel",
@@ -595,14 +595,14 @@
           "group": "navigation@5"
         },
         {
-          "command": "git-atlas.pullAllRepos",
-          "when": "view == git-atlas.commitPanel && gitAtlas.multiRepo",
-          "group": "navigation"
-        },
-        {
           "command": "git-atlas.refreshAllRepos",
           "when": "view == git-atlas.commitPanel && gitAtlas.multiRepo",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "git-atlas.pullAllRepos",
+          "when": "view == git-atlas.commitPanel && gitAtlas.multiRepo",
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
