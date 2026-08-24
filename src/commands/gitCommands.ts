@@ -4,6 +4,10 @@ import type { GitHandlerContext } from "./gitContext";
 import { GIT_ATLAS_SCHEME } from "../webview/gitContentProvider";
 import { getScmResourcePath } from "../utils/scmUtils";
 import { toForwardSlash } from "../utils/pathUtils";
+import {
+  refreshAllReposImpl,
+  pullAllReposImpl,
+} from "./gitHandlers/repoHandlers";
 
 /**
  * Register the 12 `git-atlas.*` commands declared in package.json.
@@ -233,6 +237,31 @@ export function registerGitCommands(
       setTimeout(() => {
         ctx.messageRouter.broadcastEvent("switchTab", { tab: "newVersion" });
       }, 300);
+    }),
+    // ── Multi-repo view/title toolbar buttons (commitPanel) ──────────────
+    // 复用 repoHandlers 中 webview 命令的核心实现，多仓库才显示（when 子句
+    // 用 gitAtlas.multiRepo context，由 RepoRegistry.rescan 维护）。
+    vscode.commands.registerCommand("git-atlas.refreshAllRepos", () =>
+      refreshAllReposImpl(ctx),
+    ),
+    vscode.commands.registerCommand("git-atlas.pullAllRepos", async () => {
+      // 串行拉取全部仓库可能耗时较久，用原生窗口进度提示包裹；
+      // webview 侧的 operationStart/End spinner 由 impl 内部的 withProgress 广播。
+      const result = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Window,
+          title: vscode.l10n.t("Pulling all repositories..."),
+        },
+        () => pullAllReposImpl(ctx),
+      );
+      if (result.failed.length > 0) {
+        const details = result.failed
+          .map((f) => `${f.name}: ${f.error}`)
+          .join("; ");
+        void vscode.window.showErrorMessage(
+          vscode.l10n.t("Pull failed for some repositories: {0}", details),
+        );
+      }
     }),
   );
 }

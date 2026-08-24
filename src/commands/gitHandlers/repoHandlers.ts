@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
-import { requireGit } from "../gitContext";
+import { requireGit, withProgress } from "../gitContext";
 import { initGitRepo } from "../../git/gitService";
 import { normalizePath } from "../../git/repoPaths";
 
@@ -125,4 +125,133 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
       return { success: false as const, error: message };
     }
   });
+
+  // ── Multi-repo batch operations (every repo, not just the active one) ──
+  // 两个 handler 都是多仓库维度操作，requireGit 只解析"当前仓库"，不适用，
+  // 直接基于 ctx.registry 手写（与 refreshGitState 同类，自行兜底竞态）。
+  // 核心逻辑在 refreshAllReposImpl / pullAllReposImpl 中，同时供 VSCode
+  // 命令层（gitCommands.ts 的 git-atlas.refreshAllRepos / pullAllRepos，
+  // 挂 commitPanel view/title 工具栏）复用。
+
+  // 多仓库版 refreshGitState：rescan 工作区根（识别外部 git init / 新增仓库）
+  // 后对 registry 中每个仓库 invalidateCache，再广播全局 gitStateChanged。
+  messageRouter.handle("refreshAllRepos", () => refreshAllReposImpl(ctx));
+
+  // 逐仓库 pull 当前分支（--autostash），返回 { pulled, skipped, failed }。
+  messageRouter.handle("pullAllRepos", () => pullAllReposImpl(ctx));
+}
+
+/**
+ * Core implementation of the multi-repo "refresh all" operation, shared by the
+ * `refreshAllRepos` webview handler and the `git-atlas.refreshAllRepos`
+ * view/title command. Semantics mirror refreshGitState, applied to every
+ * repo in the registry instead of only the active one.
+ */
+export async function refreshAllReposImpl(
+  ctx: GitHandlerContext,
+): Promise<{ success: true }> {
+  const { registry, messageRouter } = ctx;
+  await registry.whenReady; // 手写 handler 自行兜底首批请求竞态
+  const roots = (vscode.workspace.workspaceFolders ?? []).map(
+    (f) => f.uri.fsPath,
+  );
+  await registry.rescan(roots); // 识别外部 git init / 新增仓库
+  for (const svc of registry.getAll()) {
+    svc.invalidateCache();
+  }
+  messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+  return { success: true };
+}
+
+/** Per-repo failure entry returned by {@link pullAllReposImpl}. */
+export interface PullAllReposFailure {
+  repoPath: string;
+  name: string;
+  error: string;
+}
+
+/** Result shape of {@link pullAllReposImpl} (pulled/skipped hold repoPath). */
+export interface PullAllReposResult {
+  success: true;
+  pulled: string[];
+  skipped: string[];
+  failed: PullAllReposFailure[];
+}
+
+/**
+ * Core implementation of the multi-repo "pull all" operation, shared by the
+ * `pullAllRepos` webview handler and the `git-atlas.pullAllRepos` view/title
+ * command. Pulls the current branch (--autostash) of every repo, strictly
+ * serially: concurrent pulls would spawn a batch of git processes at once,
+ * contend for the network / trip remote rate limits, and make it harder to
+ * attribute failures to a single repo.
+ *
+ * Repos without a remote, or whose current branch has no upstream yet
+ * (freshly created branch never pushed, detached HEAD), are recorded in
+ * `skipped`; a single repo failure (network / conflict / auth / ...) never
+ * aborts the batch — it is recorded in `failed`. Afterwards every repo's
+ * cache is invalidated and one global gitStateChanged is broadcast so all
+ * webview views refresh.
+ */
+// 批量 pull 进行中标志：重复触发（连点工具栏按钮）时直接返回空结果，
+// 避免两个批次对同一仓库并发 git pull 争抢 index.lock 产生假失败。
+let pullAllInProgress = false;
+
+export async function pullAllReposImpl(
+  ctx: GitHandlerContext,
+): Promise<PullAllReposResult> {
+  const { registry, messageRouter } = ctx;
+  if (pullAllInProgress) {
+    return { success: true as const, pulled: [], skipped: [], failed: [] };
+  }
+  pullAllInProgress = true;
+  try {
+    return await withProgress(ctx, async () => {
+      await registry.whenReady;
+      const nameByPath = new Map(
+        registry.getRepoInfos().map((info) => [info.path, info.name] as const),
+      );
+      const pulled: string[] = [];
+      const skipped: string[] = [];
+      const failed: PullAllReposFailure[] = [];
+      for (const svc of registry.getAll()) {
+        try {
+          if (!(await svc.hasRemote())) {
+            skipped.push(svc.cwd);
+            continue;
+          }
+          // 有 remote 但当前分支无 upstream（新建分支未 push -u；detached
+          // HEAD 的伪分支名以 "(" 开头）时 git pull 必然报 "no tracking
+          // information"，提前归入 skipped 而非误报 failed。getBranches 有
+          // 5s 缓存，批量场景下开销可忽略。
+          const cur = (await svc.getBranches()).find((b) => b.isCurrent);
+          if (!cur || !cur.upstream || cur.name.startsWith("(")) {
+            skipped.push(svc.cwd);
+            continue;
+          }
+          await svc.pull(); // 成功时 pull 内部已自行 invalidateCache
+          pulled.push(svc.cwd);
+        } catch (err) {
+          const error = err instanceof Error ? err.message : String(err);
+          failed.push({
+            repoPath: svc.cwd,
+            name: nameByPath.get(svc.cwd) ?? svc.cwd,
+            error,
+          });
+          console.error(
+            `[Git Atlas] pullAllRepos: pull failed for ${svc.cwd}:`,
+            error,
+          );
+        }
+      }
+      // 兜底清缓存：skipped/failed 仓库没走 pull 内部的 invalidateCache。
+      for (const svc of registry.getAll()) {
+        svc.invalidateCache();
+      }
+      messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+      return { success: true as const, pulled, skipped, failed };
+    });
+  } finally {
+    pullAllInProgress = false;
+  }
 }

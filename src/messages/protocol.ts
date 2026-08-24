@@ -128,6 +128,11 @@ export type CommandType =
   | "renameRemote"
   // 在工作区非 git 目录执行 `git init`，返回 { success, repoPath?, error? }。
   | "initializeRepository"
+  // 多仓库批量操作（作用于 registry 中所有仓库，而非仅当前仓库）：
+  // refreshAllRepos 重新扫描并刷新全部仓库缓存；pullAllRepos 串行 pull 所有
+  // 含 remote 的仓库，返回 { pulled, skipped, failed }。
+  | "refreshAllRepos"
+  | "pullAllRepos"
   | "getL10nBundle"
   | "getGitConfig"
   | "setGitConfig"

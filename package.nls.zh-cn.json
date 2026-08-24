@@ -104,5 +104,7 @@
   "command.git-atlas.locateCommit": "Git Atlas: 定位提交",
   "command.git-atlas.newVersion": "Git Atlas: 创建新版本",
   "command.git-atlas.setGiteeToken": "Git Atlas: 设置 Gitee 令牌",
-  "command.git-atlas.clearGiteeToken": "Git Atlas: 清除 Gitee 令牌"
+  "command.git-atlas.clearGiteeToken": "Git Atlas: 清除 Gitee 令牌",
+  "command.git-atlas.refreshAllRepos": "Git Atlas: 刷新全部仓库",
+  "command.git-atlas.pullAllRepos": "Git Atlas: 拉取全部仓库"
 }

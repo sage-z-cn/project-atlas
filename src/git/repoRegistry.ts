@@ -213,6 +213,16 @@ export class RepoRegistry implements vscode.Disposable {
       // setCurrent()(纯切换,列表不变)单独广播。
       this._onGitStateChanged.fire();
     }
+
+    // 维护 commitPanel view/title "全部仓库"工具栏按钮的可见性 context。
+    // rescan 是仓库列表变化的单一汇聚点(init / refreshGitState /
+    // initializeRepository / watcher 触发的重扫都经过这里),在此设置即可
+    // 覆盖所有路径。fire-and-forget:setContext 无返回值依赖,不阻塞扫描。
+    void vscode.commands.executeCommand(
+      "setContext",
+      "gitAtlas.multiRepo",
+      this.services.size > 1,
+    );
   }
 
   /**

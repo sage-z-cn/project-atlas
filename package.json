@@ -342,6 +342,16 @@
       {
         "command": "git-atlas.clearGiteeToken",
         "title": "%command.git-atlas.clearGiteeToken%"
+      },
+      {
+        "command": "git-atlas.refreshAllRepos",
+        "title": "%command.git-atlas.refreshAllRepos%",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "git-atlas.pullAllRepos",
+        "title": "%command.git-atlas.pullAllRepos%",
+        "icon": "$(arrow-circle-down)"
       }
     ],
     "menus": {
@@ -452,6 +462,14 @@
         },
         {
           "command": "git-atlas.locateCommit",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.refreshAllRepos",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.pullAllRepos",
           "when": "false"
         }
       ],
@@ -575,6 +593,16 @@
           "command": "git-atlas.openCommitPanel",
           "when": "view == git-atlas.gitLog && config.gitAtlas.enableCommitPanel != false",
           "group": "navigation@5"
+        },
+        {
+          "command": "git-atlas.pullAllRepos",
+          "when": "view == git-atlas.commitPanel && gitAtlas.multiRepo",
+          "group": "navigation"
+        },
+        {
+          "command": "git-atlas.refreshAllRepos",
+          "when": "view == git-atlas.commitPanel && gitAtlas.multiRepo",
+          "group": "navigation"
         }
       ],
       "view/item/context": [

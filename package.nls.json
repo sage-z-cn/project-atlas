@@ -104,5 +104,7 @@
   "command.git-atlas.locateCommit": "Git Atlas: Locate Commit",
   "command.git-atlas.newVersion": "Git Atlas: New Version",
   "command.git-atlas.setGiteeToken": "Git Atlas: Set Gitee Token",
-  "command.git-atlas.clearGiteeToken": "Git Atlas: Clear Gitee Token"
+  "command.git-atlas.clearGiteeToken": "Git Atlas: Clear Gitee Token",
+  "command.git-atlas.refreshAllRepos": "Git Atlas: Refresh All Repositories",
+  "command.git-atlas.pullAllRepos": "Git Atlas: Pull All Repositories"
 }
