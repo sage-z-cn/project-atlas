@@ -1370,6 +1370,12 @@ function BranchContextMenu({
         isRemote: branch.isRemote,
         force: false,
       });
+      // Clear the branch filter if it pointed at the deleted branch, so the
+      // gitStateChanged refresh doesn't run getGraphData against a dead ref.
+      const st = usePanelStore.getState();
+      if (st.filter.branch === branch.name) {
+        st.setFilter({ branch: "" });
+      }
     } catch (_err) {
       // If normal delete fails (unmerged), ask for force delete
       const forceResult = (await bridge.request("showConfirmMessage", {
@@ -1383,6 +1389,11 @@ function BranchContextMenu({
             isRemote: branch.isRemote,
             force: true,
           });
+          // Same cleanup as above for the force-delete success path.
+          const st = usePanelStore.getState();
+          if (st.filter.branch === branch.name) {
+            st.setFilter({ branch: "" });
+          }
         } catch (err2) {
           usePanelStore.getState().setPanelError(err2 instanceof Error ? err2.message : String(err2));
         }

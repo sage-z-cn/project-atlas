@@ -535,32 +535,89 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     try {
       const { filter } = get();
       const { since, until } = dateRangeToSinceUntil(filter);
-      const [graphResult, branches, tags, identity] = await Promise.all([
-        bridge.request("getGraphData", {
-          maxCount: 200,
-          branch: filter.branch || undefined,
-          file: filter.file || undefined,
-          search: filter.searchQuery || undefined,
-          author: filter.author || undefined,
-          since,
-          until,
-          repoPath,
-        }) as Promise<{
-          graphData: { commits: Commit[]; lanes: Record<string, LaneInfo> };
-          snapshot: LaneSnapshot;
-        } | null>,
-        bridge.request("getBranches", { repoPath }) as Promise<
-          BranchInfo[] | null
-        >,
-        bridge.request("getTags", { repoPath }) as Promise<TagInfo[] | null>,
-        bridge.request("getUserIdentity", { repoPath }) as Promise<{
-          name: string;
-          email: string;
-        } | null>,
-      ]);
+      const [graphSettled, branchesSettled, tagsSettled, identitySettled] =
+        await Promise.allSettled([
+          bridge.request("getGraphData", {
+            maxCount: 200,
+            branch: filter.branch || undefined,
+            file: filter.file || undefined,
+            search: filter.searchQuery || undefined,
+            author: filter.author || undefined,
+            since,
+            until,
+            repoPath,
+          }) as Promise<{
+            graphData: { commits: Commit[]; lanes: Record<string, LaneInfo> };
+            snapshot: LaneSnapshot;
+          } | null>,
+          bridge.request("getBranches", { repoPath }) as Promise<
+            BranchInfo[] | null
+          >,
+          bridge.request("getTags", { repoPath }) as Promise<TagInfo[] | null>,
+          bridge.request("getUserIdentity", { repoPath }) as Promise<{
+            name: string;
+            email: string;
+          } | null>,
+        ]);
 
       // ★ Race guard: a switch happened during the fetch → drop stale response.
       if (mySeq !== get().repoSeq) return;
+
+      const failures = [
+        graphSettled,
+        branchesSettled,
+        tagsSettled,
+        identitySettled,
+      ].filter((r): r is PromiseRejectedResult => r.status === "rejected");
+      if (failures.length > 0) {
+        console.error(
+          "fetchInitialData partial failure:",
+          failures.map((f) => f.reason),
+        );
+      }
+      const panelError =
+        failures.length > 0
+          ? failures[0].reason instanceof Error
+            ? failures[0].reason.message
+            : String(failures[0].reason)
+          : null;
+
+      const graphResult =
+        graphSettled.status === "fulfilled" ? graphSettled.value : null;
+      const branches =
+        branchesSettled.status === "fulfilled" ? branchesSettled.value : null;
+      const tags = tagsSettled.status === "fulfilled" ? tagsSettled.value : null;
+      const identity =
+        identitySettled.status === "fulfilled" ? identitySettled.value : null;
+
+      // ★ Self-heal: the captured filter points at a ref that no longer
+      // exists (e.g. branch deleted from the branch tree). getGraphData
+      // against the dead ref rejects, so clear the stale filter and refetch
+      // once. The refetch runs with an empty branch filter, so it can't
+      // re-trigger this. The graph-rejection gate is essential: tag names
+      // also flow through filter.branch (tag double-click), `git log <tag>`
+      // succeeds, and getBranches never lists tags — without the gate the
+      // self-heal would silently clear legitimate tag filters.
+      if (
+        filter.branch &&
+        graphSettled.status === "rejected" &&
+        branches !== null &&
+        Array.isArray(branches) &&
+        get().filter.branch === filter.branch &&
+        !branches.some((b) => b.name === filter.branch)
+      ) {
+        set({
+          // Reset only the branch field against the LIVE filter — the
+          // captured snapshot is stale if the user edited other filter
+          // fields (search/author/date) while this fetch was in flight.
+          filter: { ...get().filter, branch: "" },
+          pendingSelectionFromFilter: [],
+          collapsedSequenceIds: new Set(),
+          collapsedIntermediates: new Map(),
+        });
+        await get().fetchInitialData();
+        return;
+      }
 
       const commits = graphResult?.graphData?.commits ?? [];
       const lanes = graphResult?.graphData?.lanes ?? {};
@@ -589,6 +646,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
             tags: tagList,
             currentBranch: current,
             currentEmail: email,
+            panelError,
 
             hasMore: commits.length >= 200,
             selectedCommitHash: validHashes[0],
@@ -622,6 +680,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         tags: tagList,
         currentBranch: current,
         currentEmail: email,
+        panelError,
 
         hasMore: commits.length >= 200,
         selectedCommitHash: firstVisible?.hash ?? null,
