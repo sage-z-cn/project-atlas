@@ -4,6 +4,15 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.19.1
+**Bug 修复**
+- **任务**: 用字符串感知的 JSONC 解析器替换正则清理逻辑
+- **Git**: 修复外部提交后仓库徽章未刷新 ahead 计数的问题
+- **分支**: 引用不存在时自动清除分支过滤器
+
+**改进**
+- **仓库选择器**: 优化水平和垂直布局下的文本溢出与收缩行为
+
 #### 1.19.0
 **新功能**
 - **命令**: 添加拉取全部仓库和刷新全部仓库的功能
