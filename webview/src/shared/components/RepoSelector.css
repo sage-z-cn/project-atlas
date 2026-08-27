@@ -40,9 +40,18 @@
 }
 
 /* The bottom panel (horizontal) sits on a lighter background than the sidebar,
- * so the default inactiveSelection tint barely shows. Use a deeper tint there. */
+ * so the default inactiveSelection tint barely shows. Use a deeper tint there.
+ *
+ * Horizontal chips must not flex-shrink: the strip above is designed to
+ * overflow-x and scroll. With the default shrink=1 every chip got squeezed
+ * proportionally whenever the row overflowed — collapsing repo names into
+ * ellipsis long before real space ran short (the inner overflow:hidden labels
+ * contribute near-zero minimum size, so there was nothing stopping the crush).
+ * shrink:0 keeps each chip at natural content width; scarcity is absorbed by
+ * the scrollbar instead of the text. */
 .repo-selector.horizontal .repo-chip {
   background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.15));
+  flex-shrink: 0;
 }
 
 .repo-selector .repo-chip:hover {
@@ -57,8 +66,12 @@
   opacity: 1;
 }
 
+/* No fixed max-width here: a hard cap truncated the name even when the strip
+ * had plenty of room left. Scarcity is positional instead — horizontal chips
+ * are content-width inside a scrolling strip (nothing ever truncates), and
+ * vertical chips share the finite sidebar width (truncates only when the whole
+ * chip genuinely overflows). The ellipsis machinery stays for that case. */
 .repo-selector .repo-chip .repo-name {
-  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -70,16 +83,16 @@
  * role so no textual prefix is needed. Hidden entirely by the component for
  * detached HEAD / unknown branch, so these rules are inert then.
  *
- * Horizontal: capped width with ellipsis — chips are content-width so this
- * keeps long feature branches from blowing out the row. Vertical: fills the
- * middle space between the capped repo-name and the right-aligned badges.
+ * Like the repo-name, uncapped: horizontal chips are content-width inside a
+ * scrolling strip and must show the full branch; vertical shares the sidebar
+ * width and trims HERE first when space runs short (high flex-shrink in the
+ * vertical rule below) before the higher-priority repo-name yields anything.
  */
 .repo-selector .repo-chip .repo-branch {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   min-width: 0;
-  max-width: 140px;
   overflow: hidden;
   white-space: nowrap;
   opacity: 0.75;
@@ -99,10 +112,13 @@
 }
 
 /* Vertical: branch fills the middle between repo-name and right-aligned
- * badges. max-width:none releases the horizontal cap so it can grow to fill. */
+ * badges. grow=1 consumes slack exactly as before, so the resting look is
+ * unchanged. shrink=3 vs the repo-name's default shrink=1 encodes the trim
+ * order on a cramped chip: the subordinate branch collapses first and the
+ * higher-priority repo-name holds out until only it remains.
+ */
 .repo-selector.vertical .repo-chip .repo-branch {
-  flex: 1 1 auto;
-  max-width: none;
+  flex: 1 3 auto;
 }
 
 /* unplugin-icons renders <svg> inline by default, whose baseline adds a gap
@@ -130,17 +146,11 @@
   justify-content: flex-start;
 }
 
-.repo-selector.vertical .repo-chip .repo-name {
-  max-width: none;
-}
-
-/* Cap the repo-name only when a branch label is also present, so the branch
- * has room to show. specificity beats the rule above via the :has() argument.
- * Without a branch the name keeps its uncapped behavior (no regression). */
-.repo-selector.vertical .repo-chip:has(.repo-branch) .repo-name {
-  max-width: 40%;
-  min-width: 0;
-}
+/* No width cap on the vertical repo-name either — the old rules pinned it to
+ * 40% whenever a branch label existed, ellipsizing names while free space
+ * sat right next to them. With no cap, a roomy chip shows the name in full;
+ * on a genuinely cramped chip only real overflow trims anything, and the
+ * branch (higher flex-shrink above) gives way first. */
 
 /* ─── Status badges (↑ ahead / ↓ behind / ● dirty) ─────────────────────
  * margin-left:auto pushes the badge cluster to the right edge: a no-op in
