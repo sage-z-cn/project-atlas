@@ -7,6 +7,94 @@ import { toForwardSlash } from "../utils/pathUtils";
 /** Glob exclude pattern for findFiles */
 const EXCLUDE_PATTERN = "**/{node_modules,.git,dist,out,build,.vscode-test}/**";
 
+/**
+ * Parse JSONC (JSON with `//` / `/* *\/` comments and trailing commas).
+ * String-aware: `//` inside string literals (e.g. "http://...") is preserved,
+ * unlike naive regex stripping which corrupts such files.
+ */
+function parseJsonc(text: string): any {
+  let out = "";
+  let pendingComma = false;
+  let i = 0;
+  const n = text.length;
+
+  const emit = (ch: string) => {
+    if (pendingComma) {
+      out += ",";
+      pendingComma = false;
+    }
+    out += ch;
+  };
+
+  while (i < n) {
+    const ch = text[i];
+
+    // String literal: copy verbatim (comments/commas inside are preserved)
+    if (ch === '"') {
+      emit(ch);
+      i++;
+      while (i < n && text[i] !== '"') {
+        if (text[i] === "\\" && i + 1 < n) {
+          emit(text[i]);
+          emit(text[i + 1]);
+          i += 2;
+        } else {
+          emit(text[i]);
+          i++;
+        }
+      }
+      if (i < n) {
+        emit('"');
+        i++;
+      }
+      continue;
+    }
+
+    // Line comment: skip to end of line (newline itself is kept)
+    if (ch === "/" && text[i + 1] === "/") {
+      while (i < n && text[i] !== "\n") {
+        i++;
+      }
+      continue;
+    }
+
+    // Block comment: skip through */
+    if (ch === "/" && text[i + 1] === "*") {
+      i += 2;
+      while (i < n && !(text[i] === "*" && text[i + 1] === "/")) {
+        i++;
+      }
+      i = Math.min(i + 2, n);
+      continue;
+    }
+
+    // Commas are held back and dropped before a closer (trailing comma)
+    if (ch === ",") {
+      pendingComma = true;
+      i++;
+      continue;
+    }
+    if (ch === "}" || ch === "]") {
+      pendingComma = false;
+      out += ch;
+      i++;
+      continue;
+    }
+    if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") {
+      if (!pendingComma) {
+        out += ch;
+      }
+      i++;
+      continue;
+    }
+
+    emit(ch);
+    i++;
+  }
+
+  return JSON.parse(out);
+}
+
 export class TaskService {
   /** Running npm scripts: taskId → Terminal */
   private runningTerminals = new Map<string, vscode.Terminal>();
@@ -303,9 +391,7 @@ export class TaskService {
 
     try {
       const content = fs.readFileSync(fsPath, "utf-8");
-      // Strip JSON comments (single-line //)
-      const stripped = content.replace(/\/\/.*$/gm, "").replace(/,\s*([}\]])/g, "$1");
-      const parsed = JSON.parse(stripped);
+      const parsed = parseJsonc(content);
       const tasksArray = parsed.tasks || parsed;
       if (!Array.isArray(tasksArray)) {
         return { tasks: [], npmScripts: new Set() };
@@ -537,8 +623,7 @@ export class TaskService {
 
     try {
       const content = fs.readFileSync(tasksJsonPath, "utf-8");
-      const stripped = content.replace(/\/\/.*$/gm, "").replace(/,\s*([}\]])/g, "$1");
-      const parsed = JSON.parse(stripped);
+      const parsed = parseJsonc(content);
       const tasksArray = parsed.tasks || parsed;
 
       if (!Array.isArray(tasksArray)) {
