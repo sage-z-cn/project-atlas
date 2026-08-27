@@ -285,6 +285,26 @@ export class RepoRegistry implements vscode.Disposable {
   }
 
   /**
+   * External git-change signal (e.g. the built-in git extension bridge in
+   * builtinGitBridge.ts): mirror GitWatcher.notify()'s pipeline — invalidate
+   * the repo's cache, broadcast gitStateChanged to webviews, and fire the
+   * extension-side signal (status bar). Unknown repos (not tracked by this
+   * registry, e.g. parents opened by the builtin git extension) are ignored.
+   */
+  notifyExternalGitChange(repoPath: string): void {
+    const svc = this.services.get(normalizePath(repoPath));
+    if (!svc) {
+      return;
+    }
+    svc.invalidateCache();
+    this.messageRouter.broadcastEvent("gitStateChanged", {
+      scope: "all",
+      repoPath: svc.cwd,
+    });
+    this._onGitStateChanged.fire();
+  }
+
+  /**
    * Select the active repo. The path is normalized (hard constraint #1) and
    * rejected silently if it isn't a known repo. On success the choice is
    * persisted to workspaceState and a `repoChanged` event is broadcast so

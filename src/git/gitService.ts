@@ -291,11 +291,17 @@ export class GitService {
     return computeGraphLayout(commits, prevSnapshot, breakHiddenParents);
   }
 
-  async getBranches(): Promise<BranchInfo[]> {
+  // noCache: 跳过 5s TTL 缓存直接读 git。供 ahead/behind 徽章等必须实时
+  // 反映外部进程操作的调用方使用——git 更新 refs 走 lockfile + 原子
+  // rename,VSCode FS watcher 对此可能漏报,缓存失效链路不保证及时。
+  // 结果仍写回缓存以刷新 TTL。
+  async getBranches(options?: { noCache?: boolean }): Promise<BranchInfo[]> {
     const cacheKey = "branches:v2";
-    const cached = this.cache.get<BranchInfo[]>(cacheKey);
-    if (cached) {
-      return cached;
+    if (!options?.noCache) {
+      const cached = this.cache.get<BranchInfo[]>(cacheKey);
+      if (cached) {
+        return cached;
+      }
     }
 
     const localFormat = [

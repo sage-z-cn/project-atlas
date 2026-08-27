@@ -68,7 +68,11 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
         }
         try {
           const [branches, changes] = await Promise.all([
-            svc.getBranches(),
+            // noCache: ahead/behind 徽章必须实时反映外部进程的提交。git 更
+            // 新 refs 走 lockfile + 原子 rename,FS watcher 可能漏报,若读
+            // TTL 缓存会返回旧计数(getWorkingTreeChanges 本就无缓存)。
+            // 结果仍写回缓存,其他调用方继续受益。
+            svc.getBranches({ noCache: true }),
             svc.getWorkingTreeChanges(),
           ]);
           const current = (branches ?? []).find((b) => b.isCurrent);

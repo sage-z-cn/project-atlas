@@ -18,6 +18,7 @@ import { registerNewVersionHandlers } from "../commands/gitHandlers/newVersionHa
 import { registerReleaseHandlers } from "../commands/gitHandlers/releaseHandlers";
 import { registerGitCommands } from "../commands/gitCommands";
 import { registerAiCommands } from "../commands/aiCommands";
+import { setupBuiltinGitBridge } from "./builtinGitBridge";
 import { registerCommitViewBadge } from "./commitViewBadge";
 import { BlameHoverProvider } from "./blameHoverProvider";
 import type { GitHandlerContext } from "../commands/gitContext";
@@ -114,6 +115,13 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   void registry.init(allWorkspaceRoots);
   context.subscriptions.push(registry);
 
+  // 内置 git 扩展桥接:订阅 vscode.git 的 repository.state.onDidChange,
+  // 镜像到 registry 的失效+广播管线。覆盖自建 .git FS watcher 的盲区:
+  // 集成终端 / AI agent 子进程的 git 操作(窗口保持聚焦,focus 广播不触发;
+  // refs 原子 rename 写入自建 watcher 可能漏报)。内置扩展通过终端 shell
+  // 集成嗅探 git 命令并监听任意 git 子进程,与窗口焦点无关。
+  context.subscriptions.push(setupBuiltinGitBridge(registry));
+
   // e. 创建 Manager / Panel 实例（按各自构造签名）
   const mergeManager = new MergeEditorManager(
     context.extensionUri,
@@ -208,6 +216,13 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   let lastFocusBroadcastAt = 0;
   let trailingTimer: ReturnType<typeof setTimeout> | undefined;
   const broadcastCommitChanged = () => {
+    // 外部进程(终端/其他 git 工具)的操作可能绕过 .git FS watcher(refs 的
+    // lockfile + 原子 rename 写入在部分平台上会漏报事件)。切回窗口时统一
+    // 失效全部仓库缓存,确保随后的读取(本次广播触发的 getRepoStatuses,
+    // 以及下一次状态栏刷新)拿到新鲜数据而非 TTL 内的旧值。
+    for (const svc of registry.getAll()) {
+      svc.invalidateCache();
+    }
     messageRouter.broadcastEvent("commitStateChanged", {});
     lastFocusBroadcastAt = Date.now();
   };
