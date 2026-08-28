@@ -1,12 +1,16 @@
 import * as vscode from "vscode";
-import type { GitCache } from "../git/cache";
 import type { MessageRouter } from "../messages/messageRouter";
-
-type Scope = "all" | "branches" | "status" | "mergeState" | "log";
+import type { GitService } from "../git/gitService";
 
 export class GitWatcher implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
-  private debounceTimers = new Map<Scope, ReturnType<typeof setTimeout>>();
+  // 单一 debounce timer：一次 commit 会错峰触发多个 scope（HEAD、refs、
+  // index、COMMIT_EDITMSG）的 notify，per-scope 独立防抖会把它们错峰广播
+  // 成多轮 invalidate + gitStateChanged。改为任意 scope 的 notify 都重置
+  // 同一个 300ms timer，到期只执行一轮失效 + 一次广播（scope 固定
+  // "all"——消费方不细分 watcher 广播的 scope，panel-store 仅识别 host
+  // 命令发来的 scope:"navigateToHead" 特殊值，不来自本 watcher）。
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly _onChanged = new vscode.EventEmitter<void>();
   /**
@@ -22,7 +26,9 @@ export class GitWatcher implements vscode.Disposable {
   constructor(
     private readonly workspaceRoot: string,
     private readonly messageRouter: MessageRouter,
-    private readonly cache: GitCache,
+    // 传 GitService 而非其 cache：到期时调 svc.invalidateCache() 可同时
+    // 失效 gitService 内部的 statusCache 等附加缓存，保持单一失效入口。
+    private readonly svc: GitService,
   ) {
     this.setupFileWatchers();
     this.setupEditorWatchers();
@@ -35,87 +41,87 @@ export class GitWatcher implements vscode.Disposable {
     const headWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(gitBase, "HEAD"),
     );
-    headWatcher.onDidChange(() => this.notify("all"));
-    headWatcher.onDidCreate(() => this.notify("all"));
-    headWatcher.onDidDelete(() => this.notify("all"));
+    headWatcher.onDidChange(() => this.notify());
+    headWatcher.onDidCreate(() => this.notify());
+    headWatcher.onDidDelete(() => this.notify());
     this.disposables.push(headWatcher);
 
     // .git/refs/heads/** → branches
     const headsWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(gitBase, "refs/heads/**"),
     );
-    headsWatcher.onDidChange(() => this.notify("branches"));
-    headsWatcher.onDidCreate(() => this.notify("branches"));
-    headsWatcher.onDidDelete(() => this.notify("branches"));
+    headsWatcher.onDidChange(() => this.notify());
+    headsWatcher.onDidCreate(() => this.notify());
+    headsWatcher.onDidDelete(() => this.notify());
     this.disposables.push(headsWatcher);
 
     // .git/refs/remotes/** → branches
     const remotesWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(gitBase, "refs/remotes/**"),
     );
-    remotesWatcher.onDidChange(() => this.notify("branches"));
-    remotesWatcher.onDidCreate(() => this.notify("branches"));
-    remotesWatcher.onDidDelete(() => this.notify("branches"));
+    remotesWatcher.onDidChange(() => this.notify());
+    remotesWatcher.onDidCreate(() => this.notify());
+    remotesWatcher.onDidDelete(() => this.notify());
     this.disposables.push(remotesWatcher);
 
     // .git/refs/tags/** → branches (tags group)
     const tagsWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(gitBase, "refs/tags/**"),
     );
-    tagsWatcher.onDidChange(() => this.notify("branches"));
-    tagsWatcher.onDidCreate(() => this.notify("branches"));
-    tagsWatcher.onDidDelete(() => this.notify("branches"));
+    tagsWatcher.onDidChange(() => this.notify());
+    tagsWatcher.onDidCreate(() => this.notify());
+    tagsWatcher.onDidDelete(() => this.notify());
     this.disposables.push(tagsWatcher);
 
     // .git/index → status
     const indexWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(gitBase, "index"),
     );
-    indexWatcher.onDidChange(() => this.notify("status"));
+    indexWatcher.onDidChange(() => this.notify());
     this.disposables.push(indexWatcher);
 
     // .git/MERGE_HEAD → mergeState
     const mergeHeadWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(gitBase, "MERGE_HEAD"),
     );
-    mergeHeadWatcher.onDidChange(() => this.notify("mergeState"));
-    mergeHeadWatcher.onDidCreate(() => this.notify("mergeState"));
-    mergeHeadWatcher.onDidDelete(() => this.notify("mergeState"));
+    mergeHeadWatcher.onDidChange(() => this.notify());
+    mergeHeadWatcher.onDidCreate(() => this.notify());
+    mergeHeadWatcher.onDidDelete(() => this.notify());
     this.disposables.push(mergeHeadWatcher);
 
     // .git/CHERRY_PICK_HEAD → mergeState (cherry-pick state)
     const cherryPickHeadWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(gitBase, "CHERRY_PICK_HEAD"),
     );
-    cherryPickHeadWatcher.onDidChange(() => this.notify("mergeState"));
-    cherryPickHeadWatcher.onDidCreate(() => this.notify("mergeState"));
-    cherryPickHeadWatcher.onDidDelete(() => this.notify("mergeState"));
+    cherryPickHeadWatcher.onDidChange(() => this.notify());
+    cherryPickHeadWatcher.onDidCreate(() => this.notify());
+    cherryPickHeadWatcher.onDidDelete(() => this.notify());
     this.disposables.push(cherryPickHeadWatcher);
 
     // .git/rebase-merge/** → mergeState (rebase state)
     const rebaseMergeWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(gitBase, "rebase-merge/**"),
     );
-    rebaseMergeWatcher.onDidChange(() => this.notify("mergeState"));
-    rebaseMergeWatcher.onDidCreate(() => this.notify("mergeState"));
-    rebaseMergeWatcher.onDidDelete(() => this.notify("mergeState"));
+    rebaseMergeWatcher.onDidChange(() => this.notify());
+    rebaseMergeWatcher.onDidCreate(() => this.notify());
+    rebaseMergeWatcher.onDidDelete(() => this.notify());
     this.disposables.push(rebaseMergeWatcher);
 
     // .git/rebase-apply/** → mergeState (rebase state)
     const rebaseApplyWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(gitBase, "rebase-apply/**"),
     );
-    rebaseApplyWatcher.onDidChange(() => this.notify("mergeState"));
-    rebaseApplyWatcher.onDidCreate(() => this.notify("mergeState"));
-    rebaseApplyWatcher.onDidDelete(() => this.notify("mergeState"));
+    rebaseApplyWatcher.onDidChange(() => this.notify());
+    rebaseApplyWatcher.onDidCreate(() => this.notify());
+    rebaseApplyWatcher.onDidDelete(() => this.notify());
     this.disposables.push(rebaseApplyWatcher);
 
     // .git/COMMIT_EDITMSG → log
     const commitMsgWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(gitBase, "COMMIT_EDITMSG"),
     );
-    commitMsgWatcher.onDidChange(() => this.notify("log"));
-    commitMsgWatcher.onDidCreate(() => this.notify("log"));
+    commitMsgWatcher.onDidChange(() => this.notify());
+    commitMsgWatcher.onDidCreate(() => this.notify());
     this.disposables.push(commitMsgWatcher);
   }
 
@@ -129,41 +135,47 @@ export class GitWatcher implements vscode.Disposable {
     this.disposables.push(
       vscode.workspace.onDidSaveTextDocument((doc) => {
         if (doc.uri.fsPath.startsWith(this.workspaceRoot)) {
-          this.notify("status");
+          this.notify();
         }
       }),
     );
   }
 
-  private notify(scope: Scope): void {
-    // Debounce per scope, 300ms
-    const existing = this.debounceTimers.get(scope);
-    if (existing) {
-      clearTimeout(existing);
+  /**
+   * External git-change ingress (e.g. builtinGitBridge → repoRegistry):
+   * resets the same debounce timer as file-watcher notifications so external
+   * and filesystem change sources converge into a single invalidation +
+   * broadcast instead of each triggering its own round.
+   */
+  notifyExternal(): void {
+    this.notify();
+  }
+
+  private notify(): void {
+    // Debounce 300ms, single timer across all scopes (see field comment).
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
     }
 
-    this.debounceTimers.set(
-      scope,
-      setTimeout(() => {
-        this.debounceTimers.delete(scope);
-        this.cache.invalidate();
-        // Multi-repo: tag the event with the owning repo so the webview can
-        // decide whether to refetch (current repo) or ignore (other repo).
-        this.messageRouter.broadcastEvent("gitStateChanged", {
-          scope,
-          repoPath: this.workspaceRoot,
-        });
-        // Notify extension-host listeners (status bar, etc.).
-        this._onChanged.fire();
-      }, 300),
-    );
+    this.debounceTimer = setTimeout(() => {
+      this.debounceTimer = null;
+      this.svc.invalidateCache();
+      // Multi-repo: tag the event with the owning repo so the webview can
+      // decide whether to refetch (current repo) or ignore (other repo).
+      this.messageRouter.broadcastEvent("gitStateChanged", {
+        scope: "all",
+        repoPath: this.workspaceRoot,
+      });
+      // Notify extension-host listeners (status bar, etc.).
+      this._onChanged.fire();
+    }, 300);
   }
 
   dispose(): void {
-    for (const timer of this.debounceTimers.values()) {
-      clearTimeout(timer);
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
     }
-    this.debounceTimers.clear();
     for (const d of this.disposables) {
       d.dispose();
     }

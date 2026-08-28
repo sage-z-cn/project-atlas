@@ -6,8 +6,10 @@ import { requireGit, withProgress } from "../gitContext";
  * Commit / stage / reset / revert / tag handlers.
  *
  * Extracted from reference project extension.ts. Staging mutations broadcast
- * commitStateChanged; commit-class mutations broadcast both commitStateChanged
- * and gitStateChanged. dropCommit preserves its special validation prologue
+ * commitStateChanged; commit-class mutations broadcast gitStateChanged only
+ * (commitStateChanged 的全部监听方都同时监听 gitStateChanged，成对广播是
+ * 纯放大器，已合并为单次 gitStateChanged 广播).
+ * dropCommit preserves its special validation prologue
  * (hash format + merge-commit rejection + 30s timeout) before entering
  * withProgress.
  */
@@ -89,7 +91,7 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
       }
 
       await gitService.commit(message, amend ?? false);
-      messageRouter.broadcastEvent("commitStateChanged", {});
+      // 监听方均同时订阅 gitStateChanged，成对广播合并为单次（见文件头注释）。
       messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
       return { success: true };
     }),
@@ -122,7 +124,7 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
         // webview) even when the subsequent push is rejected, so broadcast
         // state changes here instead of after push.
         await gitService.commit(message, amend ?? false);
-        messageRouter.broadcastEvent("commitStateChanged", {});
+        // 监听方均同时订阅 gitStateChanged，成对广播合并为单次（见文件头注释）。
         messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
 
         const branch = await gitService.getCurrentBranch();
@@ -158,7 +160,7 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
     requireGit(ctx, async (gitService, params) => {
       const message = params.message as string;
       await gitService.commit(message, true);
-      messageRouter.broadcastEvent("commitStateChanged", {});
+      // 监听方均同时订阅 gitStateChanged，成对广播合并为单次（见文件头注释）。
       messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
       return { success: true };
     }),
@@ -240,8 +242,8 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
 
         await Promise.race([dropPromise, timeoutPromise]);
 
+        // 监听方均同时订阅 gitStateChanged，成对广播合并为单次（见文件头注释）。
         messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
-        messageRouter.broadcastEvent("commitStateChanged", {});
         return { success: true };
       });
     }),

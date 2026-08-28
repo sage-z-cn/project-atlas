@@ -22,6 +22,31 @@ function ProgressBar({ visible }: { visible: boolean }) {
   );
 }
 
+// 共享的 git 状态事件订阅：RebaseBanner / CherryPickBanner / MergeBanner 都需要
+// 在 gitStateChanged/commitStateChanged 时重新拉取自身状态。与其各挂一个
+// bridge.onEvent 订阅（同一事件触发 3 个独立分发轮），不如用单个模块级订阅
+// 向所有已注册回调扇出；最后一个回调取消订阅时才拆掉底层订阅。
+type GitStateCallback = () => void;
+const gitStateCallbacks = new Set<GitStateCallback>();
+let gitStateUnsubscribe: (() => void) | null = null;
+function subscribeGitStateChanged(callback: GitStateCallback): () => void {
+  gitStateCallbacks.add(callback);
+  if (!gitStateUnsubscribe) {
+    gitStateUnsubscribe = bridge.onEvent((event) => {
+      if (event === "gitStateChanged" || event === "commitStateChanged") {
+        for (const cb of gitStateCallbacks) cb();
+      }
+    });
+  }
+  return () => {
+    gitStateCallbacks.delete(callback);
+    if (gitStateCallbacks.size === 0 && gitStateUnsubscribe) {
+      gitStateUnsubscribe();
+      gitStateUnsubscribe = null;
+    }
+  };
+}
+
 interface RebaseState {
   isRebasing: boolean;
   branchName?: string;
@@ -44,11 +69,7 @@ function RebaseBanner() {
 
   useEffect(() => {
     fetchState();
-    const unsub = bridge.onEvent((event) => {
-      if (event === "gitStateChanged" || event === "commitStateChanged") {
-        fetchState();
-      }
-    });
+    const unsub = subscribeGitStateChanged(() => fetchState());
     return unsub;
   }, [fetchState]);
 
@@ -204,11 +225,7 @@ function CherryPickBanner() {
 
   useEffect(() => {
     fetchState();
-    const unsub = bridge.onEvent((event) => {
-      if (event === "gitStateChanged" || event === "commitStateChanged") {
-        fetchState();
-      }
-    });
+    const unsub = subscribeGitStateChanged(() => fetchState());
     return unsub;
   }, [fetchState]);
 
@@ -377,11 +394,7 @@ function MergeBanner() {
 
   useEffect(() => {
     fetchState();
-    const unsub = bridge.onEvent((event) => {
-      if (event === "gitStateChanged" || event === "commitStateChanged") {
-        fetchState();
-      }
-    });
+    const unsub = subscribeGitStateChanged(() => fetchState());
     return unsub;
   }, [fetchState]);
 

@@ -47,6 +47,11 @@ const LOG_FORMAT = [
 export class GitService {
   readonly cache = new GitCache();
 
+  // 短 TTL（1.5s）缓存仅供 getWorkingTreeChanges 合并同一事件窗口内的
+  // 多个调用方（状态栏/徽标/getRepoStatuses/fetchChanges）；真实变化由
+  // watcher 到期时的 svc.invalidateCache()（见 gitWatcher.ts）清缓存保证。
+  private readonly statusCache = new GitCache(1500);
+
   constructor(readonly cwd: string) {}
 
   private async execGit(
@@ -1157,6 +1162,15 @@ export class GitService {
   // ─── Commit Panel Operations ───────────────────────────────────────
 
   async getWorkingTreeChanges(): Promise<import("./types").WorkingTreeFile[]> {
+    // 同一事件窗口内多个调用方（状态栏/徽标/getRepoStatuses/fetchChanges）
+    // 各自触发一次 `git status` 子进程，短 TTL 只为把它们合并为一次执行；
+    // 真实变化由 watcher 的 svc.invalidateCache() 清缓存保证，不读旧值。
+    const cached = this.statusCache.get<import("./types").WorkingTreeFile[]>(
+      "wtChanges",
+    );
+    if (cached) {
+      return cached;
+    }
     const output = await this.execGit(["status", "--porcelain=v1", "-uall"]);
     const files: import("./types").WorkingTreeFile[] = [];
 
@@ -1247,12 +1261,17 @@ export class GitService {
         });
       }
     }
+    this.statusCache.set("wtChanges", files);
     return files;
   }
 
   async stageFiles(filePaths: string[]): Promise<void> {
     if (filePaths.length === 0) return;
     await this.execGit(["add", "--", ...filePaths]);
+    // stage/unstage 改写 .git/index，必须同步失效 statusCache：index 的
+    // lockfile+rename 写入在部分平台漏报 FS watcher 事件（见 setupGit 聚焦
+    // 广播注释），漏报时 1.5s TTL 内会返回旧的 working tree 状态。
+    this.invalidateCache();
   }
 
   /**
@@ -1275,6 +1294,8 @@ export class GitService {
       // unborn 分支：所有暂存文件都是新文件，rm --cached 等价于 reset HEAD 对新文件的效果
       await this.execGit(["rm", "--cached", "--ignore-unmatch", "--", filePath]);
     }
+    // stage/unstage 也必须失效 statusCache（理由同 stageFiles）。
+    this.invalidateCache();
   }
 
   async unstageFiles(filePaths: string[]): Promise<void> {
@@ -1286,6 +1307,8 @@ export class GitService {
     } else {
       await this.execGit(["rm", "--cached", "--ignore-unmatch", "--", ...filePaths]);
     }
+    // stage/unstage 也必须失效 statusCache（理由同 stageFiles）。
+    this.invalidateCache();
   }
 
   async unstageAll(): Promise<void> {
@@ -1295,10 +1318,14 @@ export class GitService {
       // unborn 分支：清空 index 中所有暂存文件；--ignore-unmatch 避免 index 为空时报错
       await this.execGit(["rm", "-r", "--cached", "--ignore-unmatch", "."]);
     }
+    // stage/unstage 也必须失效 statusCache（理由同 stageFiles）。
+    this.invalidateCache();
   }
 
   async stageAll(): Promise<void> {
     await this.execGit(["add", "-A"]);
+    // stage/unstage 也必须失效 statusCache（理由同 stageFiles）。
+    this.invalidateCache();
   }
 
   async commit(message: string, amend = false): Promise<void> {
@@ -1590,23 +1617,27 @@ export class GitService {
     // Load files for each stash
     // 内层 try-catch 保留：单个 stash 的 file list 解析失败属于可降级场景，
     // 不应影响整体返回（files 字段保持为空数组即可）。
-    for (const entry of entries) {
-      try {
-        const filesOutput = await this.execGit([
-          "stash",
-          "show",
-          entry.id,
-          "--name-only",
-        ]);
-        entry.files = filesOutput
-          .trim()
-          .split("\n")
-          .filter(Boolean)
-          .map(unquoteGitPath);
-      } catch {
-        // 单个 stash 的 file list 解析失败，忽略，files 保持为 []
-      }
-    }
+    // Promise.all 并发执行各 stash 的 `git stash show`：串行会对 N 个
+    // stash 连续跑 N 个子进程，并发合并为一批完成。
+    await Promise.all(
+      entries.map(async (entry) => {
+        try {
+          const filesOutput = await this.execGit([
+            "stash",
+            "show",
+            entry.id,
+            "--name-only",
+          ]);
+          entry.files = filesOutput
+            .trim()
+            .split("\n")
+            .filter(Boolean)
+            .map(unquoteGitPath);
+        } catch {
+          // 单个 stash 的 file list 解析失败，忽略，files 保持为 []
+        }
+      }),
+    );
 
     return entries;
   }
@@ -1765,6 +1796,8 @@ export class GitService {
 
   invalidateCache(pattern?: string): void {
     this.cache.invalidate(pattern);
+    // statusCache 只有一个整体键，无需 pattern 精确失效，一并清空。
+    this.statusCache.invalidate();
   }
 }
 

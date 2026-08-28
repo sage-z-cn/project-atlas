@@ -51,7 +51,19 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
   // is independently try/caught so a single broken repo (no commits yet, git
   // failure, detached HEAD) never aborts the whole batch — it just reports
   // null ahead/behind + dirty 0 for that one repo.
-  messageRouter.handle("getRepoStatuses", async () => {
+  //
+  // In-flight merge: panel 和 commit 两个 webview 会在同一事件窗口内各自
+  // 请求一次 getRepoStatuses，每次都要对每个 repo 跑 git 子进程。这里把
+  // 并发相同请求合并为一次执行，共享同一个 Promise。批执行期间若又有新
+  // 请求到达（变更后事件触发，最早 ~700ms 后到达），可能加入的是变更前
+  // 启动、仍在跑的旧批次——批后补跑一轮（while requestedDuringFlight），
+  // 所有共享该 Promise 的调用方最终拿到最新一轮结果。刻意不加 TTL——
+  // 正确性依赖 watcher「先 invalidate 后广播」的顺序，TTL 会在广播后
+  // 返回旧值。
+  let inFlight: Promise<unknown> | null = null;
+  let requestedDuringFlight = false;
+  // 原批次执行体：全量拉取每个 repo 的 ahead/behind/dirty/branch。
+  const runBatch = async () => {
     await registry.whenReady;
     const infos = registry.getRepoInfos();
     const statuses = await Promise.all(
@@ -70,8 +82,10 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
           const [branches, changes] = await Promise.all([
             // noCache: ahead/behind 徽章必须实时反映外部进程的提交。git 更
             // 新 refs 走 lockfile + 原子 rename,FS watcher 可能漏报,若读
-            // TTL 缓存会返回旧计数(getWorkingTreeChanges 本就无缓存)。
-            // 结果仍写回缓存,其他调用方继续受益。
+            // 5s TTL 缓存会返回旧计数,故 getBranches 需 noCache 绕过。
+            // getWorkingTreeChanges 自带 1.5s 短 TTL 缓存(statusCache),
+            // 可吸收本批次的重复调用,无需绕过。结果仍写回缓存,其他调用
+            // 方继续受益。
             svc.getBranches({ noCache: true }),
             svc.getWorkingTreeChanges(),
           ]);
@@ -102,6 +116,26 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
       }),
     );
     return { statuses };
+  };
+  messageRouter.handle("getRepoStatuses", () => {
+    if (inFlight) {
+      requestedDuringFlight = true;
+      return inFlight;
+    }
+    inFlight = (async () => {
+      let result = await runBatch();
+      // 批执行期间有新请求到达（可能携带变更后状态）→ 补跑一轮，
+      // 所有共享该 Promise 的调用方最终拿到最新一轮结果。
+      while (requestedDuringFlight) {
+        requestedDuringFlight = false;
+        result = await runBatch();
+      }
+      return result;
+    })();
+    inFlight.finally(() => {
+      inFlight = null;
+    });
+    return inFlight;
   });
 
   // 在工作区非 git 目录(或指定目录)执行 `git init`。

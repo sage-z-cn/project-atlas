@@ -1259,6 +1259,18 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   },
 }));
 
+// 400ms trailing-debounce state for gitStateChanged refreshes (see the
+// gitStateChanged branch below). Command handlers broadcast immediately and
+// the watcher re-broadcasts ~300ms later; without coalescing, both events
+// trigger a full getGraphData refetch round.
+let panelGitRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+// Repos accumulated within the window + whether a global (repoPath-less)
+// event was seen. With multiple repos changing concurrently, ANY event
+// matching the current repo must trigger the graph refresh — a last-wins
+// repoPath would let a sibling-repo event cancel a current-repo refresh.
+let pendingPanelGitEventRepoPaths = new Set<string>();
+let pendingPanelGitEventIsGlobal = false;
+
 // Listen for git state changes + multi-repo events.
 //
 // repoChanged (oracle hard constraint #3): the host is the single source of
@@ -1349,11 +1361,6 @@ bridge.onEvent((event, data) => {
     return;
   }
   if (event === "gitStateChanged") {
-    // Badges show EVERY repo's status, so refresh them on any repo's change
-    // (the watcher already debounces 300ms, so a full round-trip is acceptable).
-    // This runs before the current-repo filter below so a background repo's
-    // ahead/dirty count updates even while viewing a different repo.
-    usePanelStore.getState().fetchRepoStatuses();
     const { repoPath, scope, branch } = (data ?? {}) as {
       repoPath?: string;
       scope?: string;
@@ -1364,7 +1371,8 @@ bridge.onEvent((event, data) => {
     // navigateToHead command (single-click action in BranchTree). Resolve the
     // branch's head commit hash, select it, and set scrollTargetHash so
     // CommitList scrolls it into view. This is a scroll-only op — do NOT
-    // refresh the graph (the commits are already loaded).
+    // refresh the graph (the commits are already loaded). Scroll semantics
+    // must stay immediate, so this path bypasses the refresh debounce below.
     if (scope === "navigateToHead" && branch) {
       const state = usePanelStore.getState();
       const branchInfo = state.branches.find((b) => b.name === branch);
@@ -1380,12 +1388,41 @@ bridge.onEvent((event, data) => {
       return;
     }
 
-    // Multi-repo filter: only refresh the LOG for the current repo. Events
-    // without repoPath (global command-handler broadcasts) are always honored.
-    if (repoPath && repoPath !== usePanelStore.getState().currentRepoPath) {
-      return;
+    // All other refresh-triggering events coalesce into one 400ms trailing
+    // window: command handlers broadcast immediately and the watcher
+    // re-broadcasts ~300ms later — without coalescing, both fire a full
+    // getGraphData round. Repo membership accumulates across the window.
+    if (repoPath) {
+      pendingPanelGitEventRepoPaths.add(repoPath);
+    } else {
+      // RepoPath-less events (global command-handler broadcasts) always
+      // refresh.
+      pendingPanelGitEventIsGlobal = true;
     }
-    usePanelStore.getState().refresh();
+    if (panelGitRefreshTimer) {
+      clearTimeout(panelGitRefreshTimer);
+    }
+    panelGitRefreshTimer = setTimeout(() => {
+      panelGitRefreshTimer = null;
+      const repoPaths = pendingPanelGitEventRepoPaths;
+      const isGlobal = pendingPanelGitEventIsGlobal;
+      // Consume and reset — the next window accumulates from scratch.
+      pendingPanelGitEventRepoPaths = new Set();
+      pendingPanelGitEventIsGlobal = false;
+      // Badges show EVERY repo's status, so refresh them on any repo's
+      // change. This runs before the current-repo filter below so a
+      // background repo's ahead/dirty count updates even while viewing a
+      // different repo.
+      usePanelStore.getState().fetchRepoStatuses();
+      // Multi-repo filter: refresh the LOG when ANY pending event was global
+      // or tagged with the current repo — sibling-repo events in the same
+      // window must not cancel a current-repo refresh.
+      const current = usePanelStore.getState().currentRepoPath;
+      if (!isGlobal && (!current || !repoPaths.has(current))) {
+        return;
+      }
+      usePanelStore.getState().refresh();
+    }, 400);
     return;
   }
   if (event === "focusCommit") {

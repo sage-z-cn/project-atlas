@@ -269,13 +269,18 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => scheduleRescan()),
     (() => {
-      // 监听 .git 目录创建:用户在外部执行 `git init` 时触发自动重扫。
-      // `**/.git` 匹配任意层级的 .git 目录(含 submodule),onDidCreate 只在
-      // 目录首次创建时触发,不关心后续内容修改,开销可控。
+      // 监听 .git 目录创建/删除:外部 `git init`(创建)或仓库被删除
+      // (rm -rf .git / 整仓移除,删除)时触发防抖重扫。rescan 的 delta
+      // 逻辑(repoRegistry)本就同时处理新增与移除两侧,这里只需给触发
+      // 信号。`**/.git` 匹配任意层级的 .git 目录(含 submodule),
+      // onDidCreate/onDidDelete 只在目录出现/消失时触发,不关心后续
+      // 内容修改,开销可控。
       const watcher = vscode.workspace.createFileSystemWatcher("**/.git");
-      const sub = watcher.onDidCreate(() => scheduleRescan());
+      const subCreate = watcher.onDidCreate(() => scheduleRescan());
+      const subDelete = watcher.onDidDelete(() => scheduleRescan());
       return { dispose: () => {
-        sub.dispose();
+        subCreate.dispose();
+        subDelete.dispose();
         watcher.dispose();
       } };
     })(),

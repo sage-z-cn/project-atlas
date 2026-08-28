@@ -148,7 +148,9 @@ export class RepoRegistry implements vscode.Disposable {
     for (const info of infos) {
       if (!this.services.has(info.path)) {
         const svc = new GitService(info.path);
-        const watcher = new GitWatcher(info.path, this.messageRouter, svc.cache);
+        // 传 svc 而非 svc.cache：watcher 到期时调 svc.invalidateCache()，
+        // 一并失效 gitService 内部的 statusCache（见 gitWatcher 构造注释）。
+        const watcher = new GitWatcher(info.path, this.messageRouter, svc);
         // Bridge per-repo watcher changes into the registry-wide signal.
         // Subscription lifetime follows the watcher: watcher.dispose() disposes
         // its internal emitter and severs this listener automatically.
@@ -292,6 +294,15 @@ export class RepoRegistry implements vscode.Disposable {
    * registry, e.g. parents opened by the builtin git extension) are ignored.
    */
   notifyExternalGitChange(repoPath: string): void {
+    // 优先委托给该仓库的 GitWatcher：外部变化与文件系统变化经由同一个
+    // 300ms 单防抖 timer 汇成单点，避免双源各自触发一轮 invalidate+广播。
+    const watcher = this.watchers.get(normalizePath(repoPath));
+    if (watcher) {
+      watcher.notifyExternal();
+      return;
+    }
+    // Fallback（无 watcher 的边缘场景）：直接镜像 GitWatcher 到期时的
+    // 失效 + 广播 + fire 流程。
     const svc = this.services.get(normalizePath(repoPath));
     if (!svc) {
       return;

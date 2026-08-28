@@ -955,18 +955,12 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   },
 
   async refresh() {
-    // Trigger a host-side rescan first so an external `git init` (or a repo
-    // removed outside VSCode) is reflected in the repo list before we refetch
-    // local state. The host then broadcasts reposChanged if the set changed.
-    try {
-      await bridge.request("refreshGitState", {});
-    } catch (err) {
-      console.error("refreshGitState failed:", err);
-    }
-    await Promise.all([
-      get().fetchChanges(),
-      get().fetchStashes(),
-    ]);
+    // 注意：这里不再请求 refreshGitState —— 该请求会让 host 端 rescan 全部
+    // workspace roots 并广播 gitStateChanged{scope:"all"}，又反过来触发所有
+    // store 完整刷新一轮（一次 refresh = 两轮全量刷新的自激放大）。rescan
+    // 语义已由 BranchSidebar 的显式 refreshGitState 请求与窗口聚焦广播覆盖，
+    // refresh() 只做本地 changes + stashes 拉取。
+    await Promise.all([get().fetchChanges(), get().fetchStashes()]);
   },
 }));
 
@@ -982,6 +976,19 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 // the owning repoPath. We only refresh when the event is for the current repo
 // (or carries no repoPath, e.g. the global { scope: "all" } broadcasts from
 // command handlers).
+// gitStateChanged/commitStateChanged 的 400ms 合并窗口（trailing debounce）。
+// host 端一次 commit 操作会在短窗口内到达 2 个事件（命令 handler 的即时广播 +
+// watcher 的 300ms 防抖广播），而每个事件都会独立触发一轮
+// fetchRepoStatuses + fetchChanges/fetchStashes/fetchHasRemote 全量请求。
+// 这里把短窗口内的事件合并为一次尾部执行（首个事件也延迟 400ms），用约
+// 半秒的刷新延迟换取消除重复的整轮请求。其他事件分支保持即时处理。
+let gitRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+// 窗口内累积的事件 repoPath 集合 + 是否出现过全局事件（无 repoPath）。
+// 多仓库并发变更时（脚本同时在多个 repo 提交）任一事件属于当前 repo 即刷新；
+// 只取最后一个 repoPath 会把先到的当前 repo 事件挤掉（last-wins 丢刷新）。
+let pendingGitEventRepoPaths = new Set<string>();
+let pendingGitEventIsGlobal = false;
+
 bridge.onEvent((event, data) => {
   // Host-driven tab switch (e.g. "new version" entry points elsewhere in
   // the extension). Only valid tab values are honored.
@@ -1073,21 +1080,42 @@ bridge.onEvent((event, data) => {
     return;
   }
   if (event === "commitStateChanged" || event === "gitStateChanged") {
-    // Badges show EVERY repo's status, so refresh them on any repo's change
-    // (the watcher already debounces 300ms, so a full round-trip is acceptable).
-    useCommitStore.getState().fetchRepoStatuses();
+    // 400ms 合并窗口：累积窗口内所有事件的 repo 归属并重置定时器，到期后
+    // 统一执行一轮刷新（见上方 gitRefreshTimer 声明处的动机说明）。
     const { repoPath } = (data ?? {}) as { repoPath?: string };
-    // Multi-repo filter: only refresh changes/stashes for the current repo.
-    // Events without repoPath (global command-handler broadcasts) are always
-    // honored.
-    if (repoPath && repoPath !== useCommitStore.getState().currentRepoPath) {
-      return;
+    if (repoPath) {
+      pendingGitEventRepoPaths.add(repoPath);
+    } else {
+      // 无 repoPath 的事件（全局命令广播）无条件刷新。
+      pendingGitEventIsGlobal = true;
     }
-    useCommitStore.getState().fetchChanges();
-    useCommitStore.getState().fetchStashes();
-    // 覆盖外部 `git remote add/remove`（修改 .git/config → watcher 广播
-    // gitStateChanged），保持"提交并推送"按钮禁用状态与实际 remote 一致。
-    useCommitStore.getState().fetchHasRemote();
+    if (gitRefreshTimer !== null) {
+      clearTimeout(gitRefreshTimer);
+    }
+    gitRefreshTimer = setTimeout(() => {
+      gitRefreshTimer = null;
+      const repoPaths = pendingGitEventRepoPaths;
+      const isGlobal = pendingGitEventIsGlobal;
+      // 消费后重置，下一窗口重新累积。
+      pendingGitEventRepoPaths = new Set();
+      pendingGitEventIsGlobal = false;
+      // Badges show EVERY repo's status, so refresh them on any repo's change
+      // (the watcher already debounces 300ms, so a full round-trip is
+      // acceptable).
+      useCommitStore.getState().fetchRepoStatuses();
+      // Multi-repo filter: refresh changes/stashes when ANY pending event was
+      // global or tagged with the current repo — sibling-repo events in the
+      // same window must not cancel a current-repo refresh.
+      const current = useCommitStore.getState().currentRepoPath;
+      if (!isGlobal && (!current || !repoPaths.has(current))) {
+        return;
+      }
+      useCommitStore.getState().fetchChanges();
+      useCommitStore.getState().fetchStashes();
+      // 覆盖外部 `git remote add/remove`（修改 .git/config → watcher 广播
+      // gitStateChanged），保持"提交并推送"按钮禁用状态与实际 remote 一致。
+      useCommitStore.getState().fetchHasRemote();
+    }, 400);
     return;
   }
 });
