@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.19.2
+**改进**
+- **Git**: 合并重复广播与并发状态请求，并为工作区状态添加短 TTL 缓存以提升性能
+
 #### 1.19.1
 **Bug 修复**
 - **任务**: 用字符串感知的 JSONC 解析器替换正则清理逻辑
