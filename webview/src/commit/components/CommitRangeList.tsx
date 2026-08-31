@@ -7,6 +7,12 @@ import ChevronIcon from "~icons/codicon/chevron-right";
 export function CommitRangeList({ commits }: { commits: NewVersionCommit[] }) {
   const [open, setOpen] = useState(true);
   const locateCommit = useNewVersionStore((s) => s.locateCommit);
+  const toggleCommitSelected = useNewVersionStore((s) => s.toggleCommitSelected);
+  const selectedCommitHashes = useNewVersionStore((s) => s.selectedCommitHashes);
+
+  const selectedCount = commits.filter((c) =>
+    selectedCommitHashes.includes(c.hash),
+  ).length;
 
   return (
     <section className="new-version-section">
@@ -20,7 +26,12 @@ export function CommitRangeList({ commits }: { commits: NewVersionCommit[] }) {
           <ChevronIcon />
         </span>
         <span>{t("Commits for New Version")}</span>
-        <span className="new-version-count-badge">{commits.length}</span>
+        <span
+          className="new-version-count-badge"
+          title={t("Selected {0} of {1} commits", selectedCount, commits.length)}
+        >
+          {selectedCount}/{commits.length}
+        </span>
       </button>
 
       {open &&
@@ -36,6 +47,16 @@ export function CommitRangeList({ commits }: { commits: NewVersionCommit[] }) {
                   title={c.subject}
                   onClick={() => locateCommit(c.hash)}
                 >
+                  <input
+                    type="checkbox"
+                    className="new-version-commit-check"
+                    checked={selectedCommitHashes.includes(c.hash)}
+                    aria-label={t("Include in changelog generation")}
+                    title={t("Include in changelog generation")}
+                    // Keep the row's locate-click out of the checkbox hit.
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleCommitSelected(c.hash)}
+                  />
                   <span className="new-version-commit-subject">{c.subject}</span>
                   <span className="new-version-commit-meta">
                     {c.author} · {c.shortDate}

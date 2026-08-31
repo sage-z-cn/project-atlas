@@ -1123,6 +1123,15 @@ button.commit-dropdown-item:hover:not(:disabled) {
   background: var(--hover-bg);
 }
 
+/* Selection checkbox (feeds the changelog prompt); native look like the
+ * other newVersion checkboxes — just zero out the UA margin so the row
+ * stays compact. Clicking it must not trigger the row's locate action
+ * (stopPropagation in CommitRangeList). */
+.new-version-commit-check {
+  flex-shrink: 0;
+  margin: 0;
+}
+
 .new-version-commit-subject {
   flex: 1;
   min-width: 0;
