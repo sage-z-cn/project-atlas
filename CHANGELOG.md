@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.20.0
+**新功能**
+- **发布**: 完善发布结果展示并支持 token 状态广播
+
 #### 1.19.2
 **改进**
 - **Git**: 合并重复广播与并发状态请求，并为工作区状态添加短 TTL 缓存以提升性能
