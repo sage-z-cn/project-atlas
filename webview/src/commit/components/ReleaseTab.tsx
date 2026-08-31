@@ -15,6 +15,7 @@ import type {
   ReleasePublishResult,
   ReleaseTarget,
 } from "../../shared/store/release-store";
+import { ModalOverlay } from "./Modal";
 import CheckIcon from "~icons/codicon/check";
 import CloseIcon from "~icons/codicon/close";
 import CopyIcon from "~icons/codicon/copy";
@@ -30,8 +31,9 @@ import WarningIcon from "~icons/codicon/warning";
  * Remote release publishing form, laid out after GitHub's release page
  * (`github.com/{owner}/{repo}/releases/new`): target platforms → target
  * branch → tag (choose/new) → title → notes → attachments → flags →
- * publish. Results (one row per platform) render inline below the action
- * row once publishing finishes.
+ * publish. Results (one row per platform) show in a centered modal (see
+ * ReleaseResultModal) once publishing finishes; closing it resets the
+ * form (already refreshed by publish) back to the idle action row.
  */
 export function ReleaseTab() {
   const targets = useReleaseStore((s) => s.targets);
@@ -93,9 +95,9 @@ export function ReleaseTab() {
             <span className="commit-error-message">{publishError}</span>
           </div>
         )}
-        <ResultSection />
         <PublishRow />
       </div>
+      <ReleaseResultModal />
     </div>
   );
 }
@@ -419,26 +421,68 @@ function FlagsSection() {
   );
 }
 
-// ─── Results + publish action row ─────────────────────────────────────────────
+// ─── Result modal + publish action row ────────────────────────────────────────
 
-function ResultSection() {
+/**
+ * Publish-finished modal (rendered while publishState === "done"): one row
+ * per platform — success/failure icon, URL (open / copy) or error summary.
+ * Escape / backdrop / Close all dismiss; closing returns the action row to
+ * idle (the form itself was already reset by publish's resetForm).
+ */
+function ReleaseResultModal() {
   const publishState = useReleaseStore((s) => s.publishState);
   const results = useReleaseStore((s) => s.results);
+  const closeResults = useReleaseStore((s) => s.closeResults);
 
   if (publishState !== "done" || results.length === 0) return null;
 
+  const allOk = results.every((r) => r.success);
+  const title = allOk ? t("Release Published") : t("Published with Errors");
+
   return (
-    <section className="new-version-section">
-      <div className="new-version-section-title">{t("Results")}</div>
-      {results.map((r) => (
-        <ResultRow key={`${r.platform}:${r.remoteName}`} result={r} />
-      ))}
-    </section>
+    <ModalOverlay onClose={closeResults} ariaLabel={title}>
+      <div className="new-version-modal-head">
+        <span
+          className={`new-version-modal-title release-result-head${
+            allOk ? " ok" : " fail"
+          }`}
+        >
+          {allOk ? <CheckIcon /> : <ErrorIcon />}
+          {title}
+        </span>
+        <button
+          type="button"
+          className="commit-error-close"
+          aria-label={t("Close")}
+          title={t("Close")}
+          onClick={closeResults}
+        >
+          <CloseIcon />
+        </button>
+      </div>
+      <div className="release-result-rows">
+        {results.map((r) => (
+          <ResultRow key={`${r.platform}:${r.remoteName}`} result={r} />
+        ))}
+      </div>
+      <div className="btn-row">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={closeResults}
+        >
+          {t("Close")}
+        </button>
+      </div>
+    </ModalOverlay>
   );
 }
 
 function ResultRow({ result }: { result: ReleasePublishResult }) {
   const url = result.success ? result.url : undefined;
+  const openUrl = () => {
+    if (url) void bridge.request("openExternalUrl", { url });
+  };
 
   return (
     <div className={`release-result-row${result.success ? " ok" : " fail"}`}>
@@ -450,11 +494,18 @@ function ResultRow({ result }: { result: ReleasePublishResult }) {
             type="button"
             className="release-result-url new-version-mono"
             title={t("Open in browser")}
-            onClick={() => {
-              void bridge.request("openExternalUrl", { url });
-            }}
+            onClick={openUrl}
           >
             {url}
+          </button>
+          <button
+            type="button"
+            className="release-result-open"
+            aria-label={t("Open in browser")}
+            title={t("Open in browser")}
+            onClick={openUrl}
+          >
+            <LinkExternalIcon />
           </button>
           <CopyUrlButton url={url} />
         </>
@@ -501,35 +552,19 @@ function PublishRow() {
   const publishState = useReleaseStore((s) => s.publishState);
   const canPublish = useReleaseStore(releaseCanPublish);
   const publish = useReleaseStore((s) => s.publish);
-  const reset = useReleaseStore((s) => s.reset);
   const attachments = useReleaseStore((s) => s.attachments);
   const hasGiteeSelected = useReleaseStore(releaseHasGiteeSelected);
 
   // The only hard-block reason surfaced as a tooltip: oversized attachments
   // with Gitee checked (the store gate blocks everything else generically).
   const overLimit = releaseOverLimitAttachments(attachments);
-  const blockedBySize =
-    hasGiteeSelected && overLimit.length > 0 && publishState !== "done";
+  const blockedBySize = hasGiteeSelected && overLimit.length > 0;
   const title = blockedBySize
     ? t(
         "Remove attachments exceeding {0} before publishing to Gitee",
         formatAttachmentSize(GITEE_ATTACHMENT_LIMIT),
       )
     : undefined;
-
-  if (publishState === "done") {
-    return (
-      <div className="btn-row">
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={reset}
-        >
-          {t("New Release")}
-        </button>
-      </div>
-    );
-  }
 
   const publishing = publishState === "publishing";
   return (

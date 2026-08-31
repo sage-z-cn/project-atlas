@@ -112,6 +112,9 @@ async function promptAndSaveGiteeToken(
     return false;
   }
   await setGiteeToken(ctx.context, trimmed);
+  // 已打开的 release tab webview 需要刷新 targets 的认证状态（命令面板
+  // 路径没有 request/response 通道，只能靠事件广播）
+  ctx.messageRouter.broadcastEvent("giteeTokenChanged", { configured: true });
   void vscode.window.showInformationMessage(
     vscode.l10n.t("Gitee token saved."),
   );
@@ -452,6 +455,8 @@ export function registerReleaseHandlers(ctx: GitHandlerContext): void {
     }),
     vscode.commands.registerCommand("git-atlas.clearGiteeToken", async () => {
       await clearGiteeToken(ctx.context);
+      // 同 promptAndSaveGiteeToken：广播让已打开的 release tab 刷新状态
+      messageRouter.broadcastEvent("giteeTokenChanged", { configured: false });
       void vscode.window.showInformationMessage(
         vscode.l10n.t("Gitee token cleared."),
       );

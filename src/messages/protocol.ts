@@ -173,7 +173,10 @@ export type EventType =
   | "aiConfigChanged"
   | "focusCommit"
   // commit 面板内部 tab 切换（git-atlas.newVersion 命令 → newVersion tab）
-  | "switchTab";
+  | "switchTab"
+  // Gitee token 写入/清除（release tab 内的 prompt 或命令面板命令）→
+  // 已打开的 webview 据此刷新 release targets 的认证状态
+  | "giteeTokenChanged";
 
 export interface RemoteBranchGroup {
   remote: string;

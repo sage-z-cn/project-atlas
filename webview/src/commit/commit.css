@@ -1925,6 +1925,10 @@ button.commit-dropdown-item:hover:not(:disabled) {
   font-size: 11px;
 }
 
+/* Icon-only ghost button. padding MUST be reset: the global element rule
+ * in variables.css gives every button 6px 14px padding, which inside a
+ * 20px border-box leaves a zero-width content area and squeezes the SVG
+ * out of sight. */
 .release-attachment-remove {
   flex-shrink: 0;
   display: inline-flex;
@@ -1932,12 +1936,17 @@ button.commit-dropdown-item:hover:not(:disabled) {
   justify-content: center;
   width: 20px;
   height: 20px;
+  padding: 0;
   border: none;
   border-radius: 4px;
   background: transparent;
   color: var(--vscode-foreground);
   cursor: pointer;
   opacity: 0.6;
+}
+
+.release-attachment-remove svg {
+  font-size: 14px;
 }
 
 .release-attachment-remove:hover {
@@ -1951,7 +1960,9 @@ button.commit-dropdown-item:hover:not(:disabled) {
   opacity: 0.55;
 }
 
-/* ── Per-platform publish results ── */
+/* ── Per-platform publish results ──
+ * Rows render inside the result modal (ModalOverlay); also reusable
+ * inline. */
 .release-result-row {
   display: flex;
   align-items: center;
@@ -2011,13 +2022,17 @@ button.commit-dropdown-item:hover:not(:disabled) {
   white-space: nowrap;
 }
 
-.release-copy-btn {
+/* Same zero-padding contract as .release-attachment-remove above — see
+ * the note there about the global button padding. */
+.release-copy-btn,
+.release-result-open {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 20px;
   height: 20px;
+  padding: 0;
   border: none;
   border-radius: 4px;
   background: transparent;
@@ -2026,7 +2041,42 @@ button.commit-dropdown-item:hover:not(:disabled) {
   opacity: 0.6;
 }
 
-.release-copy-btn:hover {
+.release-copy-btn:hover,
+.release-result-open:hover {
   opacity: 1;
   background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.1));
+}
+
+/* ── Publish result modal (rendered via ModalOverlay; see ReleaseTab) ──
+ * Head mirrors .new-version-result-head: green on full success, red when
+ * any platform failed. */
+.release-result-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.release-result-head svg {
+  font-size: 16px;
+}
+
+.release-result-head.ok {
+  color: var(--vscode-debugIcon-startForeground, #89d185);
+}
+
+.release-result-head.fail {
+  color: var(--vscode-errorForeground, #f48771);
+}
+
+/* Per-platform rows inside the result modal; the .modal card caps its
+ * height, so many-target lists scroll here instead. */
+.release-result-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
 }

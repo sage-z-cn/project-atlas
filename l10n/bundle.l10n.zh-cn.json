@@ -548,5 +548,7 @@
   "Publishing...": "正在发布...",
   "Publish Release": "去发布",
   "Set Gitee Token": "设置 Gitee 令牌",
-  "Open in browser": "在浏览器中打开"
+  "Open in browser": "在浏览器中打开",
+  "Release Published": "发布完成",
+  "Published with Errors": "发布完成（存在失败项）"
 }
