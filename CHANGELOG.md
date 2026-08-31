@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.22.0
+**新功能**
+- **任务**: 添加 taskType 字段以驱动 webview 任务图标
+
 #### 1.21.0
 **新功能**
 - **生成**: 支持选择提交纳入 changelog 生成
