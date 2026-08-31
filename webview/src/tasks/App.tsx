@@ -3,6 +3,7 @@ import { t } from "../shared/i18n";
 import { ContextMenu, type ContextMenuEntry } from "../shared/components/ContextMenu";
 import { useTaskStore, type TaskItemDto } from "../shared/store/task-store";
 import IconNpm from "~icons/devicon/npm";
+import IconTypeScript from "~icons/devicon/typescript";
 import IconTerminal from "~icons/codicon/terminal";
 import IconPlay from "~icons/codicon/play";
 import IconStop from "~icons/codicon/debug-stop";
@@ -288,8 +289,10 @@ function TaskRow({
       {dropPos === "before" && <div className="tasks-drop-indicator before" />}
       {indent && <span className="tasks-indent" />}
       <span className="tasks-item-icon">
-        {task.source === "npm" ? (
+        {task.taskType === "npm" ? (
           <IconNpm width={16} height={16} />
+        ) : task.taskType === "typescript" ? (
+          <IconTypeScript width={16} height={16} />
         ) : (
           <IconTerminal width={16} height={16} />
         )}

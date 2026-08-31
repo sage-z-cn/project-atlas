@@ -10,6 +10,8 @@ export interface TaskItemDto {
   relativeDir: string;
   cwd: string;
   packageManager: string;
+  /** Actual task type ("npm" / "shell" / "typescript" / ...) — drives the icon */
+  taskType: string;
 }
 export interface TaskProjectDto {
   relativePath: string;

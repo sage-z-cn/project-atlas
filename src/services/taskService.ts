@@ -430,6 +430,7 @@ export class TaskService {
           cwd,
           relativeDir,
           packageManager: "npm" as PackageManager,
+          taskType: t.type || "shell",
         });
       }
       return { tasks, npmScripts };
@@ -480,6 +481,7 @@ export class TaskService {
             cwd,
             relativeDir,
             packageManager,
+            taskType: "npm",
           };
         });
     } catch {
