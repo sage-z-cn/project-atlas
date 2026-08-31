@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.21.0
+**新功能**
+- **生成**: 支持选择提交纳入 changelog 生成
+
 #### 1.20.0
 **新功能**
 - **发布**: 完善发布结果展示并支持 token 状态广播
