@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { promisify } from "node:util";
+import * as vscode from "vscode";
 import { GitCache } from "./cache";
 import { computeGraphLayout } from "./graphLayout";
 import { logger } from "../utils/logger";
@@ -1190,12 +1191,17 @@ export class GitService {
    */
   private async restoreAutoStash(ref: string): Promise<void> {
     try {
-      await this.execGit(["stash", "pop", ref]);
+      // pop 只接受 stash@{n} 引用形式：记录的 SHA 须先解析（见
+      // resolveStashRefForm）。解析放在本 try 内 —— 自动贮藏已不在栈中
+      //（解析抛错）与 pop 本身失败走同一条降级路径，只 warn 不破坏
+      // dropCommit 流程。
+      const refForm = await this.resolveStashRefForm(ref);
+      await this.execGit(["stash", "pop", refForm]);
     } catch (err: unknown) {
       const detail = err instanceof Error ? err.message : String(err);
       logger.warn(
         `dropCommit: auto-stash restore (${ref}) failed: ${detail}. ` +
-          "The stash entry is kept in the stack; restore it manually via git stash pop.",
+          "If the stash entry is still in the stack, restore it manually via git stash pop.",
       );
     }
   }
@@ -1666,6 +1672,38 @@ export class GitService {
 
   // ─── Stash Operations ───────────────────────────────────────────
 
+  /**
+   * 将 stash 的完整 SHA 解析为执行瞬间的 reflog 引用形式（stash@{n}）。
+   *
+   * 为什么需要解析：git 的 `stash pop` / `stash drop` 只接受 stash 引用形式
+   * （stash@{n}），传入裸 SHA 会报
+   * `error: '...' is not a stash reference`（实测 git 2.50.1）；而
+   * `stash apply` / `stash show` / `checkout <sha> -- <path>` 均接受裸 SHA。
+   * 因此协议层的 SHA 寻址（稳定标识，不随栈漂移）在执行 pop/drop 前必须
+   * 换算成 stash@{n}。
+   *
+   * 解析方式：`git stash list --format=%H` 按栈序枚举，第 n 行即 stash@{n}，
+   * 按完整 SHA 精确匹配行号。匹配在执行瞬间进行且按 SHA 做恒等判定，不会
+   * 命中错误条目 —— SHA 防漂移语义不变；条目已不在栈中（找不到匹配行）则
+   * 抛错冒泡给调用方。
+   *
+   * execGit 是 execFile 数组传参，`stash@{0}` 字符串不经 shell，无解释风险。
+   *
+   * 已是引用形式（stash@{...}）的入参直接透传（dropCommit 的降级路径）。
+   */
+  private async resolveStashRefForm(ref: string): Promise<string> {
+    if (ref.startsWith("stash@{")) {
+      return ref;
+    }
+    const output = await this.execGit(["stash", "list", "--format=%H"]);
+    const shas = output.trim().split("\n").filter(Boolean);
+    const index = shas.indexOf(ref);
+    if (index === -1) {
+      throw new Error(vscode.l10n.t("Stash entry no longer exists."));
+    }
+    return `stash@{${index}}`;
+  }
+
   async getStashes(): Promise<import("./types").StashEntry[]> {
     // 不再用外层 try-catch 吞掉所有 git 错误并返回 [] —— 那会让真实 git 故障
     //（例如仓库损坏、git 可执行文件丢失）对调用方完全不可见。让 execGit 的错误
@@ -1789,15 +1827,27 @@ export class GitService {
 
   async unstashChanges(stashRef: string, drop = true): Promise<void> {
     if (drop) {
-      await this.execGit(["stash", "pop", stashRef]);
+      // pop 只接受 stash@{n} 引用形式（裸 SHA 报 not a stash reference），
+      // 执行瞬间由 SHA 解析出引用形式。条目已不在栈中时解析抛错冒泡。
+      await this.execGit([
+        "stash",
+        "pop",
+        await this.resolveStashRefForm(stashRef),
+      ]);
     } else {
+      // apply 接受裸 SHA，且 SHA 寻址不受栈序漂移影响，直接使用更稳。
       await this.execGit(["stash", "apply", stashRef]);
     }
     this.invalidateCache();
   }
 
   async deleteStash(stashRef: string): Promise<void> {
-    await this.execGit(["stash", "drop", stashRef]);
+    // drop 同样只接受 stash@{n} 引用形式，先由 SHA 解析。
+    await this.execGit([
+      "stash",
+      "drop",
+      await this.resolveStashRefForm(stashRef),
+    ]);
     // 与 stashChanges/unstashChanges 对齐：drop 改变了 stash 栈，
     // 需失效缓存让下一次 getStashes 拿到最新列表。
     this.invalidateCache();

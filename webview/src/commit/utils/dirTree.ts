@@ -80,3 +80,17 @@ export function countFiles(node: DirNode): number {
   }
   return count;
 }
+
+/**
+ * Collect fullPaths of every directory node (recursively) under a DirNode.
+ * Keys match what VscodeDirNodeView consumes from `collapsedDirs` — must be
+ * derived from a built (and compacted) tree, never from raw path prefixes.
+ */
+export function collectDirPaths(node: DirNode): string[] {
+  const paths: string[] = [];
+  for (const child of node.children) {
+    paths.push(child.fullPath);
+    paths.push(...collectDirPaths(child));
+  }
+  return paths;
+}

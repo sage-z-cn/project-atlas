@@ -12,6 +12,18 @@ import type { RepoInfo, RepoStatus } from "../types/git";
 
 export type { StashEntry };
 
+/**
+ * openStashPrompt 的确认结果（null = 取消，见 openStashPrompt 注释）。
+ * message：空白归一 undefined，extension 侧兜底英文 "Stashed changes"。
+ * paths：确认时最终结算的贮藏范围 —— null = 全量（对应 stashChanges 的
+ * filePaths=undefined 分支，绝不可传 []）；string[] = 具体文件（右键入口
+ * 的快照，或 vscode 风格工具栏弹窗内范围选择过滤出的 paths）。
+ */
+export interface StashPromptResult {
+  message: string | undefined;
+  paths: string[] | null;
+}
+
 export interface WorkingTreeFile {
   path: string;
   oldPath?: string;
@@ -91,6 +103,16 @@ interface CommitStore {
    * `stashes` (a stale response would clobber a fresher list).
    */
   stashSeq: number;
+  /**
+   * Stash 消息弹窗（StashPromptModal）的渲染状态，open 期间弹窗常驻
+   * commit 面板顶层（任意 tab 均可弹出）。paths 是 openStashPrompt 的
+   * 参数快照：string[] = 选中文件贮藏（右键入口，弹窗直接回传该快照）；
+   * null = 全量贮藏（工具栏入口，vscode 风格下弹窗内出现范围选择区，
+   * 确认时按所选范围结算最终 paths；jetbrains 风格保持全量）。resolver
+   * 不入 store —— 函数引用不适合作为可订阅的状态，见模块级
+   * stashPromptResolver。
+   */
+  stashPrompt: { open: boolean; paths: string[] | null };
 
   // UI state
   activeTab: TabType;
@@ -175,6 +197,26 @@ interface CommitStore {
   rollbackFile: (filePath: string, staged: boolean) => Promise<void>;
   showDiff: (filePath: string, staged?: boolean) => Promise<void>;
   stashChanges: (message?: string, filePaths?: string[]) => Promise<void>;
+  /**
+   * 弹出 webview 内的 stash 消息弹窗并等待用户操作（替代原生
+   * showInputBox）。paths 语义：string[] = 选中文件贮藏；null = 全量
+   * 贮藏（对应 stashChanges 的 filePaths=undefined 分支，绝不可传 []
+   * —— store/后端对空数组是 no-op 防护）。resolve 语义：null = 取消
+   * （Esc / backdrop / 取消按钮）；StashPromptResult = 确认 —— message
+   * 为输入的消息（空白归一 undefined，extension 侧兜底英文
+   * "Stashed changes"），paths 为弹窗确认时结算的最终贮藏范围
+   * （null = 全量；右键入口回传快照，vscode 风格工具栏入口为弹窗内
+   * 范围选择的结果）。
+   */
+  openStashPrompt: (
+    paths: string[] | null,
+  ) => Promise<StashPromptResult | null>;
+  /**
+   * 关闭弹窗并 settle 挂起的 openStashPrompt。仅由 StashPromptModal 调用。
+   * result === null = 取消（paths 忽略）；否则 paths 为最终结算的贮藏
+   * 范围（null = 全量），随消息一并写入 StashPromptResult。
+   */
+  resolveStashPrompt: (result: string | null, paths?: string[] | null) => void;
   /** stashRef 必须传 StashEntry.sha（完整 stash 提交 SHA），不是 stash@{n}。 */
   unstashChanges: (stashRef: string, drop?: boolean) => Promise<void>;
   deleteStash: (stashRef: string) => Promise<void>;
@@ -224,6 +266,15 @@ function flushDraftSave(repoPath: string | null, message: string): void {
   void bridge.request("saveCommitDraft", { repoPath, message }).catch(() => {});
 }
 
+/**
+ * 挂起的 stash 消息弹窗 resolver（模块级而非 store 字段：函数引用不适合
+ * 作为可订阅/可快照的状态）。openStashPrompt 写入，resolveStashPrompt
+ * 消费并清空；null = 取消，StashPromptResult = 确认（含最终结算的
+ * paths —— null 全量 / string[] 具体文件）。
+ */
+let stashPromptResolver: ((result: StashPromptResult | null) => void) | null =
+  null;
+
 export const useCommitStore = create<CommitStore>((set, get) => ({
   // ── Multi-repo ─────────────────────────────────────────────────────
   currentRepoPath: null,
@@ -241,6 +292,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   stashes: [],
   stashLoading: false,
   stashSeq: 0,
+  stashPrompt: { open: false, paths: [] },
   activeTab: "commit",
   loading: false,
   expandedGroups: new Set(["changes", "unversioned", "staged"]),
@@ -759,6 +811,29 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     } finally {
       set({ loading: false });
     }
+  },
+
+  openStashPrompt(paths) {
+    // 防御：上一个弹窗仍挂起时（正常流程不会发生 —— 所有入口 await 完才
+    // 能再次触发）先按取消 settle，避免悬挂 Promise。
+    stashPromptResolver?.(null);
+    return new Promise((resolve) => {
+      stashPromptResolver = resolve;
+      set({ stashPrompt: { open: true, paths } });
+    });
+  },
+
+  resolveStashPrompt(result, paths) {
+    const resolve = stashPromptResolver;
+    stashPromptResolver = null;
+    set({ stashPrompt: { open: false, paths: [] } });
+    // 取消 = null（paths 忽略）；确认 = 消息（空白归一 undefined，extension
+    // 侧兜底英文 "Stashed changes"）+ 最终结算的 paths（缺省归一 null 全量）。
+    resolve?.(
+      result === null
+        ? null
+        : { message: result.trim() || undefined, paths: paths ?? null },
+    );
   },
 
   async unstashChanges(stashRef: string, drop = true) {

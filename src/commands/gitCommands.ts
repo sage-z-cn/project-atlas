@@ -161,10 +161,12 @@ export function registerGitCommands(
       if (uri.scheme === "file") {
         filePath = uri.fsPath;
       } else if (uri.scheme === GIT_ATLAS_SCHEME || uri.scheme === "git") {
-        // Extract relative path from URI path (strip leading /)
-        const relativePath = uri.path.startsWith("/")
-          ? uri.path.slice(1)
-          : uri.path;
+        // Extract relative path from URI path (strip leading /).
+        // uri.path 恒为百分号编码形式（Uri.parse 产物），须 decode 才能拿到
+        // 原始路径 —— 与构造侧的 encodeGitAtlasPath 对称。
+        const relativePath = decodeGitAtlasPath(
+          uri.path.startsWith("/") ? uri.path.slice(1) : uri.path,
+        );
         if (relativePath && repoRoot) {
           filePath = vscode.Uri.joinPath(
             vscode.Uri.file(repoRoot),

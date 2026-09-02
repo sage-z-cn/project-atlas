@@ -1587,6 +1587,12 @@ button.commit-dropdown-item:hover:not(:disabled) {
   animation: modal-pop 0.14s ease;
 }
 
+/* Narrow width variant (via ModalOverlay's cardClass) for single-field
+ * modals — e.g. the stash message prompt. Same visual language, slimmer. */
+.modal-sm {
+  width: min(400px, 100%);
+}
+
 .new-version-modal-head {
   display: flex;
   align-items: center;
@@ -1657,6 +1663,126 @@ button.commit-dropdown-item:hover:not(:disabled) {
 
 .new-version-prompt-spacer {
   flex: 1;
+}
+
+/* ── Stash prompt modal controls（StashPromptModal 专属，不与
+ * .new-version-* 共享类耦合：贮藏弹窗按 VSCode 原生控件语义单独调优，
+ * 深浅色主题均走主题变量） ──
+ *
+ * 消息输入框：背景基于 input-background 混入 8% 前景提亮 —— 弹窗容器走
+ * menu-background，部分主题下它与 input-background 计算值相同（撞色），
+ * color-mix 保证输入框与弹窗背景永远存在明度差（深浅色主题通用）。
+ * 平时描边走 dropdown 系的极淡边（主题未定义则用 20% 前景的微弱边），
+ * 聚焦才亮 focusBorder —— 对齐原生 input 惯例。 */
+.stash-prompt-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 26px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-input-foreground);
+  background: color-mix(
+    in srgb,
+    var(--vscode-input-background, #3c3c3c) 92%,
+    var(--vscode-input-foreground, #cccccc)
+  );
+  border: 1px solid var(
+    --vscode-dropdown-border,
+    color-mix(in srgb, var(--vscode-input-foreground) 20%, transparent)
+  );
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.stash-prompt-input:focus {
+  border-color: var(--vscode-focusBorder, #007fd4);
+}
+
+.stash-prompt-input::placeholder {
+  color: var(
+    --vscode-input-placeholderForeground,
+    var(--vscode-descriptionForeground)
+  );
+}
+
+/* 范围选择行：分段组 + 文件计数同区（计数归属范围选择，弱化元信息）；
+ * 右键入口无分段组时，计数独立占同一插槽成行。 */
+.stash-prompt-scope-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+/* VSCode 语义分段控件：共享外框圆角 + 内部分隔线（连续分组，不再是
+ * 各自为政的独立按钮）。外框走 dropdown 边框系，未选中段透明但轮廓
+ * 可辨；选中态抬升到 button-secondary（与主按钮 button-background
+ * 不同色，主次动作分明）。 */
+.stash-prompt-seg-group {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  border: 1px solid
+    var(--vscode-dropdown-border, var(--vscode-input-border, var(--border)));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stash-prompt-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 含外框 1px 后整组 26px，与 .stash-prompt-input 同高一排。 */
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--vscode-input-foreground, var(--app-fg));
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.stash-prompt-seg-btn + .stash-prompt-seg-btn {
+  border-left: 1px solid
+    var(--vscode-dropdown-border, var(--vscode-input-border, var(--border)));
+}
+
+.stash-prompt-seg-btn:hover:not(:disabled):not(.active) {
+  background: var(--vscode-list-hoverBackground, var(--hover-bg));
+}
+
+/* 选中态 + 显式 hover 钉扎：variables.css 的全局 button:hover 会以
+ * button-hoverBackground（主按钮色）覆盖，这里钉在 secondary 系，
+ * ON 悬停仍是 ON（同 branch-sidebar-btn.active 的处理惯例）。 */
+.stash-prompt-seg-btn.active,
+.stash-prompt-seg-btn.active:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  color: var(--vscode-button-secondaryForeground, var(--app-fg));
+  font-weight: 600;
+}
+
+/* 禁用段明显弱化：降不透明度 + descriptionForeground。 */
+.stash-prompt-seg-btn:disabled {
+  opacity: 0.4;
+  color: var(--vscode-descriptionForeground);
+  cursor: default;
+}
+
+.stash-prompt-seg-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, #007fd4);
+  outline-offset: -1px;
+}
+
+/* 文件计数：小字号 + descriptionForeground，随所选范围联动。 */
+.stash-prompt-count {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  user-select: none;
 }
 
 .new-version-saved-flash {

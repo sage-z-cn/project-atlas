@@ -9,8 +9,11 @@ import SettingsIcon from "~icons/codicon/settings";
 import RefreshIcon from "~icons/codicon/refresh";
 import PullIcon from "~icons/codicon/repo-pull";
 import PushIcon from "~icons/codicon/repo-push";
+import StashIcon from "~icons/codicon/archive";
 import RollbackIcon from "~icons/codicon/discard";
 import { useCommitStore } from "../../shared/store/commit-store";
+import { buildDirTree, collectDirPaths } from "../utils/dirTree";
+import { promptAndStash } from "../utils/stashPrompt";
 
 interface ToolbarProps {
   onRefresh: () => void;
@@ -24,7 +27,15 @@ export function Toolbar({
   hasChanges,
 }: ToolbarProps) {
   const [showViewMenu, setShowViewMenu] = useState(false);
-  const { expandedGroups, toggleGroup, expandAllDirs } = useCommitStore();
+  const {
+    expandedGroups,
+    toggleGroup,
+    expandAllDirs,
+    collapseAllDirs,
+    commitListStyle,
+    groupByDirectory,
+    changes,
+  } = useCommitStore();
 
   const handleExpandAll = useCallback(() => {
     // Expand file groups
@@ -39,14 +50,30 @@ export function Toolbar({
   }, [expandedGroups, toggleGroup, expandAllDirs]);
 
   const handleCollapseAll = useCallback(() => {
-    // Collapse file groups
+    // vscode 风格 + 按目录分组：对齐 VSCode 资源管理器 Collapse All 语义 ——
+    // 顶层分组保持当前展开态不动，收起目录树全部节点（含嵌套中间目录，
+    // 每组只剩第一层目录可见且为收起态；根级文件不涉及目录，自然保持显示）。
+    // 目录 key 必须取自 buildDirTree（含 compact）的 fullPath，与
+    // VscodeDirNodeView 消费 collapsedDirs 的 key 同源。
+    if (commitListStyle === "vscode" && groupByDirectory) {
+      collapseAllDirs(collectDirPaths(buildDirTree(changes)));
+      return;
+    }
+    // jetbrains 风格（或 vscode 风格但未按目录分组）：折叠顶层分组（现状行为）。
     const groups = ["changes", "staged", "unversioned"];
     for (const g of groups) {
       if (expandedGroups.has(g)) {
         toggleGroup(g);
       }
     }
-  }, [expandedGroups, toggleGroup]);
+  }, [
+    commitListStyle,
+    groupByDirectory,
+    changes,
+    collapseAllDirs,
+    expandedGroups,
+    toggleGroup,
+  ]);
 
   return (
     <div className="commit-toolbar">
@@ -92,6 +119,17 @@ export function Toolbar({
       </Tooltip>
 
       <div className="commit-toolbar-separator" />
+      {/* Stash: 全量入口（vscode 列表风格下弹窗内可选范围，见 StashPromptModal）。 */}
+      <Tooltip text={t("Stash Changes...")}>
+        <button
+          type="button"
+          className="commit-toolbar-btn"
+          onClick={() => void promptAndStash(undefined)}
+          disabled={!hasChanges}
+        >
+          <StashIcon />
+        </button>
+      </Tooltip>
       <Tooltip text={t("Rollback")}>
         <button
           type="button"

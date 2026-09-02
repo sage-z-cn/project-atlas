@@ -10,6 +10,7 @@ import { CommitTab } from "./components/CommitTab";
 import { StashTab } from "./components/StashTab";
 import { NewVersionTab } from "./components/NewVersionTab";
 import { ReleaseTab } from "./components/ReleaseTab";
+import { StashPromptModal } from "./components/StashPromptModal";
 import { ErrorBanner } from "./components/ErrorBanner";
 import "./commit.css";
 import "./commit-vscode.css";
@@ -652,6 +653,9 @@ export function CommitApp() {
         {activeTab === "newVersion" && <NewVersionTab />}
         {activeTab === "release" && <ReleaseTab />}
       </div>
+      {/* Stash 消息弹窗：portal 到 body，任意 tab 下右键 "Stash Changes..."
+          都能弹出（由 stashPrompt.open 驱动，平时渲染 null）。 */}
+      <StashPromptModal />
     </div>
   );
 }
