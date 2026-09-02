@@ -460,6 +460,9 @@
   "Creating new version...": "正在创建新版本...",
   "Commits for New Version": "新版本包含的提交",
   "No new commits since last version": "上个版本后没有新提交",
+  "Selected {0} of {1} commits": "已选 {0} / {1} 个提交",
+  "Include in changelog generation": "纳入 changelog 生成",
+  "Select at least one commit": "请至少选择一个提交",
   "AI is not configured": "AI 未配置",
   "Generate with AI": "使用 AI 生成",
   "Generate": "生成",
@@ -551,5 +554,7 @@
   "Publishing...": "正在发布...",
   "Publish Release": "去发布",
   "Set Gitee Token": "设置 Gitee 令牌",
-  "Open in browser": "在浏览器中打开"
+  "Open in browser": "在浏览器中打开",
+  "Release Published": "发布完成",
+  "Published with Errors": "发布完成（存在失败项）"
 }

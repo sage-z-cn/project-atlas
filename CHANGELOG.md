@@ -4,6 +4,18 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.22.0
+**新功能**
+- **任务**: 添加 taskType 字段以驱动 webview 任务图标
+
+#### 1.21.0
+**新功能**
+- **生成**: 支持选择提交纳入 changelog 生成
+
+#### 1.20.0
+**新功能**
+- **发布**: 完善发布结果展示并支持 token 状态广播
+
 #### 1.19.2
 **改进**
 - **Git**: 合并重复广播与并发状态请求，并为工作区状态添加短 TTL 缓存以提升性能

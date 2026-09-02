@@ -11,10 +11,9 @@ const execFileAsync = promisify(execFile);
 export const GITEE_TOKEN_SECRET_KEY = "projectAtlas.git.giteeToken";
 
 /**
- * Gitee 单附件上限校验阈值。社区实测上限为 100MB（官方 API 未标注），
- * 按 95MB 校验预留缓冲。
+ * Gitee 单附件上限校验阈值。社区实测上限为 100MB（官方 API 未标注）。
  */
-const GITEE_ATTACHMENT_MAX_BYTES = 95 * 1024 * 1024;
+const GITEE_ATTACHMENT_MAX_BYTES = 100 * 1024 * 1024;
 
 /**
  * Gitee API 超时：创建 Release 3 分钟 / 附件上传 5 分钟（大附件，与前端
@@ -307,7 +306,7 @@ export async function createGiteeRelease(
 /**
  * `POST .../releases/{releaseId}/attach_files`，multipart 字段名 `file`。
  *
- * 上传前校验单文件大小 ≤ 95MB（Gitee 实测上限 100MB，预留缓冲），超限直接
+ * 上传前校验单文件大小 ≤ 100MB（Gitee 实测上限），超限直接
  * 报错（含文件名与大小），不发起请求。token 走 URL query 参数（multipart
  * body 中无法混入表单字段以外的认证参数）。
  */

@@ -21,4 +21,6 @@ export interface TaskItem {
   relativeDir: string;
   /** Detected package manager for npm tasks */
   packageManager: PackageManager;
+  /** Actual task type: "npm" for package.json scripts; vscode tasks.json t.type (default "shell") */
+  taskType: string;
 }

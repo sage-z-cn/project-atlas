@@ -28,6 +28,8 @@ export interface TaskItemDto {
   relativeDir: string;
   cwd: string;
   packageManager: string;
+  /** Actual task type ("npm" / "shell" / "typescript" / ...) — drives the webview icon */
+  taskType: string;
 }
 
 export interface TaskProjectDto {
@@ -53,6 +55,7 @@ function toDto(t: TaskItem, runningIds: Set<string>): TaskItemDto {
     relativeDir: t.relativeDir,
     cwd: t.cwd,
     packageManager: t.packageManager,
+    taskType: t.taskType,
   };
 }
 

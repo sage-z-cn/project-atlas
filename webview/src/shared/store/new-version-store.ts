@@ -150,6 +150,28 @@ export function locateBump(tag: string, baseVersion: string | null): BumpChoice 
   return "none";
 }
 
+// ── Commit selection (changelog generation input) ────────────────────────────
+
+/** Conventional-commit types deselected by default (kept out of the AI prompt). */
+const DEFAULT_EXCLUDED_COMMIT_TYPES = new Set(["chore", "docs", "test"]);
+
+/**
+ * True when a subject's conventional-commit type (`chore(deps)!:` style —
+ * scope and `!` tolerated, case-insensitive) puts it in the default
+ * UNchecked group. Non-conventional subjects default to checked.
+ */
+export function isDefaultExcludedCommitType(subject: string): boolean {
+  const m = subject.trim().match(/^([\w-]+)(?:\([^)]*\))?!?:/);
+  return m !== null && DEFAULT_EXCLUDED_COMMIT_TYPES.has(m[1].toLowerCase());
+}
+
+/** Default selection: every commit except the excluded types above. */
+function defaultSelectedHashes(commits: NewVersionCommit[]): string[] {
+  return commits
+    .filter((c) => !isDefaultExcludedCommitType(c.subject))
+    .map((c) => c.hash);
+}
+
 // ── Store ────────────────────────────────────────────────────────────────────
 
 function defaultForm() {
@@ -162,6 +184,15 @@ function defaultForm() {
     changelogDraft: "",
     /** User-picked changelog language; null = use the detected one. */
     changelogLanguageOverride: null as "zh" | "en" | null,
+    /** Hashes of the commits checked into the changelog prompt. */
+    selectedCommitHashes: [] as string[],
+    /**
+     * Version base snapshot taken when the form was (re)seeded. The
+     * "not higher" validation compares against this instead of the live
+     * base — a mid-session bump (version created, package.json rewritten)
+     * must not trip the warning for a value entered against the old base.
+     */
+    baselineVersion: null as string | null,
     promptOpen: false,
     promptDraft: "",
     promptError: null as string | null,
@@ -188,6 +219,13 @@ interface NewVersionState {
   changelogDraft: string;
   /** User-picked changelog language; null = use the detected one. */
   changelogLanguageOverride: "zh" | "en" | null;
+  /** Hashes of the commits checked into the changelog prompt. */
+  selectedCommitHashes: string[];
+  /**
+   * Version base snapshot at form-seed time — the "not higher" validation
+   * baseline (see defaultForm for the rationale).
+   */
+  baselineVersion: string | null;
   promptOpen: boolean;
   promptDraft: string;
   promptError: string | null;
@@ -224,6 +262,8 @@ interface NewVersionState {
   setCommitMessage: (v: string) => void;
   setUpdatePackageJson: (v: boolean) => void;
   setChangelogDraft: (v: string) => void;
+  /** Toggle one commit in/out of the changelog prompt selection. */
+  toggleCommitSelected: (hash: string) => void;
   /** Override the detected changelog language (null = back to detected). */
   setChangelogLanguageOverride: (lang: "zh" | "en" | null) => void;
   setPromptOpen: (open: boolean) => void;
@@ -377,6 +417,12 @@ export const useNewVersionStore = create<NewVersionState>((set, get) => ({
       // package.json updating only applies where a version field exists.
       updatePackageJson: ctx.currentVersion != null,
       promptDraft: ctx.effectivePrompt,
+      // Checkbox selection resets to the type-based default; later dirty
+      // refreshes (fetchContext(false)) deliberately keep the user's
+      // choices — new commits land unchecked, visible and toggleable.
+      selectedCommitHashes: defaultSelectedHashes(ctx.commits),
+      // Snapshot the base the seeded/typed version is validated against.
+      baselineVersion: baseVersion,
     });
   },
 
@@ -424,6 +470,14 @@ export const useNewVersionStore = create<NewVersionState>((set, get) => ({
 
   setChangelogDraft(v) {
     set({ changelogDraft: v });
+  },
+
+  toggleCommitSelected(hash) {
+    set((st) => ({
+      selectedCommitHashes: st.selectedCommitHashes.includes(hash)
+        ? st.selectedCommitHashes.filter((h) => h !== hash)
+        : [...st.selectedCommitHashes, hash],
+    }));
   },
 
   setChangelogLanguageOverride(lang) {
@@ -509,6 +563,10 @@ export const useNewVersionStore = create<NewVersionState>((set, get) => ({
         "generateNewVersionChangelog",
         {
           includeFiles: [],
+          // Only the checked commits feed the AI prompt. Hashes are the
+          // full-length %H output of getLogRange on both sides of the
+          // protocol; the host re-collects and filters by this list.
+          includeCommitHashes: s.selectedCommitHashes,
           // Manual language pick wins; omitted → host uses the detected one.
           ...(s.changelogLanguageOverride
             ? { language: s.changelogLanguageOverride }

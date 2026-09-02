@@ -198,6 +198,11 @@ export function registerNewVersionHandlers(ctx: GitHandlerContext): void {
       const includeFiles =
         (params.includeFiles as { path: string; status: string }[] | undefined) ??
         [];
+      // Webview 复选框选中的提交（全长 %H hash，与 getLogRange 输出同源）；
+      // 未传（旧调用方）→ 不过滤，全部提交进入提示词。
+      const includeCommitHashes = params.includeCommitHashes as
+        | string[]
+        | undefined;
 
       // Webview 可手动指定 changelog 语言（chip 覆盖）；未传时用文件内容检测值。
       const languageOverride = params.language as "zh" | "en" | undefined;
@@ -221,10 +226,13 @@ export function registerNewVersionHandlers(ctx: GitHandlerContext): void {
       try {
         const { commits, changelogLanguage, changelogExcerpt } =
           await collectNewVersionContext(gitService);
+        const selectedCommits = includeCommitHashes
+          ? commits.filter((c) => includeCommitHashes.includes(c.hash))
+          : commits;
         const changelog = await generateNewVersionChangelog(
           cfg,
           {
-            commits,
+            commits: selectedCommits,
             fileChanges: includeFiles,
             changelogExcerpt,
           },

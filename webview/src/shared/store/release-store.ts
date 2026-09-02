@@ -40,11 +40,10 @@ export interface ReleasePrefill {
 export type ReleasePublishState = "idle" | "publishing" | "done";
 
 /**
- * Gitee single-attachment soft cap. The community-observed limit is 100 MB
- * per file (undocumented by the API); the check runs at 95 MB to leave
- * upload buffer.
+ * Gitee single-attachment cap. The community-observed limit is 100 MB
+ * per file (undocumented by the API).
  */
-export const GITEE_ATTACHMENT_LIMIT = 95 * 1024 * 1024;
+export const GITEE_ATTACHMENT_LIMIT = 100 * 1024 * 1024;
 
 export function isAttachmentOverLimit(attachment: ReleaseAttachment): boolean {
   return attachment.size > GITEE_ATTACHMENT_LIMIT;
@@ -60,6 +59,13 @@ export function formatAttachmentSize(bytes: number): string {
 /** Stable key for a target's checkbox state. */
 export function targetKey(platform: string, remoteName: string): string {
   return `${platform}:${remoteName}`;
+}
+
+/** Ready targets are checked by default; unconfigured ones stay off. */
+function defaultSelected(targets: ReleaseTarget[]): string[] {
+  return targets
+    .filter((t) => t.configured && t.authOk)
+    .map((t) => targetKey(t.platform, t.remoteName));
 }
 
 function escapeRegExp(s: string): string {
@@ -149,6 +155,8 @@ interface ReleaseState {
 
   // Actions — lifecycle
   fetchTargets: () => Promise<void>;
+  /** Clear the form only; targets/branches/tags stay loaded. */
+  resetForm: () => void;
   reset: () => void;
 
   // Actions — prefill & targets
@@ -175,6 +183,8 @@ interface ReleaseState {
 
   // Actions — execution
   publish: () => Promise<void>;
+  /** Dismiss the result modal: back to idle with results cleared. */
+  closeResults: () => void;
 }
 
 // ── Derived helpers (pure functions over the state) ─────────────────────────
@@ -252,10 +262,7 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
         branches,
         tags,
         loading: false,
-        // Ready targets are checked by default; unconfigured ones stay off.
-        selected: targets
-          .filter((t) => t.configured && t.authOk)
-          .map((t) => targetKey(t.platform, t.remoteName)),
+        selected: defaultSelected(targets),
         // Branch defaults to the current one (the host lists it first).
         targetBranch: st.targetBranch || branches[0] || "",
         // A prefilled/typed tag that already exists lands back in
@@ -287,6 +294,21 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
       results: [],
       publishError: null,
     });
+  },
+
+  /**
+   * Clear the form only (post-publish "New Release" state): form fields
+   * return to defaults, selection back to the ready targets, while the
+   * loaded targets/branches/tags stay (no "No targets found" flash).
+   */
+  resetForm() {
+    set((st) => ({
+      ...defaultForm(),
+      selected: defaultSelected(st.targets),
+      // Branch default mirrors fetchTargets: the host lists the current
+      // branch first.
+      targetBranch: st.branches[0] ?? "",
+    }));
   },
 
   setPrefill(p) {
@@ -322,14 +344,26 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
   async promptGiteeToken() {
     try {
       // Cancelling the input box resolves configured:false — silent no-op.
-      const result = (await bridge.request("promptGiteeToken")) as {
+      // The host blocks on showInputBox while the user pastes the token,
+      // so the default 10s bridge timeout would fire mid-prompt — pass a
+      // long tail like publish()'s createRelease call.
+      const result = (await bridge.request(
+        "promptGiteeToken",
+        {},
+        { timeout: 600_000 },
+      )) as {
         configured?: boolean;
       };
       if (result?.configured) {
         void get().fetchTargets();
       }
-    } catch {
-      // Bridge failure while prompting → stay silent.
+    } catch (err) {
+      // Bridge-level failure (e.g. timeout / SecretStorage error): surface
+      // via the error banner instead of swallowing — otherwise the tab
+      // silently keeps showing "Set Gitee Token" after a token was saved.
+      set({
+        loadError: err instanceof Error ? err.message : String(err),
+      });
     }
   },
 
@@ -468,7 +502,16 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
         { timeout: 600_000 },
       )) as { results?: ReleasePublishResult[] };
       if (loadedRepoPath !== repoAtStart) return; // repo switched → dropped
-      set({ publishState: "done", results: result?.results ?? [] });
+      const results = result?.results ?? [];
+      // "done" drives the result modal; an empty results array (shouldn't
+      // happen — selected is non-empty) must not strand a stuck "done".
+      set({
+        publishState: results.length > 0 ? "done" : "idle",
+        results,
+      });
+      // Fresh form for the next release while the result modal is up;
+      // targets/branches/tags stay loaded (resetForm, not reset).
+      get().resetForm();
     } catch (err) {
       if (loadedRepoPath !== repoAtStart) return; // repo switched → dropped
       // Bridge-level failure; per-platform failures arrive in results.
@@ -478,12 +521,26 @@ export const useReleaseStore = create<ReleaseState>((set, get) => ({
       });
     }
   },
+
+  closeResults() {
+    set({ publishState: "idle", results: [] });
+  },
 }));
 
 // ── Event subscriptions ──────────────────────────────────────────────────────
 // Repo switches invalidate targets/branches/tags wholesale: reset and reload
 // when the tab is on screen (commit-store's listener owns currentRepoPath).
+// Token changes only refresh auth state (fetchSeq guards fetch races).
 bridge.onEvent((event, data) => {
+  if (event === "giteeTokenChanged") {
+    // Token saved/cleared in the host (tab prompt or the command palette
+    // commands — the latter has no request/response channel): refresh
+    // targets while the tab is on screen; a later mount refetches anyway.
+    if (useCommitStore.getState().activeTab === "release") {
+      void useReleaseStore.getState().fetchTargets();
+    }
+    return;
+  }
   if (event === "repoChanged") {
     const { repoPath } = (data ?? {}) as { repoPath?: string | null };
     if ((repoPath ?? null) === loadedRepoPath) return;

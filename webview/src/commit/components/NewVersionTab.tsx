@@ -149,6 +149,7 @@ function NewVersionSummary({ context }: { context: NewVersionContext }) {
 function VersionSection({ context }: { context: NewVersionContext }) {
   const bump = useNewVersionStore((s) => s.bump);
   const versionTag = useNewVersionStore((s) => s.versionTag);
+  const baselineVersion = useNewVersionStore((s) => s.baselineVersion);
   const commitMessage = useNewVersionStore((s) => s.commitMessage);
   const applyBump = useNewVersionStore((s) => s.applyBump);
   const setVersionTag = useNewVersionStore((s) => s.setVersionTag);
@@ -159,11 +160,16 @@ function VersionSection({ context }: { context: NewVersionContext }) {
   const baseVersion = resolveBaseVersion(context);
   const derived = deriveVersionFromTag(versionTag);
   const formatInvalid = derived.length > 0 && !isValidLooseSemver(derived);
+  // "Not higher" compares against the session baseline (snapshotted when
+  // the form was seeded), not the live base: creating the version bumps
+  // currentVersion mid-session and must not flag the already-entered
+  // value. Normal sessions: baseline === live base, behavior unchanged.
+  const compareBase = baselineVersion ?? baseVersion;
   const notHigher =
     !formatInvalid &&
     derived.length > 0 &&
-    baseVersion != null &&
-    (compareVersions(derived, baseVersion) ?? 1) <= 0;
+    compareBase != null &&
+    (compareVersions(derived, compareBase) ?? 1) <= 0;
 
   const bumpOptions = [
     { value: "major", label: t("Major") },
@@ -450,7 +456,15 @@ function CreateSection({
   // Generated notes cover lastTag..HEAD commits only, so generation needs
   // pending commits to work from. Without a changelog file the draft has
   // nowhere to land → hide the icon entirely (like the missing checkbox).
-  const canGenerate = aiConfigured && hasCommits;
+  // At least one commit must also be checked for the prompt.
+  const selectedCommitHashes = useNewVersionStore(
+    (s) => s.selectedCommitHashes,
+  );
+  const selectedCount = context.commits.filter((c) =>
+    selectedCommitHashes.includes(c.hash),
+  ).length;
+  const hasSelectedCommits = selectedCount > 0;
+  const canGenerate = aiConfigured && hasCommits && hasSelectedCommits;
   const showAiIcon = context.changelogFile != null;
 
   // ── Action rows (CommitMessageArea pattern): checkbox + AI icon row,
@@ -488,6 +502,7 @@ function CreateSection({
                 canGenerate={canGenerate}
                 aiConfigured={aiConfigured}
                 hasCommits={hasCommits}
+                hasSelectedCommits={hasSelectedCommits}
                 onStart={() => void generateChangelog()}
                 onStop={() => void cancelGeneration()}
               />
@@ -524,6 +539,7 @@ function AiGenerateIcon({
   canGenerate,
   aiConfigured,
   hasCommits,
+  hasSelectedCommits,
   onStart,
   onStop,
 }: {
@@ -531,6 +547,7 @@ function AiGenerateIcon({
   canGenerate: boolean;
   aiConfigured: boolean;
   hasCommits: boolean;
+  hasSelectedCommits: boolean;
   onStart: () => void;
   onStop: () => void;
 }) {
@@ -543,7 +560,9 @@ function AiGenerateIcon({
       ? t("AI is not configured")
       : !hasCommits
         ? t("No new commits since last version")
-        : t("Generate with AI");
+        : !hasSelectedCommits
+          ? t("Select at least one commit")
+          : t("Generate with AI");
 
   return (
     <Tooltip text={tooltip}>
