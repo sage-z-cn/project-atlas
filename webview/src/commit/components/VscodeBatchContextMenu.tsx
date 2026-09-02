@@ -3,6 +3,7 @@ import type { WorkingTreeFile } from "../../shared/store/commit-store";
 import { useCommitStore } from "../../shared/store/commit-store";
 import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
+import { promptAndStash } from "../utils/stashPrompt";
 import type { VscodeGroupType } from "./VscodeFileItem";
 import AddIcon from "~icons/codicon/add";
 import RemoveIcon from "~icons/codicon/remove";
@@ -27,8 +28,7 @@ export function VscodeBatchContextMenu({
   onClose,
 }: VscodeBatchContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const { stageFiles, unstageFiles, rollbackFiles, stashChanges } =
-    useCommitStore();
+  const { stageFiles, unstageFiles, rollbackFiles } = useCommitStore();
 
   // Position adjustment to keep menu in viewport
   const [position, setPosition] = useState<{ top: number; left: number }>({
@@ -108,16 +108,8 @@ export function VscodeBatchContextMenu({
 
   const handleStash = useCallback(async () => {
     onClose();
-    const paths = files.map((f) => f.path);
-    // Name is optional: cancel aborts, empty falls back to the default message.
-    const result = (await bridge.request("showInputBox", {
-      prompt: t("Enter stash message (optional):"),
-      placeHolder: t("Stashed changes"),
-    })) as { value: string | null };
-    if (result.value === null) return;
-    const message = result.value.trim() || t("Stashed changes");
-    await stashChanges(message, paths);
-  }, [files, stashChanges, onClose]);
+    await promptAndStash(files.map((f) => f.path));
+  }, [files, onClose]);
 
   const handleReveal = useCallback(() => {
     if (files.length === 0) return;

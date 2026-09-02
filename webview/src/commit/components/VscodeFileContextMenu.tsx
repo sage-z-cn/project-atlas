@@ -3,6 +3,7 @@ import type { WorkingTreeFile } from "../../shared/store/commit-store";
 import { useCommitStore } from "../../shared/store/commit-store";
 import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
+import { promptAndStash } from "../utils/stashPrompt";
 import OpenFileIcon from "~icons/codicon/go-to-file";
 import DiffIcon from "~icons/codicon/git-compare";
 import AddIcon from "~icons/codicon/add";
@@ -33,7 +34,6 @@ export function VscodeFileContextMenu({
     unstageFile,
     rollbackFile,
     showDiff,
-    stashChanges,
     currentRepoPath,
     highlightedFiles,
     changes,
@@ -181,15 +181,8 @@ export function VscodeFileContextMenu({
   const handleStash = useCallback(async () => {
     onClose();
     const paths = resolvePaths();
-    // Name is optional: cancel aborts, empty falls back to the default message.
-    const result = (await bridge.request("showInputBox", {
-      prompt: t("Enter stash message (optional):"),
-      placeHolder: t("Stashed changes"),
-    })) as { value: string | null };
-    if (result.value === null) return;
-    const message = result.value.trim() || t("Stashed changes");
-    await stashChanges(message, paths);
-  }, [resolvePaths, stashChanges, onClose]);
+    await promptAndStash(paths);
+  }, [resolvePaths, onClose]);
 
   const handleOpenMerge = useCallback(() => {
     bridge.request("openConflictsPanel");

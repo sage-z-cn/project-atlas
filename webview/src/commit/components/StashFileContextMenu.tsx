@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useState } from "react";
 import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
 import { useCommitStore } from "../../shared/store/commit-store";
+import { useContextMenuOverlay } from "../../shared/hooks/useContextMenuOverlay";
 
 interface StashFileContextMenuProps {
   x: number;
   y: number;
   filePath: string;
-  stashId: string;
+  /** StashEntry.sha — 稳定引用（不是会重排的 stash@{n}）。 */
+  stashRef: string;
   onClose: () => void;
 }
 
@@ -15,30 +17,14 @@ export function StashFileContextMenu({
   x,
   y,
   filePath,
-  stashId,
+  stashRef,
   onClose,
 }: StashFileContextMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
-    const handleBlur = () => onClose();
-    window.addEventListener("blur", handleBlur);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-      window.removeEventListener("blur", handleBlur);
-    };
-  }, [onClose]);
+  const menuRef = useContextMenuOverlay(onClose);
+  const { unstashFile, stashLoading } = useCommitStore();
+  // 菜单打开时快照 repoPath：菜单开启期间 repo 切换的话，请求不能漂移到
+  // 新 repo（repoChanged 会清空 stashes，此菜单随数据失效关闭）。
+  const [repoPath] = useState(() => useCommitStore.getState().currentRepoPath);
 
   const style: React.CSSProperties = {
     position: "fixed",
@@ -48,20 +34,15 @@ export function StashFileContextMenu({
   };
 
   const handleShowDiff = useCallback(() => {
-    bridge.request("showStashFileDiff", { stashId, filePath });
+    void bridge.request("showStashFileDiff", { stashRef, filePath, repoPath });
     onClose();
-  }, [stashId, filePath, onClose]);
+  }, [stashRef, filePath, repoPath, onClose]);
 
-  const handleUnstashFile = useCallback(async () => {
+  const handleUnstashFile = useCallback(() => {
     onClose();
-    try {
-      await bridge.request("unstashFile", { stashId, filePath });
-    } catch (err) {
-      useCommitStore.getState().setCommitError(
-        err instanceof Error ? err.message : String(err),
-      );
-    }
-  }, [stashId, filePath, onClose]);
+    // 错误已在 store 的 unstashFile 内 catch 并写入 commitError。
+    void unstashFile(stashRef, filePath, repoPath);
+  }, [stashRef, filePath, repoPath, unstashFile, onClose]);
 
   const handleJumpToSource = useCallback(() => {
     bridge.request("openFile", { filePath });
@@ -79,6 +60,7 @@ export function StashFileContextMenu({
         type="button"
         className="commit-context-menu-item"
         onClick={handleUnstashFile}
+        disabled={stashLoading}
       >
         <UnstashIcon />
         <span>{t("Unstash This File")}</span>
@@ -93,7 +75,6 @@ export function StashFileContextMenu({
       >
         <DiffIcon />
         <span>{t("Show Diff")}</span>
-        <span className="commit-context-menu-shortcut">⌘D</span>
       </button>
 
       <button

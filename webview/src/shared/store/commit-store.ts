@@ -1,7 +1,16 @@
 import { create } from "zustand";
 import { bridge } from "../bridge";
+import type {
+  DeleteStashParams,
+  StashChangesParams,
+  StashEntry,
+  UnstashChangesParams,
+  UnstashFileParams,
+} from "../bridge/types";
 import { t } from "../i18n";
 import type { RepoInfo, RepoStatus } from "../types/git";
+
+export type { StashEntry };
 
 export interface WorkingTreeFile {
   path: string;
@@ -14,14 +23,6 @@ export interface WorkingTreeFile {
     | "untracked"
     | "conflicted";
   staged: boolean;
-}
-
-export interface StashEntry {
-  id: string;
-  message: string;
-  date: string;
-  branch: string;
-  files: string[];
 }
 
 type TabType = "commit" | "stash" | "newVersion" | "release";
@@ -76,6 +77,20 @@ interface CommitStore {
 
   // Stash
   stashes: StashEntry[];
+  /**
+   * Stash 子系统操作（unstashChanges/deleteStash/unstashFile）进行中。
+   * 独立于 `loading`（后者由 fetchChanges/commit 等高频复用且有 300ms
+   * 最小显示，若复用会因无关操作反复禁用 stash 列表）。驱动 StashTab
+   * 列表与右键菜单的交互禁用。
+   */
+  stashLoading: boolean;
+  /**
+   * Monotonic counter bumped on EVERY fetchStashes call. repoSeq only guards
+   * cross-repo races; concurrent fetchStashes within the SAME repo can still
+   * resolve out of order, so only the latest issued fetch may write
+   * `stashes` (a stale response would clobber a fresher list).
+   */
+  stashSeq: number;
 
   // UI state
   activeTab: TabType;
@@ -160,8 +175,18 @@ interface CommitStore {
   rollbackFile: (filePath: string, staged: boolean) => Promise<void>;
   showDiff: (filePath: string, staged?: boolean) => Promise<void>;
   stashChanges: (message?: string, filePaths?: string[]) => Promise<void>;
-  unstashChanges: (stashId: string, drop?: boolean) => Promise<void>;
-  deleteStash: (stashId: string) => Promise<void>;
+  /** stashRef 必须传 StashEntry.sha（完整 stash 提交 SHA），不是 stash@{n}。 */
+  unstashChanges: (stashRef: string, drop?: boolean) => Promise<void>;
+  deleteStash: (stashRef: string) => Promise<void>;
+  /**
+   * 从 stash 恢复单个文件。repoPath 可传入打开菜单时的快照，防止菜单
+   * 开启期间 repo 切换导致请求打到新 repo；缺省取当前 currentRepoPath。
+   */
+  unstashFile: (
+    stashRef: string,
+    filePath: string,
+    repoPath?: string | null,
+  ) => Promise<void>;
   setActiveTab: (tab: TabType) => void;
   toggleGroup: (group: string) => void;
   toggleDir: (dirPath: string) => void;
@@ -214,6 +239,8 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   commitMessage: "",
   amend: false,
   stashes: [],
+  stashLoading: false,
+  stashSeq: 0,
   activeTab: "commit",
   loading: false,
   expandedGroups: new Set(["changes", "unversioned", "staged"]),
@@ -379,14 +406,21 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 
   async fetchStashes() {
     // ★ Capture seq + repoPath at issue time for the in-flight race guard.
-    const mySeq = get().repoSeq;
+    const myRepoSeq = get().repoSeq;
     const repoPath = get().currentRepoPath;
+    // ★ Independent monotonic seq: repoSeq only bumps on repo switch, so
+    // same-repo concurrent fetches need their own guard — bump FIRST, then
+    // only the holder of the latest seq may write `stashes`.
+    const myStashSeq = get().stashSeq + 1;
+    set({ stashSeq: myStashSeq });
     try {
-      const result = (await bridge.request("getStashes", {
+      const result = await bridge.request<StashEntry[]>("getStashes", {
         repoPath,
-      })) as StashEntry[];
+      });
       // ★ Race guard: a switch happened during the fetch → drop stale stashes.
-      if (mySeq !== get().repoSeq) return;
+      if (myRepoSeq !== get().repoSeq) return;
+      // ★ A newer fetchStashes superseded this one → drop this result.
+      if (myStashSeq !== get().stashSeq) return;
       if (Array.isArray(result)) {
         set({ stashes: result });
       }
@@ -712,10 +746,12 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     try {
       set({ loading: true });
       await bridge.request("stashChanges", {
-        message,
+        // 空消息传 undefined：由 extension 侧兜底英文 "Stashed changes"，
+        // 不再把本地化默认文案写进 stash message。
+        message: message?.trim() || undefined,
         filePaths,
         repoPath: get().currentRepoPath,
-      });
+      } satisfies StashChangesParams);
       await get().fetchChanges();
       await get().fetchStashes();
     } catch (err) {
@@ -725,32 +761,72 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     }
   },
 
-  async unstashChanges(stashId: string, drop = true) {
+  async unstashChanges(stashRef: string, drop = true) {
     try {
-      set({ loading: true });
-      await bridge.request("unstashChanges", {
-        stashId,
-        drop,
-        repoPath: get().currentRepoPath,
-      });
+      set({ stashLoading: true });
+      const result = await bridge.request<{ success: boolean }>(
+        "unstashChanges",
+        {
+          stashRef,
+          drop,
+          repoPath: get().currentRepoPath,
+        } satisfies UnstashChangesParams,
+      );
+      // Host 对业务取消（如确认弹窗点取消）正常 resolve { success: false }
+      // 而非 reject —— 取消时不得乐观移除、不得 refetch。
+      if (result?.success === false) return;
+      // 乐观移除（按 sha 定位，sha 稳定）仅限 drop=true（git stash pop，
+      // 条目被删除）；drop=false 走 apply 保留条目，移除会导致先消失再闪回。
+      if (drop) {
+        set({ stashes: get().stashes.filter((s) => s.sha !== stashRef) });
+      }
       await get().fetchChanges();
       await get().fetchStashes();
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });
     } finally {
-      set({ loading: false });
+      set({ stashLoading: false });
     }
   },
 
-  async deleteStash(stashId: string) {
+  async deleteStash(stashRef: string) {
     try {
-      await bridge.request("deleteStash", {
-        stashId,
+      set({ stashLoading: true });
+      const result = await bridge.request<{ success: boolean }>("deleteStash", {
+        stashRef,
         repoPath: get().currentRepoPath,
-      });
+      } satisfies DeleteStashParams);
+      // Host 在确认弹窗被取消时返回 { success: false }（正常 resolve）：
+      // 取消则中止 —— 不乐观移除、不 refetch，避免条目闪回/缺失。
+      if (result?.success === false) return;
+      set({ stashes: get().stashes.filter((s) => s.sha !== stashRef) });
       await get().fetchStashes();
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });
+    } finally {
+      set({ stashLoading: false });
+    }
+  },
+
+  async unstashFile(
+    stashRef: string,
+    filePath: string,
+    repoPath?: string | null,
+  ) {
+    try {
+      set({ stashLoading: true });
+      await bridge.request("unstashFile", {
+        stashRef,
+        filePath,
+        repoPath: repoPath ?? get().currentRepoPath,
+      } satisfies UnstashFileParams);
+      // 单文件恢复不删除 stash 条目（条目仍存在），refetch 校准文件列表。
+      await get().fetchChanges();
+      await get().fetchStashes();
+    } catch (err) {
+      set({ commitError: err instanceof Error ? err.message : String(err) });
+    } finally {
+      set({ stashLoading: false });
     }
   },
 
@@ -1071,6 +1147,8 @@ bridge.onEvent((event, data) => {
       remoteError: null,
     });
     useCommitStore.getState().fetchChanges();
+    // Stash 列表也是 per-repo 状态（上面已整体清空），切换后同样要回填。
+    useCommitStore.getState().fetchStashes();
     // Refresh badges for the new active repo (and the rest, in one round-trip).
     useCommitStore.getState().fetchRepoStatuses();
     // 回填新 repo 的草稿（loadCommitDraft 内部有 seq 竞态保护）。

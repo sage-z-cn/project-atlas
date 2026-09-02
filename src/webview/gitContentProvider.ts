@@ -4,6 +4,33 @@ import type { RepoRegistry } from "../git/repoRegistry";
 export const GIT_ATLAS_SCHEME = "git-atlas";
 
 /**
+ * Encode a repo-relative file path for the path component of a git-atlas: URI.
+ * Each path segment is percent-encoded ("/" preserved) so characters like
+ * spaces, "%", "#", "?" or non-ASCII bytes survive the URI round-trip.
+ * Pair with the decode inside GitContentProvider (see decodeGitAtlasPath).
+ */
+export function encodeGitAtlasPath(filePath: string): string {
+  return filePath.split("/").map(encodeURIComponent).join("/");
+}
+
+/**
+ * Decode a percent-encoded URI path segment sequence back to the literal
+ * path. vscode.Uri.path is always in encoded form (Uri.parse percent-encodes
+ * invalid characters and keeps existing %XX escapes), so any extension code
+ * that extracts a file path back out of a URI (e.g. editSource in
+ * gitCommands) must decode through here to stay symmetric with
+ * encodeGitAtlasPath.
+ */
+export function decodeGitAtlasPath(encoded: string): string {
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    // 畸形 %XX 序列（理论上来不及自 Uri.parse 产物）：按原样返回，保持旧行为。
+    return encoded;
+  }
+}
+
+/**
  * Provides virtual file content for git file revisions.
  * Uri format: git-atlas:/<filePath>?ref=<commitHash>&repo=<repoPath>
  *
@@ -46,7 +73,8 @@ export class GitContentProvider
 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
     const ref = new URLSearchParams(uri.query).get("ref") ?? "";
-    const filePath = uri.path.startsWith("/") ? uri.path.slice(1) : uri.path;
+    const rawPath = uri.path.startsWith("/") ? uri.path.slice(1) : uri.path;
+    const filePath = decodeGitAtlasPath(rawPath);
     if (!ref || !filePath) {
       return "";
     }
@@ -80,7 +108,8 @@ export class GitContentProvider
 
   async readFile(uri: vscode.Uri): Promise<Uint8Array> {
     const ref = new URLSearchParams(uri.query).get("ref") ?? "";
-    const filePath = uri.path.startsWith("/") ? uri.path.slice(1) : uri.path;
+    const rawPath = uri.path.startsWith("/") ? uri.path.slice(1) : uri.path;
+    const filePath = decodeGitAtlasPath(rawPath);
     if (!ref || !filePath) {
       return new Uint8Array(0);
     }

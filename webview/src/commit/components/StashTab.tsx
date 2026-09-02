@@ -9,7 +9,9 @@ import { StashContextMenu } from "./StashContextMenu";
 import { StashFileContextMenu } from "./StashFileContextMenu";
 
 export function StashTab() {
-  const { stashes, fetchStashes } = useCommitStore();
+  const { stashes, fetchStashes, stashLoading } = useCommitStore();
+  // 展开状态以 sha 为索引（stash@{n} 的 id 在任何删除/恢复后会重排，
+  // 作为 key/索引会把展开态串到错误条目上）。
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -20,7 +22,7 @@ export function StashTab() {
     x: number;
     y: number;
     filePath: string;
-    stashId: string;
+    stashRef: string;
   } | null>(null);
 
   useEffect(() => {
@@ -50,11 +52,11 @@ export function StashTab() {
   );
 
   const handleFileContextMenu = useCallback(
-    (e: React.MouseEvent, filePath: string, stashId: string) => {
+    (e: React.MouseEvent, filePath: string, stashRef: string) => {
       e.preventDefault();
       e.stopPropagation();
       setContextMenu(null);
-      setFileContextMenu({ x: e.clientX, y: e.clientY, filePath, stashId });
+      setFileContextMenu({ x: e.clientX, y: e.clientY, filePath, stashRef });
     },
     [],
   );
@@ -83,13 +85,20 @@ export function StashTab() {
   }
 
   return (
-    <div className="stash-list">
+    // stash 操作（unstash/delete/unstashFile）进行中禁用交互并视觉置灰，
+    // 防止在乐观移除 + refetch 的窗口期对重排后的条目误操作。
+    <div
+      className="stash-list"
+      style={
+        stashLoading ? { pointerEvents: "none", opacity: 0.5 } : undefined
+      }
+    >
       {stashes.map((entry) => (
         <StashItem
-          key={entry.id}
+          key={entry.sha}
           entry={entry}
-          expanded={expandedIds.has(entry.id)}
-          onToggle={() => toggleExpand(entry.id)}
+          expanded={expandedIds.has(entry.sha)}
+          onToggle={() => toggleExpand(entry.sha)}
           onContextMenu={(e) => handleContextMenu(e, entry)}
           onFileContextMenu={handleFileContextMenu}
         />
@@ -107,7 +116,7 @@ export function StashTab() {
           x={fileContextMenu.x}
           y={fileContextMenu.y}
           filePath={fileContextMenu.filePath}
-          stashId={fileContextMenu.stashId}
+          stashRef={fileContextMenu.stashRef}
           onClose={closeFileContextMenu}
         />
       )}
@@ -123,7 +132,7 @@ interface StashItemProps {
   onFileContextMenu: (
     e: React.MouseEvent,
     filePath: string,
-    stashId: string,
+    stashRef: string,
   ) => void;
 }
 
@@ -155,7 +164,7 @@ function StashItem({
             <StashFileRow
               key={filePath}
               filePath={filePath}
-              onContextMenu={(e) => onFileContextMenu(e, filePath, entry.id)}
+              onContextMenu={(e) => onFileContextMenu(e, filePath, entry.sha)}
             />
           ))}
         </div>

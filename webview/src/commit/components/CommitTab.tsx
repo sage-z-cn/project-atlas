@@ -18,6 +18,7 @@ import {
   countFiles,
   type DirNode,
 } from "../utils/dirTree";
+import { promptAndStash } from "../utils/stashPrompt";
 
 export function CommitTab() {
   const {
@@ -651,7 +652,6 @@ function DirContextMenu({
   isGroup?: boolean;
   onClose: () => void;
 }) {
-  const { stashChanges } = useCommitStore();
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number }>({
     top: y,
@@ -748,15 +748,8 @@ function DirContextMenu({
 
   const handleStash = useCallback(async () => {
     onClose();
-    const paths = files.map((f) => f.path);
-    const result = (await bridge.request("showInputBox", {
-      prompt: t("Enter stash message (optional):"),
-      placeHolder: t("Stashed changes"),
-    })) as { value: string | null };
-    if (result.value === null) return;
-    const message = result.value.trim() || t("Stashed changes");
-    await stashChanges(message, paths);
-  }, [files, stashChanges, onClose]);
+    await promptAndStash(files.map((f) => f.path));
+  }, [files, onClose]);
 
   return (
     <div

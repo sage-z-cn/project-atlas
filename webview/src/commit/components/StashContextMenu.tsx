@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import type { StashEntry } from "../../shared/store/commit-store";
 import { useCommitStore } from "../../shared/store/commit-store";
+import { useContextMenuOverlay } from "../../shared/hooks/useContextMenuOverlay";
 import { t } from "../../shared/i18n";
 
 interface StashContextMenuProps {
@@ -16,28 +17,8 @@ export function StashContextMenu({
   entry,
   onClose,
 }: StashContextMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null);
-  const { unstashChanges, deleteStash } = useCommitStore();
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
-    const handleBlur = () => onClose();
-    window.addEventListener("blur", handleBlur);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-      window.removeEventListener("blur", handleBlur);
-    };
-  }, [onClose]);
+  const menuRef = useContextMenuOverlay(onClose);
+  const { unstashChanges, deleteStash, stashLoading } = useCommitStore();
 
   const style: React.CSSProperties = {
     position: "fixed",
@@ -46,18 +27,20 @@ export function StashContextMenu({
     zIndex: 1000,
   };
 
+  // 所有操作以 entry.sha（完整 stash 提交 SHA）为 stashRef —— stash@{n} 的
+  // entry.id 仅用于显示，列表任何增删后都会重排。
   const handleUnstash = useCallback(() => {
-    unstashChanges(entry.id, true);
+    void unstashChanges(entry.sha, true);
     onClose();
   }, [entry, unstashChanges, onClose]);
 
   const handleApply = useCallback(() => {
-    unstashChanges(entry.id, false);
+    void unstashChanges(entry.sha, false);
     onClose();
   }, [entry, unstashChanges, onClose]);
 
   const handleDelete = useCallback(() => {
-    deleteStash(entry.id);
+    void deleteStash(entry.sha);
     onClose();
   }, [entry, deleteStash, onClose]);
 
@@ -67,6 +50,7 @@ export function StashContextMenu({
         type="button"
         className="commit-context-menu-item"
         onClick={handleApply}
+        disabled={stashLoading}
       >
         <ApplyIcon />
         <span>{t("Restore")}</span>
@@ -76,10 +60,10 @@ export function StashContextMenu({
         type="button"
         className="commit-context-menu-item"
         onClick={handleUnstash}
+        disabled={stashLoading}
       >
         <UnstashIcon />
         <span>{t("Unstash...")}</span>
-        <span className="commit-context-menu-shortcut">⇧⌘U</span>
       </button>
 
       <div className="commit-context-menu-separator" />
@@ -88,10 +72,10 @@ export function StashContextMenu({
         type="button"
         className="commit-context-menu-item"
         onClick={handleDelete}
+        disabled={stashLoading}
       >
         <DeleteIcon />
         <span>{t("Delete...")}</span>
-        <span className="commit-context-menu-shortcut">⌫</span>
       </button>
     </div>
   );

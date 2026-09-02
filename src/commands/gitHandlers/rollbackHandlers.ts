@@ -2,7 +2,10 @@ import * as fs from "fs";
 import * as vscode from "vscode";
 import { NOT_GIT_REPO, requireGit } from "../gitContext";
 import type { GitHandlerContext } from "../gitContext";
-import { GIT_ATLAS_SCHEME } from "../../webview/gitContentProvider";
+import {
+  encodeGitAtlasPath,
+  GIT_ATLAS_SCHEME,
+} from "../../webview/gitContentProvider";
 import type { RollbackFileInfo } from "../../webview/rollbackPanel";
 
 /**
@@ -204,11 +207,13 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
       // the right GitService in multi-repo workspaces.
       const repoQuery = `&repo=${encodeURIComponent(repoRoot)}`;
       const fileName = filePath.split(/[/\\]/).pop() ?? filePath;
+      // path 逐段百分号编码，与 GitContentProvider 的 decode 对称。
+      const encodedPath = encodeGitAtlasPath(filePath);
       const indexUri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=:0${repoQuery}`,
+        `${GIT_ATLAS_SCHEME}:/${encodedPath}?ref=:0${repoQuery}`,
       );
       const headUri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=HEAD${repoQuery}`,
+        `${GIT_ATLAS_SCHEME}:/${encodedPath}?ref=HEAD${repoQuery}`,
       );
 
       if (staged) {
@@ -228,7 +233,7 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
         const rightUri = fs.existsSync(worktreeUri.fsPath)
           ? worktreeUri
           : vscode.Uri.parse(
-              `${GIT_ATLAS_SCHEME}:/${filePath}?ref=empty${repoQuery}`,
+              `${GIT_ATLAS_SCHEME}:/${encodedPath}?ref=empty${repoQuery}`,
             );
         await vscode.commands.executeCommand(
           "vscode.diff",
@@ -248,7 +253,7 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
       const ref = params.ref as string;
       const repoQuery = `&repo=${encodeURIComponent(gitService.cwd)}`;
       const uri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${filePath}?ref=${ref}${repoQuery}`,
+        `${GIT_ATLAS_SCHEME}:/${encodeGitAtlasPath(filePath)}?ref=${ref}${repoQuery}`,
       );
       await vscode.window.showTextDocument(uri, { preview: true });
       return { success: true };

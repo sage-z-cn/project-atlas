@@ -1,7 +1,10 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import type { GitHandlerContext } from "./gitContext";
-import { GIT_ATLAS_SCHEME } from "../webview/gitContentProvider";
+import {
+  decodeGitAtlasPath,
+  GIT_ATLAS_SCHEME,
+} from "../webview/gitContentProvider";
 import { getScmResourcePath } from "../utils/scmUtils";
 import { toForwardSlash } from "../utils/pathUtils";
 import {

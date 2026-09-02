@@ -74,6 +74,8 @@ export type CommandType =
   | "stashChanges"
   | "unstashChanges"
   | "deleteStash"
+  | "showStashFileDiff"
+  | "unstashFile"
   | "showDiffForWorkingFile"
   | "getAmendMessage"
   | "getCommitDraft"
@@ -136,12 +138,58 @@ export type CommandType =
   | "selectReleaseAttachments"
   | "promptGiteeToken";
 
+/* ─── Stash protocol contracts (mirrored by the extension side) ────────── */
+
+export interface StashEntry {
+  /** Display-only stash@{n} ref — reindexes on every list mutation. */
+  id: string;
+  /** Full stash commit SHA — the stable ref for all stash operations. */
+  sha: string;
+  message: string;
+  date: string;
+  branch: string;
+  files: string[];
+}
+
+export type GetStashesResult = StashEntry[];
+
+export type StashChangesParams = {
+  /** Undefined/empty → host falls back to English "Stashed changes". */
+  message?: string;
+  filePaths?: string[];
+  repoPath: string | null;
+};
+
+export type UnstashChangesParams = {
+  /** StashEntry.sha (NOT stash@{n}). */
+  stashRef: string;
+  drop: boolean;
+  repoPath: string | null;
+};
+
+export type DeleteStashParams = {
+  stashRef: string;
+  repoPath: string | null;
+};
+
+export type ShowStashFileDiffParams = {
+  stashRef: string;
+  filePath: string;
+  repoPath: string | null;
+};
+
+export type UnstashFileParams = {
+  stashRef: string;
+  filePath: string;
+  repoPath: string | null;
+};
+
 export interface Bridge {
-  request(
+  request<T = unknown>(
     command: CommandType | string,
     params?: Record<string, unknown>,
     options?: { timeout?: number },
-  ): Promise<unknown>;
+  ): Promise<T>;
   onEvent(handler: (event: string, data: unknown) => void): () => void;
   /**
    * Webview persisted state. VSCode serializes this and restores it via

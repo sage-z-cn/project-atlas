@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import { GitCache } from "./cache";
 import { computeGraphLayout } from "./graphLayout";
+import { logger } from "../utils/logger";
 import type {
   BranchInfo,
   CherryPickState,
@@ -521,7 +522,14 @@ export class GitService {
     try {
       return await this.execGit(["show", `${ref}:${filePath}`]);
     } catch {
-      return "";
+      // stash 提交的第三个父提交（^3，仅 -u 贮藏时存在）存放未跟踪文件。
+      // ref 为 stash SHA 时 `<sha>:<path>` 解析不到未跟踪文件，先从 ^3
+      // 读取；仍失败才走原失败路径（返回空串）。
+      try {
+        return await this.execGit(["show", `${ref}^3:${filePath}`]);
+      } catch {
+        return "";
+      }
     }
   }
 
@@ -546,7 +554,27 @@ export class GitService {
       );
       return stdout;
     } catch {
-      return Buffer.alloc(0);
+      // 与 getFileContent 对称：二进制未跟踪文件（如图片）也存放在 stash 的
+      // ^3 父提交中，读取失败时先回退到 `${ref}^3:<path>`。
+      try {
+        const { stdout } = await execFileAsync(
+          "git",
+          ["show", `${ref}^3:${filePath}`],
+          {
+            cwd: this.cwd,
+            maxBuffer: MAX_BUFFER,
+            encoding: "buffer",
+            env: {
+              ...process.env,
+              LC_ALL: "C",
+              GIT_TERMINAL_PROMPT: "0",
+            },
+          },
+        );
+        return stdout;
+      } catch {
+        return Buffer.alloc(0);
+      }
     }
   }
 
@@ -987,6 +1015,33 @@ export class GitService {
     this.invalidateCache();
   }
 
+  /**
+   * 从 stash 检出单个文件到工作区。stash 主体提交只含被跟踪文件的改动，
+   * `-u` 贮藏的未跟踪文件存放在第三个父提交（`<sha>^3`，仅在贮藏时存在
+   * 未跟踪文件才有该父提交）。先用 cat-file -e 探测文件落在哪个树，再对
+   * 正确的 ref 执行 checkout —— 与 getFileContent 的 ^3 回退语义一致。
+   * 不改 checkoutFileFromCommit：它被 rollback 等功能共用，语义是纯 commit。
+   */
+  async checkoutFileFromStash(stashRef: string, filePath: string): Promise<void> {
+    let ref: string | null = null;
+    try {
+      await this.execGit(["cat-file", "-e", `${stashRef}:${filePath}`]);
+      ref = stashRef;
+    } catch {
+      try {
+        await this.execGit(["cat-file", "-e", `${stashRef}^3:${filePath}`]);
+        ref = `${stashRef}^3`;
+      } catch {
+        // 两个树都没有该文件：抛出明确错误，冒泡到 webview。
+      }
+    }
+    if (!ref) {
+      throw new Error(`"${filePath}" not found in stash ${stashRef}`);
+    }
+    await this.execGit(["checkout", ref, "--", filePath]);
+    this.invalidateCache();
+  }
+
   async checkoutFileFromParent(
     hash: string,
     filePath: string,
@@ -1064,6 +1119,9 @@ export class GitService {
     const isDirty = status.trim().length > 0;
 
     // 3. Stash if dirty
+    // 按完整 SHA 记录本次自动贮藏：恢复时按 SHA 寻址，避免无参 `stash pop`
+    // 弹出他人在此期间（rebase 执行中）新产生的 stash@{0}。
+    let autostashRef: string | undefined;
     if (isDirty) {
       await this.execGit([
         "stash",
@@ -1072,6 +1130,12 @@ export class GitService {
         "-m",
         "drop-commit-autostash",
       ]);
+      try {
+        autostashRef = (await this.execGit(["rev-parse", "stash@{0}"])).trim();
+      } catch {
+        // rev-parse 失败极罕见（push 已成功）；退回 stash@{0} 引用。
+        autostashRef = "stash@{0}";
+      }
     }
 
     // 4. Execute rebase to remove the commit
@@ -1086,20 +1150,16 @@ export class GitService {
       }
 
       // Restore stash if it was used
-      if (isDirty) {
-        try {
-          await this.execGit(["stash", "pop"]);
-        } catch {
-          // stash pop failure is secondary
-        }
+      if (autostashRef) {
+        await this.restoreAutoStash(autostashRef);
       }
 
       throw rebaseErr;
     }
 
     // 5. Restore stashed changes on success
-    if (isDirty) {
-      await this.execGit(["stash", "pop"]);
+    if (autostashRef) {
+      await this.restoreAutoStash(autostashRef);
     }
 
     // 6. Apply dropped commit's diff to working directory via temp file
@@ -1119,6 +1179,24 @@ export class GitService {
           // ignore cleanup errors
         }
       }
+    }
+  }
+
+  /**
+   * drop-commit 流程结束后的自动贮藏恢复：按记录的 SHA `stash pop`。
+   * pop 失败降级为 logger 警告、不向上抛错 —— rebase 结果不应被次要的
+   * stash 恢复失败推翻（pop 失败时 git 不会 drop 该 stash，条目仍保留
+   * 在栈中，用户可手动恢复）。
+   */
+  private async restoreAutoStash(ref: string): Promise<void> {
+    try {
+      await this.execGit(["stash", "pop", ref]);
+    } catch (err: unknown) {
+      const detail = err instanceof Error ? err.message : String(err);
+      logger.warn(
+        `dropCommit: auto-stash restore (${ref}) failed: ${detail}. ` +
+          "The stash entry is kept in the stack; restore it manually via git stash pop.",
+      );
     }
   }
 
@@ -1592,10 +1670,11 @@ export class GitService {
     // 不再用外层 try-catch 吞掉所有 git 错误并返回 [] —— 那会让真实 git 故障
     //（例如仓库损坏、git 可执行文件丢失）对调用方完全不可见。让 execGit 的错误
     // 自然冒泡，由 handler/router 路由到 webview。
+    // %H 完整 SHA 作为稳定标识（stash@{n} 会随栈变化漂移，仅用于显示）。
     const output = await this.execGit([
       "stash",
       "list",
-      "--format=%gd%x00%s%x00%aI%x00%D",
+      "--format=%H%x00%gd%x00%s%x00%aI%x00%D",
     ]);
     if (!output.trim()) return [];
 
@@ -1603,15 +1682,17 @@ export class GitService {
     for (const line of output.trim().split("\n")) {
       if (!line.trim()) continue;
       const parts = line.split("\x00");
-      const id = parts[0] ?? "";
-      const message = (parts[1] ?? "").replace(/^(WIP on|On) [^:]+:\s*/, "");
-      const date = parts[2] ?? "";
-      const _refs = parts[3] ?? "";
+      const sha = parts[0] ?? "";
+      const id = parts[1] ?? "";
+      const subject = parts[2] ?? "";
+      const message = subject.replace(/^(WIP on|On) [^:]+:\s*/, "");
+      const date = parts[3] ?? "";
+      const _refs = parts[4] ?? "";
       // Extract branch from refs or message
-      const branchMatch = (parts[1] ?? "").match(/^(?:WIP on|On) ([^:]+)/);
+      const branchMatch = subject.match(/^(?:WIP on|On) ([^:]+)/);
       const branch = branchMatch?.[1] ?? "";
 
-      entries.push({ id, message, date, branch, files: [] });
+      entries.push({ sha, id, message, date, branch, files: [] });
     }
 
     // Load files for each stash
@@ -1619,14 +1700,17 @@ export class GitService {
     // 不应影响整体返回（files 字段保持为空数组即可）。
     // Promise.all 并发执行各 stash 的 `git stash show`：串行会对 N 个
     // stash 连续跑 N 个子进程，并发合并为一批完成。
+    // --include-untracked 让未跟踪文件也出现在列表中（git 2.32+）；
+    // 旧版 git 不支持该 flag 时回退为不带 flag 重试。
     await Promise.all(
       entries.map(async (entry) => {
         try {
           const filesOutput = await this.execGit([
             "stash",
             "show",
-            entry.id,
+            entry.sha,
             "--name-only",
+            "--include-untracked",
           ]);
           entry.files = filesOutput
             .trim()
@@ -1634,7 +1718,21 @@ export class GitService {
             .filter(Boolean)
             .map(unquoteGitPath);
         } catch {
-          // 单个 stash 的 file list 解析失败，忽略，files 保持为 []
+          try {
+            const filesOutput = await this.execGit([
+              "stash",
+              "show",
+              entry.sha,
+              "--name-only",
+            ]);
+            entry.files = filesOutput
+              .trim()
+              .split("\n")
+              .filter(Boolean)
+              .map(unquoteGitPath);
+          } catch {
+            // 单个 stash 的 file list 解析失败，忽略，files 保持为 []
+          }
         }
       }),
     );
@@ -1643,6 +1741,12 @@ export class GitService {
   }
 
   async stashChanges(message: string, filePaths?: string[]): Promise<void> {
+    // 空数组防护：显式传入空列表视为误用，直接 no-op 返回。
+    // 全量贮藏必须显式传 undefined（不传 filePaths），避免调用侧
+    // 语义混淆 —— 空列表 ≠ 全量。
+    if (filePaths && filePaths.length === 0) {
+      return;
+    }
     if (filePaths && filePaths.length > 0) {
       // git 2.13+ 原生支持 `git stash push -- <pathspec>`，一步完成对指定文件的
       // stash（同时包含 index 与 working tree 的改动，--include-untracked 也覆盖
@@ -1669,17 +1773,34 @@ export class GitService {
     this.invalidateCache();
   }
 
-  async unstashChanges(stashId: string, drop = true): Promise<void> {
+  /**
+   * 指定文件是否存在未提交改动（staged 或 unstaged）。用于覆盖类操作
+   * （如从 stash 检出单文件到工作区）前的确认判断。
+   */
+  async hasUncommittedFileChanges(filePath: string): Promise<boolean> {
+    const output = await this.execGit([
+      "status",
+      "--porcelain",
+      "--",
+      filePath,
+    ]);
+    return output.trim().length > 0;
+  }
+
+  async unstashChanges(stashRef: string, drop = true): Promise<void> {
     if (drop) {
-      await this.execGit(["stash", "pop", stashId]);
+      await this.execGit(["stash", "pop", stashRef]);
     } else {
-      await this.execGit(["stash", "apply", stashId]);
+      await this.execGit(["stash", "apply", stashRef]);
     }
     this.invalidateCache();
   }
 
-  async deleteStash(stashId: string): Promise<void> {
-    await this.execGit(["stash", "drop", stashId]);
+  async deleteStash(stashRef: string): Promise<void> {
+    await this.execGit(["stash", "drop", stashRef]);
+    // 与 stashChanges/unstashChanges 对齐：drop 改变了 stash 栈，
+    // 需失效缓存让下一次 getStashes 拿到最新列表。
+    this.invalidateCache();
   }
 
   public async generatePatchForFiles(filePaths: string[]): Promise<string> {

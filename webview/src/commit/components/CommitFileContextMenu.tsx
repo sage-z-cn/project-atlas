@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { WorkingTreeFile } from "../../shared/store/commit-store";
 import { useCommitStore } from "../../shared/store/commit-store";
 import { t } from "../../shared/i18n";
-import { bridge } from "../../shared/bridge";
+import { promptAndStash } from "../utils/stashPrompt";
 
 interface CommitFileContextMenuProps {
   x: number;
@@ -23,7 +23,6 @@ export function CommitFileContextMenu({
     unstageFile,
     rollbackFile,
     showDiff,
-    stashChanges,
     highlightedFiles,
     changes,
   } = useCommitStore();
@@ -129,15 +128,8 @@ export function CommitFileContextMenu({
             ),
           ]
         : [file.path];
-    // Name is optional: cancel aborts, empty falls back to the default message.
-    const result = (await bridge.request("showInputBox", {
-      prompt: t("Enter stash message (optional):"),
-      placeHolder: t("Stashed changes"),
-    })) as { value: string | null };
-    if (result.value === null) return;
-    const message = result.value.trim() || t("Stashed changes");
-    await stashChanges(message, paths);
-  }, [file, stashChanges, highlightedFiles, changes, onClose]);
+    await promptAndStash(paths);
+  }, [file, highlightedFiles, changes, onClose]);
 
   const handleDelete = useCallback(() => {
     const fileKey = `${file.path}:${file.staged}`;

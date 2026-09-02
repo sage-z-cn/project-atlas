@@ -166,6 +166,13 @@ export interface WorkingTreeFile {
 
 /** Stash entry (git stash based) */
 export interface StashEntry {
+  /**
+   * Full commit SHA of the stash commit. Stable identifier used for all git
+   * operations (stash pop/apply/drop/show, checkout) — unlike `id`, it does
+   * not shift when other stashes are pushed/popped.
+   */
+  sha: string;
+  /** Reflog selector (stash@{n}) — display only; the index shifts as the stash stack changes. */
   id: string; // stash@{n}
   message: string;
   date: string;

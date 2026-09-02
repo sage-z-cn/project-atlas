@@ -1,7 +1,10 @@
 import * as vscode from "vscode";
 import type { RepoRegistry } from "../git/repoRegistry";
 import type { DiffFile } from "../git/types";
-import { GIT_ATLAS_SCHEME } from "./gitContentProvider";
+import {
+  encodeGitAtlasPath,
+  GIT_ATLAS_SCHEME,
+} from "./gitContentProvider";
 
 export class DiffEditorManager {
   /** Current diff navigation state */
@@ -135,41 +138,45 @@ export class DiffEditorManager {
       : "";
 
     // Build URIs based on file status
+    // path 逐段百分号编码，与 GitContentProvider 的 decode 对称（含空格/
+    // 中文/% 等特殊字符的路径才能正确往返）。
+    const encodedOldPath = encodeGitAtlasPath(oldPath);
+    const encodedNewPath = encodeGitAtlasPath(newPath);
     let leftUri: vscode.Uri;
     let rightUri: vscode.Uri;
 
     switch (status) {
       case "added":
         leftUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=empty${repoQuery}`,
+          `${GIT_ATLAS_SCHEME}:/${encodedNewPath}?ref=empty${repoQuery}`,
         );
         rightUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${rightRef}${repoQuery}`,
+          `${GIT_ATLAS_SCHEME}:/${encodedNewPath}?ref=${rightRef}${repoQuery}`,
         );
         break;
       case "deleted":
         leftUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${oldPath}?ref=${leftRef}${repoQuery}`,
+          `${GIT_ATLAS_SCHEME}:/${encodedOldPath}?ref=${leftRef}${repoQuery}`,
         );
         rightUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${oldPath}?ref=empty${repoQuery}`,
+          `${GIT_ATLAS_SCHEME}:/${encodedOldPath}?ref=empty${repoQuery}`,
         );
         break;
       case "renamed":
       case "copied":
         leftUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${oldPath}?ref=${leftRef}${repoQuery}`,
+          `${GIT_ATLAS_SCHEME}:/${encodedOldPath}?ref=${leftRef}${repoQuery}`,
         );
         rightUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${rightRef}${repoQuery}`,
+          `${GIT_ATLAS_SCHEME}:/${encodedNewPath}?ref=${rightRef}${repoQuery}`,
         );
         break;
       default: // modified
         leftUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${leftRef}${repoQuery}`,
+          `${GIT_ATLAS_SCHEME}:/${encodedNewPath}?ref=${leftRef}${repoQuery}`,
         );
         rightUri = vscode.Uri.parse(
-          `${GIT_ATLAS_SCHEME}:/${newPath}?ref=${rightRef}${repoQuery}`,
+          `${GIT_ATLAS_SCHEME}:/${encodedNewPath}?ref=${rightRef}${repoQuery}`,
         );
         break;
     }

@@ -42,8 +42,8 @@ export function createVSCodeBridge(): Bridge {
   });
 
   return {
-    request(command, params = {}, options?: { timeout?: number }) {
-      return new Promise((resolve, reject) => {
+    request<T>(command: string, params = {}, options?: { timeout?: number }): Promise<T> {
+      return new Promise<T>((resolve, reject) => {
         const id = crypto.randomUUID();
         const timeout = setTimeout(() => {
           pendingRequests.delete(id);
@@ -57,7 +57,9 @@ export function createVSCodeBridge(): Bridge {
         pendingRequests.set(id, {
           resolve: (v) => {
             clearTimeout(timeout);
-            resolve(v);
+            // Host responses are untyped (ResponseMessage.data: unknown);
+            // callers opt into the type via request<T>.
+            resolve(v as T);
           },
           reject: (e) => {
             clearTimeout(timeout);
