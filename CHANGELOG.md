@@ -4,6 +4,16 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.23.0
+**新功能**
+- **贮藏**: 新增贮藏消息弹窗
+
+**Bug 修复**
+- **贮藏**: 修复 stash pop/drop 的 SHA 引用解析问题
+
+**改进**
+- **贮藏**: 改用完整 SHA 寻址贮藏条目并统一协议契约
+
 #### 1.22.0
 **新功能**
 - **任务**: 添加 taskType 字段以驱动 webview 任务图标
