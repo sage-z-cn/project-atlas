@@ -4,6 +4,15 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.24.0
+**新功能**
+- **任务**: 任务视图拆分为置顶/最近/全部三个独立面板
+- **任务图谱**: 新增任务列表密度切换（紧凑/宽松）
+- **Commit**: 重构更新日志提交范围选择组件
+
+**Bug 修复**
+- **Commit**: 修复 commit tab 下错误横幅重复展示的问题
+
 #### 1.23.0
 **新功能**
 - **贮藏**: 新增贮藏消息弹窗
