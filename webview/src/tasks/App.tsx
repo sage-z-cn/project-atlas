@@ -10,7 +10,6 @@ import IconStop from "~icons/codicon/debug-stop";
 import IconPin from "~icons/codicon/pin";
 import IconPinned from "~icons/codicon/pinned";
 import IconClose from "~icons/codicon/close";
-import IconHistory from "~icons/codicon/history";
 import IconFolder from "~icons/codicon/folder";
 import IconFolderOpened from "~icons/codicon/folder-opened";
 import IconChevronDown from "~icons/codicon/chevron-down";
@@ -18,15 +17,16 @@ import IconChevronRight from "~icons/codicon/chevron-right";
 import IconLoading from "~icons/codicon/loading";
 import "./tasks.css";
 
-export function TasksApp() {
+/** 面板分区：对齐 Project Atlas 的多视图结构。 */
+export type TasksPanelSection = "pinned" | "recent" | "all";
+
+export function TasksApp({ section = "all" }: { section?: TasksPanelSection }) {
   const pinnedItems = useTaskStore((s) => s.pinnedItems);
   const recentItems = useTaskStore((s) => s.recentItems);
   const rootProject = useTaskStore((s) => s.rootProject);
   const projects = useTaskStore((s) => s.projects);
   const loading = useTaskStore((s) => s.loading);
   const expandedProjects = useTaskStore((s) => s.expandedProjects);
-  const expandedPinned = useTaskStore((s) => s.expandedPinned);
-  const expandedRecent = useTaskStore((s) => s.expandedRecent);
   const listDensity = useTaskStore((s) => s.listDensity);
 
   const [menu, setMenu] = useState<{
@@ -53,13 +53,15 @@ export function TasksApp() {
     };
   }, []);
 
-  const hasSubProjects = projects.length > 0;
   const rootLabel = useTaskStore((s) => s.workspaceName);
+  const hasSubProjects = projects.length > 0;
+
+  const sectionItems: TaskItemDto[] =
+    section === "pinned" ? pinnedItems : section === "recent" ? recentItems : [];
   const hasContent =
-    pinnedItems.length > 0 ||
-    recentItems.length > 0 ||
-    rootProject.tasks.length > 0 ||
-    projects.length > 0;
+    section === "all"
+      ? rootProject.tasks.length > 0 || hasSubProjects
+      : sectionItems.length > 0;
 
   if (loading && !hasContent) {
     return (
@@ -73,44 +75,22 @@ export function TasksApp() {
   return (
     <>
       <div className={`tasks-list ${listDensity}`}>
-        {!hasContent ? (
+        {section === "pinned" ? (
+          hasContent ? (
+            <FlatTaskList tasks={pinnedItems} setMenu={setMenu} />
+          ) : (
+            <div className="tasks-empty">{t("No pinned tasks")}</div>
+          )
+        ) : section === "recent" ? (
+          hasContent ? (
+            <FlatTaskList tasks={recentItems} inRecent setMenu={setMenu} />
+          ) : (
+            <div className="tasks-empty">{t("No recent runs")}</div>
+          )
+        ) : !hasContent ? (
           <div className="tasks-empty">{t("No tasks found")}</div>
         ) : (
           <>
-            {pinnedItems.length > 0 && (
-              <>
-                <TaskSection
-                  headerLabel={t("Pinned")}
-                  expanded={expandedPinned}
-                  onToggle={() => useTaskStore.getState().togglePinned()}
-                  headerIcon={<IconPinned width={18} height={18} />}
-                  tasks={pinnedItems}
-                  showPath
-                  setMenu={setMenu}
-                />
-                {(recentItems.length > 0 || hasSubProjects || rootProject.tasks.length > 0) && (
-                  <div className="tasks-separator" />
-                )}
-              </>
-            )}
-
-            {recentItems.length > 0 && (
-              <>
-                <TaskSection
-                  headerLabel={t("Recent Runs")}
-                  expanded={expandedRecent}
-                  onToggle={() => useTaskStore.getState().toggleRecent()}
-                  headerIcon={<IconHistory width={18} height={18} />}
-                  tasks={recentItems}
-                  showPath
-                  setMenu={setMenu}
-                />
-                {(hasSubProjects || rootProject.tasks.length > 0) && (
-                  <div className="tasks-separator" />
-                )}
-              </>
-            )}
-
             {rootProject.tasks.length > 0 && (
               <ProjectSection
                 label={rootLabel}
@@ -121,10 +101,6 @@ export function TasksApp() {
                 tasks={rootProject.tasks}
                 setMenu={setMenu}
               />
-            )}
-
-            {hasSubProjects && rootProject.tasks.length > 0 && (
-              <div className="tasks-separator" />
             )}
 
             {projects.map((p) => (
@@ -145,40 +121,28 @@ export function TasksApp() {
   );
 }
 
-function TaskSection({
-  headerLabel,
-  expanded,
-  onToggle,
-  headerIcon,
+function FlatTaskList({
   tasks,
-  showPath,
+  inRecent,
   setMenu,
 }: {
-  headerLabel: string;
-  expanded: boolean;
-  onToggle: () => void;
-  headerIcon: React.ReactNode;
   tasks: TaskItemDto[];
-  showPath?: boolean;
+  inRecent?: boolean;
   setMenu: (m: { x: number; y: number; task: TaskItemDto; inRecent: boolean } | null) => void;
 }) {
   return (
-    <>
-      <div className="tasks-group-header" onClick={onToggle}>
-        <span className="tasks-chevron">
-          {expanded ? <IconChevronDown width={18} height={18} /> : <IconChevronRight width={18} height={18} />}
-        </span>
-        <span className="tasks-header-icon">{headerIcon}</span>
-        <span>{headerLabel}</span>
-      </div>
-      {expanded && (
-        <div>
-          {tasks.map((task) => (
-            <TaskRow key={task.id} task={task} showPath={showPath} indent setMenu={setMenu} />
-          ))}
-        </div>
-      )}
-    </>
+    <div className="tasks-flat-list">
+      {tasks.map((task) => (
+        <TaskRow
+          key={task.id}
+          task={task}
+          indent
+          showPath
+          inRecent={inRecent}
+          setMenu={setMenu}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -224,11 +188,13 @@ function TaskRow({
   task,
   indent,
   showPath,
+  inRecent,
   setMenu,
 }: {
   task: TaskItemDto;
   indent?: boolean;
   showPath?: boolean;
+  inRecent?: boolean;
   setMenu: (m: { x: number; y: number; task: TaskItemDto; inRecent: boolean } | null) => void;
 }) {
   const store = useTaskStore;
@@ -249,7 +215,7 @@ function TaskRow({
     e.preventDefault();
     e.stopPropagation();
     // 视口边缘吸附交给 useClampedPosition
-    setMenu({ x: e.clientX, y: e.clientY, task, inRecent: !!showPath });
+    setMenu({ x: e.clientX, y: e.clientY, task, inRecent: !!inRecent });
   };
 
   return (

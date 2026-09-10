@@ -8,6 +8,9 @@
 
   "viewContainer.taskAtlas": "Task Atlas",
   "view.tasks.name": "Tasks",
+  "view.pinnedTasks.name": "Pinned Tasks",
+  "view.recentTasks.name": "Recent Tasks",
+  "view.allTasks.name": "All Tasks",
   "command.refreshTasks": "Refresh Tasks",
   "command.taskAtlas.openSettings": "Task Atlas Settings",
   "command.taskAtlas.expandAll": "Expand All",

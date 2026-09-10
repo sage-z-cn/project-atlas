@@ -169,8 +169,8 @@
 .tasks-list.comfortable .tasks-group-header,
 .tasks-list.comfortable .tasks-project-header {
   min-height: 32px;
-  padding: 6px 10px 6px 8px;
-  gap: 6px;
+  padding: 6px 10px;
+  gap: 3px;
 }
 .tasks-list.comfortable .tasks-chevron,
 .tasks-list.comfortable .tasks-header-icon,
@@ -225,8 +225,8 @@
 .tasks-list.compact .tasks-group-header,
 .tasks-list.compact .tasks-project-header {
   min-height: 22px;
-  padding: 4px 8px;
-  gap: 4px;
+  padding: 4px 10px;
+  gap: 3px;
 }
 .tasks-list.compact .tasks-chevron,
 .tasks-list.compact .tasks-header-icon,

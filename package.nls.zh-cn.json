@@ -8,6 +8,9 @@
 
   "viewContainer.taskAtlas": "Task Atlas",
   "view.tasks.name": "任务",
+  "view.pinnedTasks.name": "置顶任务",
+  "view.recentTasks.name": "最近任务",
+  "view.allTasks.name": "全部任务",
   "command.refreshTasks": "刷新任务",
   "command.taskAtlas.openSettings": "Task Atlas 设置",
   "command.taskAtlas.expandAll": "全部展开",

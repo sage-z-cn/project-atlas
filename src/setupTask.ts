@@ -34,16 +34,23 @@ export function setupTask(
   const ctx: TaskHandlerContext = { messageRouter, context, taskService };
   registerTaskHandlersAll(ctx);
 
-  // Tasks 视图（React，mode="tasks"）
-  const tasksProvider = new ReactViewProvider(
-    context.extensionUri,
-    messageRouter,
-    "tasks",
-    "Task Atlas",
-  );
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider("task-atlas.tasks", tasksProvider),
-  );
+  // Tasks 视图：置顶 / 最近 / 全部（对齐 Project Atlas 多视图结构）
+  const taskViews: Array<{ viewId: string; mode: string }> = [
+    { viewId: "task-atlas.pinned", mode: "tasks-pinned" },
+    { viewId: "task-atlas.recent", mode: "tasks-recent" },
+    { viewId: "task-atlas.tasks", mode: "tasks" },
+  ];
+  for (const { viewId, mode } of taskViews) {
+    const provider = new ReactViewProvider(
+      context.extensionUri,
+      messageRouter,
+      mode,
+      "Task Atlas",
+    );
+    context.subscriptions.push(
+      vscode.window.registerWebviewViewProvider(viewId, provider),
+    );
+  }
 
   // taskService 状态变化（run/stop/pin/unpin/reorder + 终端关闭/结束）→ 广播
   context.subscriptions.push(

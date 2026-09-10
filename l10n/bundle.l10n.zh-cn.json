@@ -61,6 +61,8 @@
   "Open New Project...": "打开新项目...",
   "Directory '{0}' does not exist.": "目录 '{0}' 不存在。",
   "No tasks found": "暂无任务",
+  "No pinned tasks": "暂无置顶任务",
+  "No recent runs": "暂无最近运行",
   "Run": "运行",
   "Stop": "停止",
   "npm Scripts": "npm 脚本",

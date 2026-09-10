@@ -40,6 +40,8 @@ initI18n().finally(() => {
     | "rollback"
     | "recent"
     | "tasks"
+    | "tasks-pinned"
+    | "tasks-recent"
     | "todos"
     | "favorites"
     | undefined;
@@ -59,7 +61,11 @@ initI18n().finally(() => {
       ) : mode === "recent" ? (
         <RecentApp />
       ) : mode === "tasks" ? (
-        <TasksApp />
+        <TasksApp section="all" />
+      ) : mode === "tasks-pinned" ? (
+        <TasksApp section="pinned" />
+      ) : mode === "tasks-recent" ? (
+        <TasksApp section="recent" />
       ) : mode === "todos" ? (
         <TodosApp />
       ) : mode === "favorites" ? (

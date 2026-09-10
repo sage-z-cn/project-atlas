@@ -99,8 +99,20 @@
       ],
       "task-atlas": [
         {
+          "id": "task-atlas.pinned",
+          "name": "%view.pinnedTasks.name%",
+          "icon": "resources/tasks.svg",
+          "type": "webview"
+        },
+        {
+          "id": "task-atlas.recent",
+          "name": "%view.recentTasks.name%",
+          "icon": "resources/tasks.svg",
+          "type": "webview"
+        },
+        {
           "id": "task-atlas.tasks",
-          "name": "%view.tasks.name%",
+          "name": "%view.allTasks.name%",
           "icon": "resources/tasks.svg",
           "type": "webview"
         }
@@ -541,7 +553,7 @@
         },
         {
           "command": "task-atlas.toggleListDensity",
-          "when": "view == task-atlas.tasks",
+          "when": "view == task-atlas.pinned || view == task-atlas.recent || view == task-atlas.tasks",
           "group": "navigation@2"
         },
         {
@@ -556,7 +568,7 @@
         },
         {
           "command": "task-atlas.openSettings",
-          "when": "view == task-atlas.tasks",
+          "when": "view == task-atlas.pinned || view == task-atlas.recent || view == task-atlas.tasks",
           "group": "navigation@5"
         },
         {
