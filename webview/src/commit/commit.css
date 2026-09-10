@@ -1090,17 +1090,28 @@ button.commit-dropdown-item:hover:not(:disabled) {
   transform: rotate(90deg);
 }
 
+/* Shares the 16px box metric with the chevron/badge so all three header
+ * children sit on one optical center line. */
+.new-version-section-title {
+  line-height: 16px;
+}
+
+/* 16px-tall pill badge; flex centering + line-height 1 keeps the digits
+ * optically centered (no ascender/descender drift at 10px). */
 .new-version-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   background: var(--vscode-badge-background);
   color: var(--vscode-badge-foreground);
   font-size: 10px;
   font-weight: 600;
-  border-radius: 10px;
-  padding: 1px 7px;
+  border-radius: 8px;
+  padding: 0 7px;
+  height: 16px;
   min-width: 16px;
-  text-align: center;
   flex-shrink: 0;
-  margin-left: 4px;
 }
 
 /* ── Commit range list ── */
@@ -1150,10 +1161,12 @@ button.commit-dropdown-item:hover:not(:disabled) {
   white-space: nowrap;
 }
 
+/* Standalone empty state (no collapsible header when there are no commits). */
 .new-version-empty {
   font-size: 12px;
-  opacity: 0.55;
-  padding: 2px;
+  color: var(--description-fg);
+  text-align: center;
+  padding: 18px 12px;
 }
 
 .new-version-hint {

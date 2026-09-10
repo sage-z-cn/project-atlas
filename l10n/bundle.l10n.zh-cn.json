@@ -460,7 +460,7 @@
   "No": "否",
   "package.json": "package.json",
   "Creating new version...": "正在创建新版本...",
-  "Commits for New Version": "新版本包含的提交",
+  "Changelog generation scope": "更新日志生成范围",
   "No new commits since last version": "上个版本后没有新提交",
   "Selected {0} of {1} commits": "已选 {0} / {1} 个提交",
   "Include in changelog generation": "纳入 changelog 生成",
