@@ -44,6 +44,15 @@ export interface TasksDataDto {
   projects: TaskProjectDto[];
   /** 根任务段的标签（工作区名，无工作区时 "Root"）。 */
   workspaceName: string;
+  /** 列表密度：compact（原紧凑布局）| comfortable（加高加宽按钮）。 */
+  listDensity: "compact" | "comfortable";
+}
+
+export function getListDensity(): "compact" | "comfortable" {
+  const value = vscode.workspace
+    .getConfiguration("taskAtlas")
+    .get<string>("listDensity", "compact");
+  return value === "comfortable" ? "comfortable" : "compact";
 }
 
 function toDto(t: TaskItem, runningIds: Set<string>): TaskItemDto {
@@ -121,7 +130,14 @@ export function registerTaskHandlers(ctx: TaskHandlerContext): void {
         }
       }
 
-      return { pinnedItems, recentItems, rootProject, projects, workspaceName: getWorkspaceName() };
+      return {
+        pinnedItems,
+        recentItems,
+        rootProject,
+        projects,
+        workspaceName: getWorkspaceName(),
+        listDensity: getListDensity(),
+      };
     } catch {
       return {
         pinnedItems: [],
@@ -129,6 +145,7 @@ export function registerTaskHandlers(ctx: TaskHandlerContext): void {
         rootProject: { relativePath: "", tasks: [] },
         projects: [],
         workspaceName: getWorkspaceName(),
+        listDensity: getListDensity(),
       };
     }
   });

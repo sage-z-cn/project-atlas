@@ -29,6 +29,8 @@ interface PersistedExpand {
   expandedRecent?: boolean;
 }
 
+export type TaskListDensity = "compact" | "comfortable";
+
 interface TaskStore {
   pinnedItems: TaskItemDto[];
   recentItems: TaskItemDto[];
@@ -37,6 +39,8 @@ interface TaskStore {
   /** 根任务段标签（工作区名）。 */
   workspaceName: string;
   loading: boolean;
+  /** 列表密度：紧凑（原布局）/ 宽松（加高加宽按钮）。 */
+  listDensity: TaskListDensity;
   /** 乐观运行态：点 run 后立即加入，refresh（tasksChanged）后清空（host isRunning 接管）。 */
   optimisticRunningIds: Set<string>;
   expandedProjects: Set<string>;
@@ -73,6 +77,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   projects: [],
   workspaceName: "Root",
   loading: true,
+  listDensity: "compact",
   optimisticRunningIds: new Set(),
   expandedProjects: new Set(),
   expandedPinned: true,
@@ -111,6 +116,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         rootProject: TaskProjectDto;
         projects: TaskProjectDto[];
         workspaceName?: string;
+        listDensity?: TaskListDensity;
       };
       set({
         pinnedItems: data.pinnedItems ?? [],
@@ -118,6 +124,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         rootProject: data.rootProject ?? EMPTY_ROOT,
         projects: data.projects ?? [],
         workspaceName: data.workspaceName ?? "Root",
+        listDensity: data.listDensity === "comfortable" ? "comfortable" : "compact",
         loading: false,
         optimisticRunningIds: new Set(),
       });

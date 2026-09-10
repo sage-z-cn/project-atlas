@@ -3,6 +3,7 @@ import { MessageRouter } from "./messages/messageRouter";
 import { ReactViewProvider } from "./webview/reactViewProvider";
 import { registerL10nBundleHandler } from "./messages/l10nHandler";
 import {
+  getListDensity,
   registerTaskHandlersAll,
   TASK_EVENTS,
   type TaskHandlerContext,
@@ -106,6 +107,14 @@ export function setupTask(
   context.subscriptions.push(
     vscode.commands.registerCommand("task-atlas.collapseAll", () => {
       messageRouter.broadcastEvent(TASK_EVENTS.collapseAll, {});
+    }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("task-atlas.toggleListDensity", async () => {
+      const cfg = vscode.workspace.getConfiguration("taskAtlas");
+      const next = getListDensity() === "comfortable" ? "compact" : "comfortable";
+      await cfg.update("listDensity", next, vscode.ConfigurationTarget.Global);
+      messageRouter.broadcastEvent(TASK_EVENTS.changed, {});
     }),
   );
 }

@@ -1,4 +1,7 @@
-/* Task 面板样式。端口自 legacy tasksViewProvider.ts 的内联 CSS。 */
+/* Task 面板样式。
+ * 默认 comfortable：行高加高、运行按钮命中区 28×28。
+ * .compact：恢复原始紧凑布局（行高 22px、小按钮）。
+ */
 
 .tasks-list {
   height: 100%;
@@ -10,15 +13,14 @@
   user-select: none;
 }
 
+/* ─── Shared chrome ─── */
+
 .tasks-group-header,
 .tasks-project-header {
   display: flex;
   align-items: center;
-  min-height: 22px;
-  padding: 4px 8px;
   cursor: pointer;
   font-weight: 600;
-  gap: 4px;
 }
 .tasks-group-header {
   font-size: 0.9em;
@@ -32,28 +34,32 @@
 .tasks-chevron,
 .tasks-header-icon {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--vscode-icon-foreground);
 }
+/* unplugin-icons SVG 默认 inline + 1em，需在容器内固定尺寸并 block 居中 */
+.tasks-chevron svg,
+.tasks-header-icon svg,
+.tasks-item-icon svg,
+.tasks-run-btn svg,
+.tasks-stop-btn svg {
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
+}
 
 .tasks-separator {
   height: 1px;
-  margin: 6px 12px;
   background: var(--vscode-widget-border, rgba(255, 255, 255, 0.1));
 }
 
 .tasks-item {
   display: flex;
   align-items: center;
-  min-height: 22px;
-  padding: 4px 8px;
   cursor: pointer;
   overflow: hidden;
-  gap: 6px;
   position: relative;
 }
 .tasks-item:hover {
@@ -84,47 +90,56 @@
 }
 .tasks-item-icon {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--vscode-icon-foreground);
 }
+.tasks-item.running .tasks-item-icon {
+  color: var(--vscode-notificationsInfoIcon-foreground, #3794ff);
+}
 .tasks-name {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .tasks-path {
-  margin-left: 6px;
+  display: inline-block;
   color: var(--vscode-descriptionForeground);
   font-size: 0.85em;
-  opacity: 0.8;
+  opacity: 0.85;
+  vertical-align: baseline;
 }
+
 .tasks-run-btn,
 .tasks-stop-btn {
   flex-shrink: 0;
-  background: none;
-  border: none;
+  background: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
-  padding: 0 2px;
   color: var(--vscode-descriptionForeground);
-  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 18px;
-  width: 20px;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 .tasks-run-btn:hover,
 .tasks-stop-btn:hover {
   color: var(--vscode-foreground);
   background: var(--vscode-toolbar-hoverBackground);
 }
+.tasks-run-btn:focus-visible,
+.tasks-stop-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
 .tasks-item.running .tasks-stop-btn {
   color: var(--vscode-notificationsErrorIcon-foreground, #f14c4c);
+}
+.tasks-item.running .tasks-stop-btn:hover {
+  background: var(--vscode-inputValidation-errorBackground, rgba(241, 76, 76, 0.15));
 }
 
 .tasks-empty {
@@ -147,4 +162,108 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ─── Comfortable（默认 / 放大版）─── */
+
+.tasks-list.comfortable .tasks-group-header,
+.tasks-list.comfortable .tasks-project-header {
+  min-height: 32px;
+  padding: 6px 10px 6px 8px;
+  gap: 6px;
+}
+.tasks-list.comfortable .tasks-chevron,
+.tasks-list.comfortable .tasks-header-icon,
+.tasks-list.comfortable .tasks-item-icon {
+  width: 18px;
+  height: 18px;
+}
+.tasks-list.comfortable .tasks-chevron svg,
+.tasks-list.comfortable .tasks-header-icon svg,
+.tasks-list.comfortable .tasks-item-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.tasks-list.comfortable .tasks-run-btn svg,
+.tasks-list.comfortable .tasks-stop-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.tasks-list.comfortable .tasks-separator {
+  margin: 8px 12px;
+}
+.tasks-list.comfortable .tasks-item {
+  min-height: 36px;
+  padding: 6px 8px;
+  gap: 8px;
+}
+.tasks-list.comfortable .tasks-item.drag-over {
+  border-radius: 4px;
+}
+.tasks-list.comfortable .tasks-name {
+  line-height: 1.35;
+}
+.tasks-list.comfortable .tasks-path {
+  margin-left: 8px;
+}
+.tasks-list.comfortable .tasks-run-btn,
+.tasks-list.comfortable .tasks-stop-btn {
+  height: 28px;
+  width: 28px;
+  border-radius: 6px;
+}
+.tasks-list.comfortable .tasks-item:hover .tasks-run-btn,
+.tasks-list.comfortable .tasks-item:hover .tasks-stop-btn {
+  color: var(--vscode-foreground);
+}
+.tasks-list.comfortable .tasks-item.running .tasks-stop-btn {
+  color: var(--vscode-notificationsErrorIcon-foreground, #f14c4c);
+}
+
+/* ─── Compact（原始紧凑布局）─── */
+
+.tasks-list.compact .tasks-group-header,
+.tasks-list.compact .tasks-project-header {
+  min-height: 22px;
+  padding: 4px 8px;
+  gap: 4px;
+}
+.tasks-list.compact .tasks-chevron,
+.tasks-list.compact .tasks-header-icon,
+.tasks-list.compact .tasks-item-icon {
+  width: 16px;
+  height: 16px;
+}
+.tasks-list.compact .tasks-chevron svg,
+.tasks-list.compact .tasks-header-icon svg,
+.tasks-list.compact .tasks-item-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.tasks-list.compact .tasks-run-btn svg,
+.tasks-list.compact .tasks-stop-btn svg {
+  width: 13px;
+  height: 13px;
+}
+.tasks-list.compact .tasks-separator {
+  margin: 6px 12px;
+}
+.tasks-list.compact .tasks-item {
+  min-height: 22px;
+  padding: 4px 8px;
+  gap: 6px;
+}
+.tasks-list.compact .tasks-path {
+  margin-left: 6px;
+}
+.tasks-list.compact .tasks-run-btn,
+.tasks-list.compact .tasks-stop-btn {
+  height: 18px;
+  width: 20px;
+  padding: 0 2px;
+  border-radius: 3px;
+}
+.tasks-list.compact .tasks-item:hover .tasks-run-btn,
+.tasks-list.compact .tasks-item:hover .tasks-stop-btn {
+  color: var(--vscode-foreground);
 }

@@ -27,6 +27,7 @@ export function TasksApp() {
   const expandedProjects = useTaskStore((s) => s.expandedProjects);
   const expandedPinned = useTaskStore((s) => s.expandedPinned);
   const expandedRecent = useTaskStore((s) => s.expandedRecent);
+  const listDensity = useTaskStore((s) => s.listDensity);
 
   const [menu, setMenu] = useState<{
     x: number;
@@ -71,7 +72,7 @@ export function TasksApp() {
 
   return (
     <>
-      <div className="tasks-list">
+      <div className={`tasks-list ${listDensity}`}>
         {!hasContent ? (
           <div className="tasks-empty">{t("No tasks found")}</div>
         ) : (
@@ -82,7 +83,7 @@ export function TasksApp() {
                   headerLabel={t("Pinned")}
                   expanded={expandedPinned}
                   onToggle={() => useTaskStore.getState().togglePinned()}
-                  headerIcon={<IconPinned width={16} height={16} />}
+                  headerIcon={<IconPinned width={18} height={18} />}
                   tasks={pinnedItems}
                   showPath
                   setMenu={setMenu}
@@ -99,7 +100,7 @@ export function TasksApp() {
                   headerLabel={t("Recent Runs")}
                   expanded={expandedRecent}
                   onToggle={() => useTaskStore.getState().toggleRecent()}
-                  headerIcon={<IconHistory width={16} height={16} />}
+                  headerIcon={<IconHistory width={18} height={18} />}
                   tasks={recentItems}
                   showPath
                   setMenu={setMenu}
@@ -165,7 +166,7 @@ function TaskSection({
     <>
       <div className="tasks-group-header" onClick={onToggle}>
         <span className="tasks-chevron">
-          {expanded ? <IconChevronDown width={16} height={16} /> : <IconChevronRight width={16} height={16} />}
+          {expanded ? <IconChevronDown width={18} height={18} /> : <IconChevronRight width={18} height={18} />}
         </span>
         <span className="tasks-header-icon">{headerIcon}</span>
         <span>{headerLabel}</span>
@@ -198,10 +199,10 @@ function ProjectSection({
     <>
       <div className="tasks-project-header" onClick={onToggle}>
         <span className="tasks-chevron">
-          {expanded ? <IconChevronDown width={16} height={16} /> : <IconChevronRight width={16} height={16} />}
+          {expanded ? <IconChevronDown width={18} height={18} /> : <IconChevronRight width={18} height={18} />}
         </span>
         <span className="tasks-header-icon">
-          {expanded ? <IconFolderOpened width={16} height={16} /> : <IconFolder width={16} height={16} />}
+          {expanded ? <IconFolderOpened width={18} height={18} /> : <IconFolder width={18} height={18} />}
         </span>
         <span>{label}</span>
       </div>
@@ -258,6 +259,12 @@ function TaskRow({
       draggable
       title={tooltip}
       onContextMenu={onContextMenu}
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (store.getState().isRunning(task.id) || task.isRunning) return;
+        void store.getState().run(task.id);
+      }}
       onDragStart={(e) => {
         dragIdRef.current = task.id;
         e.dataTransfer.effectAllowed = "move";
@@ -290,11 +297,11 @@ function TaskRow({
       {indent && <span className="tasks-indent" />}
       <span className="tasks-item-icon">
         {task.taskType === "npm" ? (
-          <IconNpm width={16} height={16} />
+          <IconNpm width={18} height={18} />
         ) : task.taskType === "typescript" ? (
-          <IconTypeScript width={16} height={16} />
+          <IconTypeScript width={18} height={18} />
         ) : (
-          <IconTerminal width={16} height={16} />
+          <IconTerminal width={18} height={18} />
         )}
       </span>
       <span className="tasks-name">
@@ -313,7 +320,7 @@ function TaskRow({
             void store.getState().stop(task.id);
           }}
         >
-          <IconStop width={13} height={13} />
+          <IconStop width={16} height={16} />
         </button>
       ) : (
         <button
@@ -325,7 +332,7 @@ function TaskRow({
             void store.getState().run(task.id);
           }}
         >
-          <IconPlay width={13} height={13} />
+          <IconPlay width={16} height={16} />
         </button>
       )}
       {dropPos === "after" && <div className="tasks-drop-indicator after" />}

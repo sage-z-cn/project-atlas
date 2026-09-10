@@ -231,6 +231,11 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "task-atlas.toggleListDensity",
+        "title": "%command.taskAtlas.toggleListDensity%",
+        "icon": "$(list-flat)"
+      },
+      {
         "command": "task-atlas.openSettings",
         "title": "%command.taskAtlas.openSettings%",
         "icon": "$(gear)"
@@ -535,19 +540,24 @@
           "group": "navigation@1"
         },
         {
-          "command": "task-atlas.expandAll",
+          "command": "task-atlas.toggleListDensity",
           "when": "view == task-atlas.tasks",
           "group": "navigation@2"
         },
         {
-          "command": "task-atlas.collapseAll",
+          "command": "task-atlas.expandAll",
           "when": "view == task-atlas.tasks",
           "group": "navigation@3"
         },
         {
-          "command": "task-atlas.openSettings",
+          "command": "task-atlas.collapseAll",
           "when": "view == task-atlas.tasks",
           "group": "navigation@4"
+        },
+        {
+          "command": "task-atlas.openSettings",
+          "when": "view == task-atlas.tasks",
+          "group": "navigation@5"
         },
         {
           "command": "todo-atlas.refreshTodos",
@@ -812,6 +822,16 @@
           "type": "boolean",
           "default": true,
           "description": "%config.taskAtlas.showPinned%"
+        },
+        "taskAtlas.listDensity": {
+          "type": "string",
+          "enum": ["compact", "comfortable"],
+          "enumDescriptions": [
+            "%config.taskAtlas.listDensity.compact%",
+            "%config.taskAtlas.listDensity.comfortable%"
+          ],
+          "default": "compact",
+          "description": "%config.taskAtlas.listDensity%"
         },
         "todoAtlas.enabled": {
           "type": "boolean",

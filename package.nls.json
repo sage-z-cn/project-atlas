@@ -12,6 +12,7 @@
   "command.taskAtlas.openSettings": "Task Atlas Settings",
   "command.taskAtlas.expandAll": "Expand All",
   "command.taskAtlas.collapseAll": "Collapse All",
+  "command.taskAtlas.toggleListDensity": "Toggle List Density (Compact / Comfortable)",
 
   "viewContainer.todoAtlas": "TODO Atlas",
   "view.todos.name": "TODOs",
@@ -73,6 +74,9 @@
   "config.taskAtlas.showRecentRuns": "Show the 'Recent Runs' group at the top of the task list.",
   "config.taskAtlas.maxRecentRuns": "Maximum number of recently run tasks to display.",
   "config.taskAtlas.showPinned": "Show the 'Pinned' group at the top of the task list.",
+  "config.taskAtlas.listDensity": "Task list row density.",
+  "config.taskAtlas.listDensity.compact": "Denser rows with smaller run buttons (original layout).",
+  "config.taskAtlas.listDensity.comfortable": "Taller rows with larger run buttons (easier to hit).",
   "config.gitAtlas.commitListStyle": "Commit list display style for Git Atlas.",
   "config.gitAtlas.commitListStyle.vscode": "VSCode style: two groups (Staged Changes / Changes) with hover actions.",
   "config.gitAtlas.commitListStyle.jetbrains": "JetBrains style: checkbox-based selection with separate groups.",

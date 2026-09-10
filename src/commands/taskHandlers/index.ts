@@ -11,4 +11,4 @@ export type {
   TaskProjectDto,
   TasksDataDto,
 } from "./taskHandlers";
-export { TASK_EVENTS } from "./taskHandlers";
+export { TASK_EVENTS, getListDensity } from "./taskHandlers";
