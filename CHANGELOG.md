@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.25.0
+**新功能**
+- **Commit**: 添加批量推送仓库功能，并重构拉取交互
+
 #### 1.24.0
 **新功能**
 - **任务**: 任务视图拆分为置顶/最近/全部三个独立面板
