@@ -80,12 +80,12 @@ export function ChangelogSection({ context }: { context: NewVersionContext }) {
       )}
 
       {genError && (
-        <div className="commit-error-banner" role="alert">
-          <ErrorIcon className="commit-error-icon" />
-          <span className="commit-error-message">{genError}</span>
+        <div className="commit-message-banner" role="alert">
+          <ErrorIcon className="commit-message-banner-icon" />
+          <span className="commit-message-banner-text">{genError}</span>
           <button
             type="button"
-            className="commit-error-close"
+            className="commit-message-banner-close"
             aria-label={t("Dismiss")}
             onClick={() => setGenError(null)}
           >

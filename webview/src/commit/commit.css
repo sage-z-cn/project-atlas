@@ -157,6 +157,27 @@
   background: transparent;
 }
 
+/* 网络操作进行中（拉取/推送）：图标 opacity 呼吸，提示「仍在执行」。
+   不用缩放——16px 图标上容易显抖；节奏偏慢，接近呼吸而非闪烁。 */
+.commit-toolbar-btn.is-busy {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.commit-toolbar-btn.is-busy svg {
+  animation: toolbar-busy-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes toolbar-busy-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .commit-toolbar-btn svg {
   width: 16px;
   height: 16px;
@@ -428,8 +449,8 @@
   color: var(--vscode-input-placeholderForeground);
 }
 
-/* ─── Commit Error Banner ─────────────────────────────────────── */
-.commit-error-banner {
+/* ─── Commit Message Banner ──────────────────────────────────── */
+.commit-message-banner {
   display: flex;
   align-items: flex-start;
   gap: 6px;
@@ -441,21 +462,21 @@
   line-height: 1.4;
 }
 
-.commit-error-icon {
+.commit-message-banner-icon {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
   color: var(--vscode-errorForeground, #f48771);
 }
 
-.commit-error-message {
+.commit-message-banner-text {
   flex: 1;
   word-break: break-word;
   white-space: pre-wrap;
   color: var(--app-fg, #ccc);
 }
 
-.commit-error-close {
+.commit-message-banner-close {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -472,12 +493,41 @@
   transition: opacity 0.15s, background 0.15s;
 }
 
-.commit-error-close:hover {
+.commit-message-banner-close:hover {
   opacity: 1;
   background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.12));
 }
 
-.commit-error-close svg {
+/* 成功 banner：与 error 同结构，绿系配色（对齐 debugIcon-startForeground）。 */
+.commit-message-banner-success {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-debugIcon-startForeground, #89d185) 12%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--vscode-debugIcon-startForeground, #89d185) 45%,
+      transparent
+    );
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.commit-message-banner-icon-success {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--vscode-debugIcon-startForeground, #89d185);
+}
+
+.commit-message-banner-close svg {
   width: 14px;
   height: 14px;
 }

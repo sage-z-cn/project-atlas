@@ -53,15 +53,15 @@ export function NewVersionTab() {
       <div className="new-version-tab">
         <div className="new-version-scroll-center">
           {contextError ? (
-            <div className="commit-error-banner" role="alert">
-              <ErrorIcon className="commit-error-icon" />
-              <span className="commit-error-message">
+            <div className="commit-message-banner" role="alert">
+              <ErrorIcon className="commit-message-banner-icon" />
+              <span className="commit-message-banner-text">
                 {t("Failed to load new version context")}
                 {contextError ? `: ${contextError}` : ""}
               </span>
               <button
                 type="button"
-                className="commit-error-close"
+                className="commit-message-banner-close"
                 aria-label={t("Retry")}
                 title={t("Retry")}
                 onClick={() =>
@@ -358,7 +358,7 @@ function CreateSection({
               <span className="new-version-modal-title">{t("Confirm New Version")}</span>
               <button
                 type="button"
-                className="commit-error-close"
+                className="commit-message-banner-close"
                 aria-label={t("Cancel")}
                 disabled={creating}
                 onClick={() => setConfirmOpen(false)}
@@ -421,9 +421,9 @@ function CreateSection({
             )}
 
             {createError && (
-              <div className="commit-error-banner" role="alert">
-                <ErrorIcon className="commit-error-icon" />
-                <span className="commit-error-message">{createError}</span>
+              <div className="commit-message-banner" role="alert">
+                <ErrorIcon className="commit-message-banner-icon" />
+                <span className="commit-message-banner-text">{createError}</span>
               </div>
             )}
 

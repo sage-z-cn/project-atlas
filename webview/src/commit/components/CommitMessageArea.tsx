@@ -277,12 +277,12 @@ export function CommitMessageArea() {
   return (
     <div className="commit-message-area">
       {commitError && (
-        <div className="commit-error-banner" role="alert">
-          <ErrorIcon className="commit-error-icon" />
-          <span className="commit-error-message">{commitError}</span>
+        <div className="commit-message-banner" role="alert">
+          <ErrorIcon className="commit-message-banner-icon" />
+          <span className="commit-message-banner-text">{commitError}</span>
           <button
             type="button"
-            className="commit-error-close"
+            className="commit-message-banner-close"
             aria-label={t("Dismiss")}
             onClick={() => setCommitError(null)}
           >

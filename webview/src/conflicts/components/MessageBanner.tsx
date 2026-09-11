@@ -4,14 +4,14 @@ import ErrorIcon from "~icons/codicon/error";
 import CloseIcon from "~icons/codicon/close";
 
 /**
- * Conflicts 视图顶部错误 banner：展示冲突列表 / merge editor 操作失败的错误，
- * 绑定到 merge-store.conflictError。
+ * Conflicts 视图顶部消息 banner（命名对齐 commit/MessageBanner）：展示
+ * 冲突列表 / merge editor 操作失败的错误，绑定到 merge-store.conflictError。
  *
  * conflicts 目录没有 CSS 文件（所有 conflicts 组件均使用内联样式），所以这里
- * 也用内联样式，视觉与 commit-error-banner / panel-error-banner 保持一致
+ * 也用内联样式，视觉与 commit-message-banner / panel-message-banner 保持一致
  * （同样的 vscode inputValidation 错误色 token + pre-wrap 多行换行）。
  */
-export function ErrorBanner() {
+export function MessageBanner() {
   const conflictError = useMergeStore((s) => s.conflictError);
   const setConflictError = useMergeStore((s) => s.setConflictError);
 

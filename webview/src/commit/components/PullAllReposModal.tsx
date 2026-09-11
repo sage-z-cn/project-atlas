@@ -166,7 +166,7 @@ export function PullAllReposModal() {
         </span>
         <button
           type="button"
-          className="commit-error-close"
+          className="commit-message-banner-close"
           aria-label={t("Cancel")}
           onClick={close}
           disabled={pulling}

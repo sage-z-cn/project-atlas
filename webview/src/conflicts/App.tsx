@@ -14,7 +14,7 @@ import { usePreventSelect } from "../shared/hooks/usePreventSelect";
 import { t } from "../shared/i18n";
 import { useMergeStore } from "../shared/store/merge-store";
 import type { DiffFile } from "../shared/types/git";
-import { ErrorBanner } from "./components/ErrorBanner";
+import { MessageBanner } from "./components/MessageBanner";
 
 interface MergeState {
   isMerging: boolean;
@@ -296,7 +296,7 @@ export function ConflictsApp() {
         userSelect: "none",
       }}
     >
-      <ErrorBanner />
+      <MessageBanner />
       {/* Header */}
       <div style={{ padding: "12px 16px 8px", flexShrink: 0 }}>
         <h2

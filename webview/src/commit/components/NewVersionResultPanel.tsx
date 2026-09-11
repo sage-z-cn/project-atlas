@@ -39,7 +39,7 @@ export function NewVersionResultPanel() {
         </span>
         <button
           type="button"
-          className="commit-error-close"
+          className="commit-message-banner-close"
           aria-label={t("Close")}
           onClick={() => {
             if (!pushing) void finish();
@@ -81,12 +81,12 @@ export function NewVersionResultPanel() {
       </div>
 
       {pushError && (
-        <div className="commit-error-banner" role="alert">
-          <ErrorIcon className="commit-error-icon" />
-          <span className="commit-error-message">{pushError}</span>
+        <div className="commit-message-banner" role="alert">
+          <ErrorIcon className="commit-message-banner-icon" />
+          <span className="commit-message-banner-text">{pushError}</span>
           <button
             type="button"
-            className="commit-error-close"
+            className="commit-message-banner-close"
             aria-label={t("Dismiss")}
             onClick={() => useNewVersionStore.setState({ pushError: null })}
           >

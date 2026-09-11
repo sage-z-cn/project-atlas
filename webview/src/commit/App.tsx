@@ -13,7 +13,7 @@ import { ReleaseTab } from "./components/ReleaseTab";
 import { StashPromptModal } from "./components/StashPromptModal";
 import { PushAllReposModal } from "./components/PushAllReposModal";
 import { PullAllReposModal } from "./components/PullAllReposModal";
-import { ErrorBanner } from "./components/ErrorBanner";
+import { MessageBanner } from "./components/MessageBanner";
 import "./commit.css";
 import "./commit-vscode.css";
 
@@ -644,7 +644,7 @@ export function CommitApp() {
           {t("Release")}
         </button>
       </div>
-      <ErrorBanner />
+      <MessageBanner />
       <RebaseBanner />
       <CherryPickBanner />
       <MergeBanner />

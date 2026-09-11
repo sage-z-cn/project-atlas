@@ -27,6 +27,8 @@ export function Toolbar({
   hasChanges,
 }: ToolbarProps) {
   const [showViewMenu, setShowViewMenu] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pushing, setPushing] = useState(false);
   const {
     expandedGroups,
     toggleGroup,
@@ -41,10 +43,12 @@ export function Toolbar({
   // skipPushConfirmation=true 时工具栏「推送」直接推当前分支，不打开确认面板；
   // 被拒则由后端打开 PushPanel 承载 rebase/merge。false 时保持原确认面板流程。
   const handlePush = useCallback(async () => {
+    if (pushing) return;
     if (!skipPushConfirmation) {
       await bridge.request("openPushPanel");
       return;
     }
+    setPushing(true);
     try {
       const result = (await bridge.request(
         "openPushPanel",
@@ -72,7 +76,8 @@ export function Toolbar({
               result.data?.remote ?? "",
               result.data?.branch ?? "",
             );
-        bridge.request("showInfoNotification", { message }).catch(() => {});
+        // 成功提示走面板顶部 banner，不再弹系统通知。
+        useCommitStore.getState().showRemoteSuccess(message);
         return;
       }
       // rejected：后端已打开 PushPanel 展示 rebase/merge，无需再提示。
@@ -85,8 +90,26 @@ export function Toolbar({
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       bridge.request("showErrorNotification", { message: msg }).catch(() => {});
+    } finally {
+      setPushing(false);
     }
-  }, [skipPushConfirmation]);
+  }, [pushing, skipPushConfirmation]);
+
+  const handlePull = useCallback(async () => {
+    if (pulling) return;
+    const { setRemoteError } = useCommitStore.getState();
+    setRemoteError(null);
+    setPulling(true);
+    try {
+      // pull 是网络操作，默认 10s 超时不够（慢网络/大仓库）；与 push 对齐到 60s。
+      await bridge.request("pullBranch", {}, { timeout: 60_000 });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setRemoteError(msg);
+    } finally {
+      setPulling(false);
+    }
+  }, [pulling]);
 
   const handleExpandAll = useCallback(() => {
     // Expand file groups
@@ -140,34 +163,33 @@ export function Toolbar({
       </Tooltip>
       <div className="commit-toolbar-separator" />
 
-      {/* Remote sync group */}
-      <Tooltip text={t("Pull")}>
+      {/* Remote sync group：进行中图标 opacity 呼吸 + 禁用，防连点。 */}
+      <Tooltip text={pulling ? t("Pulling...") : t("Pull")}>
         <button
           type="button"
-          className="commit-toolbar-btn"
-          onClick={async () => {
-            const { setRemoteError } = useCommitStore.getState();
-            setRemoteError(null);
-            try {
-              await bridge.request("pullBranch", {});
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : String(err);
-              setRemoteError(msg);
-            }
-          }}
+          className={`commit-toolbar-btn${pulling ? " is-busy" : ""}`}
+          onClick={() => void handlePull()}
+          disabled={pulling}
+          aria-busy={pulling}
         >
           <PullIcon />
         </button>
       </Tooltip>
       <Tooltip
         text={
-          skipPushConfirmation ? t("Push") : t("Push...")
+          pushing
+            ? t("Pushing...")
+            : skipPushConfirmation
+              ? t("Push")
+              : t("Push...")
         }
       >
         <button
           type="button"
-          className="commit-toolbar-btn"
+          className={`commit-toolbar-btn${pushing ? " is-busy" : ""}`}
           onClick={() => void handlePush()}
+          disabled={pushing}
+          aria-busy={pushing}
         >
           <PushIcon />
         </button>

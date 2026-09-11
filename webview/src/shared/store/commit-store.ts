@@ -140,9 +140,16 @@ interface CommitStore {
   /** 提交/推送失败的内联错误信息（显示在提交消息框上方），null 时隐藏。 */
   commitError: string | null;
   setCommitError: (error: string | null) => void;
-  /** 远程操作（如 pull）失败的内联错误信息（显示在面板顶部 banner），null 时隐藏。 */
+  /** 远程操作（如 pull）失败的内联错误信息（显示在工具栏下方 banner），null 时隐藏。
+   *  写入非 null 时互斥清掉 remoteSuccess（新错误顶掉旧成功提示）。 */
   remoteError: string | null;
   setRemoteError: (error: string | null) => void;
+  /** 远程操作成功提示（如推送完成），显示在工具栏下方成功 banner，null 时隐藏。
+   *  写入非 null 时互斥清掉 remoteError（新成功顶掉旧错误提示）。 */
+  remoteSuccess: string | null;
+  setRemoteSuccess: (message: string | null) => void;
+  /** 设置成功 banner 并在 ms 后自动关闭（按 token 判定，仅关闭仍是最新一条时）。 */
+  showRemoteSuccess: (message: string, ms?: number) => void;
   // AI commit message 生成
   aiGenerating: boolean;
   /** 用户已请求取消当前生成（generateCommitMessage 的 catch 据此跳过错误提示）。 */
@@ -275,6 +282,13 @@ function flushDraftSave(repoPath: string | null, message: string): void {
 let stashPromptResolver: ((result: StashPromptResult | null) => void) | null =
   null;
 
+/**
+ * 成功 banner 的单调 token：每次 showRemoteSuccess 递增，旧定时器回调发现
+ * token 已变（被更新的提示接管）即放弃关闭。比按消息文本比较可靠 —— 连续
+ * 两次相同文案的成功（如连续两次空推送）不会被第一个定时器提前关掉。
+ */
+let remoteSuccessSeq = 0;
+
 export const useCommitStore = create<CommitStore>((set, get) => ({
   // ── Multi-repo ─────────────────────────────────────────────────────
   currentRepoPath: null,
@@ -309,7 +323,28 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   commitError: null,
   setCommitError: (error) => set({ commitError: error }),
   remoteError: null,
-  setRemoteError: (error) => set({ remoteError: error }),
+  // 互斥在写入时完成（而非组件 effect 兜底）：新错误顶掉成功 banner，反之亦然。
+  // effect 方案无法区分「成功刚到」还是「错误刚到」，会在成功 banner 存活期
+  // 间静默吞掉新到的拉取错误。
+  setRemoteError: (error) =>
+    set(error === null ? { remoteError: null } : { remoteError: error, remoteSuccess: null }),
+  remoteSuccess: null,
+  setRemoteSuccess: (message) =>
+    set(message === null ? { remoteSuccess: null } : { remoteSuccess: message, remoteError: null }),
+  showRemoteSuccess: (message, ms = 5000) => {
+    const myToken = ++remoteSuccessSeq;
+    set({ remoteSuccess: message, remoteError: null });
+    setTimeout(() => {
+      // token 不匹配 = 已被更新的成功提示接管；remoteSuccess 非空防御
+      // 「手动关闭后无新提示」时的空转 set。
+      if (
+        remoteSuccessSeq === myToken &&
+        useCommitStore.getState().remoteSuccess !== null
+      ) {
+        useCommitStore.getState().setRemoteSuccess(null);
+      }
+    }, ms);
+  },
   aiGenerating: false,
   aiCancelling: false,
   aiConfigured: false,
@@ -1189,6 +1224,7 @@ bridge.onEvent((event, data) => {
         amend: false,
         commitError: null,
         remoteError: null,
+        remoteSuccess: null,
       });
       useCommitStore.getState().refresh();
       useCommitStore.getState().fetchRepoStatuses();
@@ -1220,6 +1256,7 @@ bridge.onEvent((event, data) => {
       amend: false,
       commitError: null,
       remoteError: null,
+      remoteSuccess: null,
     });
     useCommitStore.getState().fetchChanges();
     // Stash 列表也是 per-repo 状态（上面已整体清空），切换后同样要回填。

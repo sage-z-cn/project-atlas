@@ -3,7 +3,7 @@
  * follows VSCode webview design language: CSS variables for theme tokens,
  * circular badge behind a large muted icon, a single primary CTA, and an
  * inline error banner that reuses the inputValidation error palette
- * (matching commit-error-banner / panel-error-banner). */
+ * (matching commit-message-banner / panel-message-banner). */
 
 .repo-empty-root {
   flex: 1;

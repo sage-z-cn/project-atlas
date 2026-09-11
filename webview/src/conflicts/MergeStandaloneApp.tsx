@@ -4,7 +4,7 @@ import { Tooltip } from "../shared/components/Tooltip";
 import "../shared/components/Tooltip.css";
 import { t } from "../shared/i18n";
 import { useMergeStore } from "../shared/store/merge-store";
-import { ErrorBanner } from "./components/ErrorBanner";
+import { MessageBanner } from "./components/MessageBanner";
 import { MergeContainer } from "./components/MergeContainer";
 import { parseMergeBlocks } from "./utils/merge-logic";
 
@@ -212,7 +212,7 @@ export function MergeStandaloneApp() {
         fontFamily: "var(--font-family)",
       }}
     >
-      <ErrorBanner />
+      <MessageBanner />
       {/* File path header */}
       <div
         style={{

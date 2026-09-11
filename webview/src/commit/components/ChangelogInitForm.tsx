@@ -94,9 +94,9 @@ export function ChangelogInitForm({ defaultLanguage }: { defaultLanguage: "zh" |
         </div>
       )}
       {error && (
-        <div className="commit-error-banner" role="alert">
-          <ErrorIcon className="commit-error-icon" />
-          <span className="commit-error-message">{error}</span>
+        <div className="commit-message-banner" role="alert">
+          <ErrorIcon className="commit-message-banner-icon" />
+          <span className="commit-message-banner-text">{error}</span>
         </div>
       )}
 

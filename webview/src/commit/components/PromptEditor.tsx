@@ -88,7 +88,7 @@ function PromptModal({ onClose }: { onClose: () => void }) {
         <span className="new-version-modal-title">{t("New Version Prompt")}</span>
         <button
           type="button"
-          className="commit-error-close"
+          className="commit-message-banner-close"
           aria-label={t("Cancel")}
           onClick={onClose}
         >
@@ -112,12 +112,12 @@ function PromptModal({ onClose }: { onClose: () => void }) {
       />
 
       {promptError && (
-        <div className="commit-error-banner" role="alert">
-          <ErrorIcon className="commit-error-icon" />
-          <span className="commit-error-message">{promptError}</span>
+        <div className="commit-message-banner" role="alert">
+          <ErrorIcon className="commit-message-banner-icon" />
+          <span className="commit-message-banner-text">{promptError}</span>
           <button
             type="button"
-            className="commit-error-close"
+            className="commit-message-banner-close"
             aria-label={t("Dismiss")}
             onClick={() => setPromptError(null)}
           >

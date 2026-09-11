@@ -64,15 +64,15 @@ export function ReleaseTab() {
     <div className="release-tab">
       <div className="release-scroll">
         {loadError ? (
-          <div className="commit-error-banner" role="alert">
-            <ErrorIcon className="commit-error-icon" />
-            <span className="commit-error-message">
+          <div className="commit-message-banner" role="alert">
+            <ErrorIcon className="commit-message-banner-icon" />
+            <span className="commit-message-banner-text">
               {t("Failed to load release targets")}
               {loadError ? `: ${loadError}` : ""}
             </span>
             <button
               type="button"
-              className="commit-error-close"
+              className="commit-message-banner-close"
               aria-label={t("Retry")}
               title={t("Retry")}
               onClick={() =>
@@ -90,9 +90,9 @@ export function ReleaseTab() {
         <AttachmentsSection />
         <FlagsSection />
         {publishError && (
-          <div className="commit-error-banner" role="alert">
-            <ErrorIcon className="commit-error-icon" />
-            <span className="commit-error-message">{publishError}</span>
+          <div className="commit-message-banner" role="alert">
+            <ErrorIcon className="commit-message-banner-icon" />
+            <span className="commit-message-banner-text">{publishError}</span>
           </div>
         )}
         <PublishRow />
@@ -452,7 +452,7 @@ function ReleaseResultModal() {
         </span>
         <button
           type="button"
-          className="commit-error-close"
+          className="commit-message-banner-close"
           aria-label={t("Close")}
           title={t("Close")}
           onClick={closeResults}

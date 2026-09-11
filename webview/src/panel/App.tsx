@@ -11,7 +11,7 @@ import { t } from "../shared/i18n";
 import { bridge } from "../shared/bridge";
 import { BranchTree } from "./components/BranchTree";
 import { DetailPanel } from "./components/DetailPanel";
-import { ErrorBanner } from "./components/ErrorBanner";
+import { MessageBanner } from "./components/MessageBanner";
 import { GitGraphPanel } from "./components/GitGraphPanel";
 import { Toolbar } from "./components/Toolbar";
 import IconLayoutPanel from "~icons/codicon/layout-panel";
@@ -318,7 +318,7 @@ export function PanelApp() {
       }}
     >
       <ProgressBar visible={operationInProgress || loading} />
-      <ErrorBanner />
+      <MessageBanner />
       <RepoSelector store="panel" />
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* Left branch panel — outside Allotment to avoid flicker.

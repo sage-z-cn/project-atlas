@@ -10,6 +10,7 @@ import { CommitFileContextMenu } from "./CommitFileContextMenu";
 import { CommitMessageArea } from "./CommitMessageArea";
 import { FileItem } from "./FileItem";
 import { Toolbar } from "./Toolbar";
+import { RemoteBanner } from "./MessageBanner";
 import { VscodeCommitList } from "./VscodeCommitList";
 import {
   buildDirTree,
@@ -139,6 +140,9 @@ export function CommitTab() {
         }}
         hasChanges={changes.length > 0}
       />
+
+      {/* 远程操作（拉取/推送）反馈 banner：紧跟工具栏按钮就近展示。 */}
+      <RemoteBanner />
 
       <div className="commit-file-list">
         {commitListStyle === "vscode" ? (
