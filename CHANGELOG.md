@@ -4,6 +4,13 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.25.1
+**新功能**
+- **Commit**: 错误横幅重构为通用消息横幅，新增远程操作结果反馈
+
+**Bug 修复**
+- **Commit**: 修复全部拉取/推送完成后勾选状态未按最新状态重算的问题
+
 #### 1.25.0
 **新功能**
 - **Commit**: 添加批量推送仓库功能，并重构拉取交互
