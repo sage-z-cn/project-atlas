@@ -207,7 +207,10 @@ export function PushAllReposModal() {
       // 开行停在 Loading），再刷新徽章。
       setAheadCommits(new Map());
       setExpanded(new Set());
-      void fetchRepoStatuses();
+      await fetchRepoStatuses();
+      // 徽章刷新后按最新 ahead 重算勾选：已推完（ahead=0）的自动取消。
+      userTouched.current = false;
+      applyDefaults();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setResult({
@@ -218,7 +221,7 @@ export function PushAllReposModal() {
     } finally {
       setPushing(false);
     }
-  }, [selected, pushing, fetchRepoStatuses]);
+  }, [selected, pushing, fetchRepoStatuses, applyDefaults]);
 
   if (!open) return null;
 
@@ -440,11 +443,7 @@ export function PushAllReposModal() {
           onClick={() => void confirm()}
           disabled={pushing || selected.size === 0 || repos.length === 0}
         >
-          {pushing
-            ? t("Pushing...")
-            : result
-              ? t("Push Again")
-              : t("Push")}
+          {pushing ? t("Pushing...") : t("Push")}
         </button>
       </div>
     </ModalOverlay>

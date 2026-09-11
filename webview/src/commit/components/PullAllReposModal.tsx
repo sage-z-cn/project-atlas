@@ -137,7 +137,10 @@ export function PullAllReposModal() {
           failed: res.failed ?? [],
         });
       }
-      void fetchRepoStatuses();
+      await fetchRepoStatuses();
+      // 徽章刷新后按最新 behind 重算勾选：已拉完（behind=0）的自动取消。
+      userTouched.current = false;
+      applyDefaults();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setResult({
@@ -148,7 +151,7 @@ export function PullAllReposModal() {
     } finally {
       setPulling(false);
     }
-  }, [selected, pulling, fetchRepoStatuses]);
+  }, [selected, pulling, fetchRepoStatuses, applyDefaults]);
 
   if (!open) return null;
 
@@ -313,11 +316,7 @@ export function PullAllReposModal() {
           onClick={() => void confirm()}
           disabled={pulling || selected.size === 0 || repos.length === 0}
         >
-          {pulling
-            ? t("Pulling...")
-            : result
-              ? t("Pull Again")
-              : t("Pull")}
+          {pulling ? t("Pulling...") : t("Pull")}
         </button>
       </div>
     </ModalOverlay>
