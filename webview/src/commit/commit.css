@@ -9,8 +9,9 @@
   background: var(--vscode-sideBar-background);
 }
 
-/* All checkboxes in commit panel */
-.commit-app input[type="checkbox"] {
+/* All checkboxes in commit panel (including modals portaled to body) */
+.commit-app input[type="checkbox"],
+.modal input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
   width: 16px;
@@ -23,12 +24,14 @@
   flex-shrink: 0;
 }
 
-.commit-app input[type="checkbox"]:checked {
+.commit-app input[type="checkbox"]:checked,
+.modal input[type="checkbox"]:checked {
   background: var(--vscode-checkbox-selectBackground, #3574f0);
   border-color: var(--vscode-checkbox-selectBackground, #3574f0);
 }
 
-.commit-app input[type="checkbox"]:checked::after {
+.commit-app input[type="checkbox"]:checked::after,
+.modal input[type="checkbox"]:checked::after {
   content: "";
   position: absolute;
   left: 4px;
@@ -40,12 +43,14 @@
   transform: rotate(45deg);
 }
 
-.commit-app input[type="checkbox"]:indeterminate {
+.commit-app input[type="checkbox"]:indeterminate,
+.modal input[type="checkbox"]:indeterminate {
   background: var(--vscode-checkbox-selectBackground, #3574f0);
   border-color: var(--vscode-checkbox-selectBackground, #3574f0);
 }
 
-.commit-app input[type="checkbox"]:indeterminate::after {
+.commit-app input[type="checkbox"]:indeterminate::after,
+.modal input[type="checkbox"]:indeterminate::after {
   content: "";
   position: absolute;
   left: 3px;
@@ -56,7 +61,8 @@
   border-radius: 1px;
 }
 
-.commit-app input[type="checkbox"]:focus {
+.commit-app input[type="checkbox"]:focus,
+.modal input[type="checkbox"]:focus {
   outline: none;
   box-shadow: none;
 }
@@ -1600,6 +1606,12 @@ button.commit-dropdown-item:hover:not(:disabled) {
   animation: modal-pop 0.14s ease;
 }
 
+/* 程序化 focus（键盘陷阱）会画浏览器默认 outline（主题 focusBorder，
+ * 某些主题下呈橙黄色）。去掉卡片自身的焦点环，内部控件焦点不受影响。 */
+.modal:focus {
+  outline: none;
+}
+
 /* Narrow width variant (via ModalOverlay's cardClass) for single-field
  * modals — e.g. the stash message prompt. Same visual language, slimmer. */
 .modal-sm {
@@ -2228,3 +2240,226 @@ button.commit-dropdown-item:hover:not(:disabled) {
   overflow-y: auto;
   padding-right: 2px;
 }
+
+/* ── Push-all-repos selection modal ─────────────────────────────────── */
+/* Outer frame: border + radius, no scroll. Master "Select All" stays pinned. */
+.push-all-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--vscode-menu-border, var(--border));
+  border-radius: 6px;
+  padding: 4px;
+  gap: 2px;
+}
+
+/* Scrollable repo rows only. */
+.push-all-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(320px, calc(100vh - 260px));
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.push-all-item {
+  display: flex;
+  flex-direction: column;
+  border-radius: 4px;
+}
+
+/* 无远程跟踪分支：整行弱化，复选框已 disabled。 */
+.push-all-item-disabled {
+  opacity: 0.45;
+}
+
+.push-all-item-disabled .push-all-row:hover {
+  background: transparent;
+}
+
+.push-all-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  user-select: none;
+}
+
+.push-all-row:hover {
+  background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.04));
+}
+
+/* Master "Select All" row is a <label>; keep the whole row clickable. */
+.push-all-row-master {
+  cursor: pointer;
+  border-bottom: 1px solid var(--vscode-menu-border, var(--border));
+  border-radius: 4px;
+  padding-bottom: 7px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.push-all-row input[type="checkbox"] {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.push-all-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.push-all-branch {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  opacity: 0.55;
+  font-family: var(--vscode-editor-font-family, monospace);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.push-all-branch-arrow {
+  opacity: 0.7;
+}
+
+.push-all-upstream {
+  opacity: 0.9;
+}
+
+.push-all-ahead {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--vscode-charts-green, #89d185);
+  font-variant-numeric: tabular-nums;
+  min-width: 2.2em;
+  text-align: right;
+}
+
+.push-all-ahead-zero {
+  opacity: 0.45;
+  color: inherit;
+}
+
+.push-all-expand {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vscode-foreground);
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.push-all-expand:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.08));
+}
+
+.push-all-expand svg {
+  font-size: 14px;
+  transition: transform 0.12s ease;
+}
+
+.push-all-expand.open svg {
+  transform: rotate(90deg);
+}
+
+.push-all-expand:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.push-all-commits {
+  margin: 0 6px 6px 30px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--vscode-list-inactiveSelectionBackground, rgba(255, 255, 255, 0.04));
+}
+
+.push-all-commits-msg {
+  font-size: 11px;
+  opacity: 0.55;
+  padding: 4px 2px;
+}
+
+.push-all-commit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.push-all-commit-item {
+  display: flex;
+  align-items: baseline;
+  font-size: 11px;
+  line-height: 1.45;
+  padding: 1px 2px;
+}
+
+.push-all-commit-subject {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.push-all-meta {
+  flex-shrink: 0;
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.push-all-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.55;
+}
+
+.push-all-result {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 1.45;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--vscode-editor-inactiveSelectionBackground, rgba(255, 255, 255, 0.03));
+}
+
+.push-all-result-line {
+  word-break: break-word;
+}
+
+.push-all-result-skipped {
+  opacity: 0.7;
+}
+
+.push-all-result-failed {
+  color: var(--vscode-errorForeground, #f48771);
+}
+

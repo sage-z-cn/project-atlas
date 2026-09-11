@@ -76,10 +76,12 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
             behind: null,
             dirty: 0,
             branch: null,
+            upstream: null,
+            hasRemote: false,
           };
         }
         try {
-          const [branches, changes] = await Promise.all([
+          const [branches, changes, hasRemote] = await Promise.all([
             // noCache: ahead/behind 徽章必须实时反映外部进程的提交。git 更
             // 新 refs 走 lockfile + 原子 rename,FS watcher 可能漏报,若读
             // 5s TTL 缓存会返回旧计数,故 getBranches 需 noCache 绕过。
@@ -88,6 +90,7 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
             // 方继续受益。
             svc.getBranches({ noCache: true }),
             svc.getWorkingTreeChanges(),
+            svc.hasRemote(),
           ]);
           const current = (branches ?? []).find((b) => b.isCurrent);
           // BranchInfo.upstream is optional: when undefined/empty the branch
@@ -103,6 +106,12 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
             // this already includes modified + staged + untracked files.
             dirty: changes.length,
             branch: current?.name ?? null,
+            // 远程跟踪分支（如 origin/main）。无上游时为 null——但这不
+            // 代表无 remote，也可能是从未推送的新建分支。
+            upstream: hasUpstream ? (current?.upstream ?? null) : null,
+            // 仓库是否配置了 remote（`git remote` 非空）。推送弹窗据此
+            // 禁选无远程的行；无 upstream 的新建分支仍可选。
+            hasRemote,
           };
         } catch {
           return {
@@ -111,6 +120,8 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
             behind: null,
             dirty: 0,
             branch: null,
+            upstream: null,
+            hasRemote: false,
           };
         }
       }),
@@ -176,7 +187,23 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
   messageRouter.handle("refreshAllRepos", () => refreshAllReposImpl(ctx));
 
   // 逐仓库 pull 当前分支（--autostash），返回 { pulled, skipped, failed }。
-  messageRouter.handle("pullAllRepos", () => pullAllReposImpl(ctx));
+  // repoPaths 缺省 = 全部；弹窗确认后只拉选中仓库。
+  messageRouter.handle("pullAllRepos", (params) => {
+    const repoPaths = Array.isArray(params?.repoPaths)
+      ? (params.repoPaths as string[]).filter((p) => typeof p === "string")
+      : undefined;
+    return pullAllReposImpl(ctx, repoPaths);
+  });
+
+  // 串行推送选中仓库（缺省 = 全部）的当前分支。view/title 命令只负责
+  // 广播 showPushAllReposDialog 打开 commit 面板勾选弹窗，实际推送由
+  // 弹窗确认后经本 handler 执行。
+  messageRouter.handle("pushAllRepos", (params) => {
+    const repoPaths = Array.isArray(params?.repoPaths)
+      ? (params.repoPaths as string[]).filter((p) => typeof p === "string")
+      : undefined;
+    return pushAllReposImpl(ctx, repoPaths);
+  });
 }
 
 /**
@@ -237,6 +264,7 @@ let pullAllInProgress = false;
 
 export async function pullAllReposImpl(
   ctx: GitHandlerContext,
+  repoPaths?: string[],
 ): Promise<PullAllReposResult> {
   const { registry, messageRouter } = ctx;
   if (pullAllInProgress) {
@@ -246,6 +274,7 @@ export async function pullAllReposImpl(
   try {
     return await withProgress(ctx, async () => {
       await registry.whenReady;
+      const filter = repoPaths ? new Set(repoPaths) : null;
       const nameByPath = new Map(
         registry.getRepoInfos().map((info) => [info.path, info.name] as const),
       );
@@ -253,6 +282,9 @@ export async function pullAllReposImpl(
       const skipped: string[] = [];
       const failed: PullAllReposFailure[] = [];
       for (const svc of registry.getAll()) {
+        if (filter && !filter.has(svc.cwd)) {
+          continue;
+        }
         try {
           if (!(await svc.hasRemote())) {
             skipped.push(svc.cwd);
@@ -291,5 +323,98 @@ export async function pullAllReposImpl(
     });
   } finally {
     pullAllInProgress = false;
+  }
+}
+
+/** Per-repo failure entry returned by {@link pushAllReposImpl}. */
+export interface PushAllReposFailure {
+  repoPath: string;
+  name: string;
+  error: string;
+}
+
+/** Result shape of {@link pushAllReposImpl} (pushed/skipped hold repoPath). */
+export interface PushAllReposResult {
+  success: true;
+  pushed: string[];
+  skipped: string[];
+  failed: PushAllReposFailure[];
+}
+
+// 批量 push 进行中标志：重复触发（连点弹窗确认）时直接返回空结果，
+// 避免两个批次对同一仓库并发 git push 争锁产生假失败。
+let pushAllInProgress = false;
+
+/**
+ * Core implementation of the multi-repo "push selected" operation, shared by
+ * the `pushAllRepos` webview handler (commit-panel selection dialog) and any
+ * future command-layer entry. Pushes the current branch of each selected repo
+ * (default: every repo in the registry), strictly serially for the same
+ * reasons as pullAllReposImpl.
+ *
+ * Unlike pull, push does not require an upstream: GitService.push always
+ * uses an explicit `branch:branch` refspec, so a first-time push of a local
+ * branch still works. Repos without a remote, or with a detached HEAD, are
+ * recorded in `skipped`; a single repo failure never aborts the batch.
+ */
+export async function pushAllReposImpl(
+  ctx: GitHandlerContext,
+  repoPaths?: string[],
+): Promise<PushAllReposResult> {
+  const { registry, messageRouter } = ctx;
+  if (pushAllInProgress) {
+    return { success: true as const, pushed: [], skipped: [], failed: [] };
+  }
+  pushAllInProgress = true;
+  try {
+    return await withProgress(ctx, async () => {
+      await registry.whenReady;
+      const filter = repoPaths ? new Set(repoPaths) : null;
+      const nameByPath = new Map(
+        registry.getRepoInfos().map((info) => [info.path, info.name] as const),
+      );
+      const pushed: string[] = [];
+      const skipped: string[] = [];
+      const failed: PushAllReposFailure[] = [];
+      for (const svc of registry.getAll()) {
+        if (filter && !filter.has(svc.cwd)) {
+          continue;
+        }
+        try {
+          if (!(await svc.hasRemote())) {
+            skipped.push(svc.cwd);
+            continue;
+          }
+          const cur = (await svc.getBranches()).find((b) => b.isCurrent);
+          // detached HEAD 的伪分支名以 "(" 开头，无法作为 push 源。
+          if (!cur || cur.name.startsWith("(")) {
+            skipped.push(svc.cwd);
+            continue;
+          }
+          await svc.push(cur.name, false);
+          pushed.push(svc.cwd);
+        } catch (err) {
+          const error = err instanceof Error ? err.message : String(err);
+          failed.push({
+            repoPath: svc.cwd,
+            name: nameByPath.get(svc.cwd) ?? svc.cwd,
+            error,
+          });
+          console.error(
+            `[Git Atlas] pushAllRepos: push failed for ${svc.cwd}:`,
+            error,
+          );
+        }
+      }
+      // 兜底清缓存：skipped/failed 仓库没走 push 内部的 invalidateCache。
+      for (const svc of registry.getAll()) {
+        svc.invalidateCache();
+      }
+      messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+      messageRouter.broadcastEvent("commitStateChanged", {});
+      return { success: true as const, pushed, skipped, failed };
+    });
+  } finally {
+    pushAllInProgress = false;
   }
 }

@@ -1,3 +1,4 @@
+import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
 import { requireGit, withProgress } from "../gitContext";
 import type { GitService } from "../../git/gitService";
@@ -143,12 +144,59 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
       // 缺失时回退到当前分支（commitAndPush 被拒、commit 面板"提交并推送"）。
       const explicitBranch = params.branchName as string | undefined;
       const branch = explicitBranch ?? (await gitService.getCurrentBranch());
-      if (!branch) return { error: "No current branch" };
+      if (!branch) return { error: vscode.l10n.t("No current branch") };
       const remote = await gitService.getDefaultRemote(branch);
       const withTags = params.withTags as boolean | undefined;
       // 当 skipPushConfirmation 流程下 push 被拒时，前端会附带 initialPushError
       // 调用本接口；PushPanel 启动后据此直接进入 rebase/merge 对话框。
       const initialPushError = params.initialPushError as string | undefined;
+      // skipPushConfirmation：工具栏「推送」直接执行，不打开确认面板。
+      // 与 commitAndPush 一致：被拒时仍打开面板承载 rebase/merge 入口。
+      const skipConfirmation = params.skipConfirmation as boolean | undefined;
+
+      if (skipConfirmation) {
+        // 与 commitAndPush 的第二道门槛对齐：无 remote 时直接返回错误，
+        // 避免 `git push` 抛出 ugly 错误。
+        if (!(await gitService.hasRemote())) {
+          return {
+            error: vscode.l10n.t(
+              "This repository has no remote configured. Add a remote before pushing.",
+            ),
+          };
+        }
+        return withProgress(ctx, async () => {
+          try {
+            const output = await gitService.push(branch, false);
+            messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+            messageRouter.broadcastEvent("commitStateChanged", {});
+            const isUpToDate =
+              output?.includes("Everything up-to-date") ||
+              output?.includes("up to date");
+            return {
+              success: true,
+              pushed: true,
+              data: { output: output ?? "", isUpToDate, branch, remote },
+            };
+          } catch (pushErr) {
+            const pushError =
+              pushErr instanceof Error ? pushErr.message : String(pushErr);
+            const rejected =
+              /non-fast-forward|\[rejected\]|failed to push some refs/i.test(
+                pushError,
+              );
+            if (rejected) {
+              ctx.pushPanel.open(branch, remote, false, pushError);
+            }
+            return {
+              success: true,
+              pushed: false,
+              rejected,
+              pushError,
+            };
+          }
+        });
+      }
+
       ctx.pushPanel.open(branch, remote, withTags ?? false, initialPushError);
       return { success: true };
     }),

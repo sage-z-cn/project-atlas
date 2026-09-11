@@ -63,6 +63,7 @@ export type CommandType =
   | "pullRebase"
   | "pullMerge"
   | "pullAllRepos"
+  | "pushAllRepos"
   | "fetchBranch"
   | "commitChanges"
   | "commitAndPush"

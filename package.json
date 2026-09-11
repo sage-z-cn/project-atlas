@@ -368,7 +368,12 @@
       {
         "command": "git-atlas.pullAllRepos",
         "title": "%command.git-atlas.pullAllRepos%",
-        "icon": "$(arrow-circle-down)"
+        "icon": "$(repo-pull)"
+      },
+      {
+        "command": "git-atlas.pushAllRepos",
+        "title": "%command.git-atlas.pushAllRepos%",
+        "icon": "$(repo-push)"
       }
     ],
     "menus": {
@@ -487,6 +492,10 @@
         },
         {
           "command": "git-atlas.pullAllRepos",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.pushAllRepos",
           "when": "false"
         }
       ],
@@ -625,6 +634,11 @@
           "command": "git-atlas.pullAllRepos",
           "when": "view == git-atlas.commitPanel && gitAtlas.multiRepo",
           "group": "navigation@2"
+        },
+        {
+          "command": "git-atlas.pushAllRepos",
+          "when": "view == git-atlas.commitPanel && gitAtlas.multiRepo",
+          "group": "navigation@2.5"
         }
       ],
       "view/item/context": [

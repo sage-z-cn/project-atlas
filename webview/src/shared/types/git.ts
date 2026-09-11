@@ -155,4 +155,13 @@ export interface RepoStatus {
   dirty: number;
   /** Current branch name. `null`/`undefined` for detached HEAD or unknown — chip hides it. */
   branch?: string | null;
+  /** Remote tracking branch (e.g. `origin/main`). `null` when no upstream. */
+  upstream?: string | null;
+  /**
+   * Whether the repository has any configured remote (`git remote` non-empty).
+   * The push-all modal uses this to disable rows without a remote; a `null`
+   * `upstream` alone does not mean "no remote" — it may be a freshly created
+   * branch that has never been pushed.
+   */
+  hasRemote?: boolean;
 }

@@ -134,7 +134,7 @@ export function NewVersionResultPanel() {
           ) : (
             <RepoPushIcon />
           )}
-          {pushed ? t("Pushed") : t("Push Branch and Tag")}
+          {pushed ? t("Pushed") : t("Push")}
         </button>
         <button
           type="button"

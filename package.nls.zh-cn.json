@@ -105,7 +105,7 @@
   "config.gitAtlas.enableGitLogPanel": "启用底部面板中的 Git Atlas 面板（Git Log）。即时生效，无需重载窗口。",
   "config.gitAtlas.enableCommitPanel": "启用活动栏中的提交面板。即时生效，无需重载窗口。",
   "config.gitAtlas.enableBlameHover": "在工作区 git 仓库内的文件上悬停时，显示“在 Git Atlas 中定位”链接。点击后打开 Git Log 并滚动到该行所属的提交。",
-  "config.gitAtlas.skipPushConfirmation": "使用“提交并推送”时，直接推送而不打开推送确认面板。带标签的变体不受此设置影响，始终打开面板。",
+  "config.gitAtlas.skipPushConfirmation": "使用“提交并推送”或工具栏推送按钮时，直接推送而不打开推送确认面板。带标签的变体不受此设置影响，始终打开面板。",
   "command.git-atlas.setAiApiKey": "Git Atlas: 设置 AI API 密钥",
   "command.git-atlas.clearAiApiKey": "Git Atlas: 清除 AI API 密钥",
   "command.git-atlas.locateCommit": "Git Atlas: 定位提交",
@@ -113,5 +113,6 @@
   "command.git-atlas.setGiteeToken": "Git Atlas: 设置 Gitee 令牌",
   "command.git-atlas.clearGiteeToken": "Git Atlas: 清除 Gitee 令牌",
   "command.git-atlas.refreshAllRepos": "Git Atlas: 刷新全部仓库",
-  "command.git-atlas.pullAllRepos": "Git Atlas: 拉取全部仓库"
+  "command.git-atlas.pullAllRepos": "Git Atlas: 拉取全部仓库",
+  "command.git-atlas.pushAllRepos": "Git Atlas: 推送仓库"
 }

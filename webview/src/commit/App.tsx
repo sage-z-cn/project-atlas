@@ -11,6 +11,8 @@ import { StashTab } from "./components/StashTab";
 import { NewVersionTab } from "./components/NewVersionTab";
 import { ReleaseTab } from "./components/ReleaseTab";
 import { StashPromptModal } from "./components/StashPromptModal";
+import { PushAllReposModal } from "./components/PushAllReposModal";
+import { PullAllReposModal } from "./components/PullAllReposModal";
 import { ErrorBanner } from "./components/ErrorBanner";
 import "./commit.css";
 import "./commit-vscode.css";
@@ -656,6 +658,9 @@ export function CommitApp() {
       {/* Stash 消息弹窗：portal 到 body，任意 tab 下右键 "Stash Changes..."
           都能弹出（由 stashPrompt.open 驱动，平时渲染 null）。 */}
       <StashPromptModal />
+      {/* 多仓库拉取/推送勾选弹窗：由 view/title 命令广播对应事件打开。 */}
+      <PullAllReposModal />
+      <PushAllReposModal />
     </div>
   );
 }

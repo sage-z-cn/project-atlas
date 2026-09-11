@@ -7,10 +7,7 @@ import {
 } from "../webview/gitContentProvider";
 import { getScmResourcePath } from "../utils/scmUtils";
 import { toForwardSlash } from "../utils/pathUtils";
-import {
-  refreshAllReposImpl,
-  pullAllReposImpl,
-} from "./gitHandlers/repoHandlers";
+import { refreshAllReposImpl } from "./gitHandlers/repoHandlers";
 
 /**
  * Register the 12 `git-atlas.*` commands declared in package.json.
@@ -249,24 +246,13 @@ export function registerGitCommands(
     vscode.commands.registerCommand("git-atlas.refreshAllRepos", () =>
       refreshAllReposImpl(ctx),
     ),
-    vscode.commands.registerCommand("git-atlas.pullAllRepos", async () => {
-      // 串行拉取全部仓库可能耗时较久，用原生窗口进度提示包裹；
-      // webview 侧的 operationStart/End spinner 由 impl 内部的 withProgress 广播。
-      const result = await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Window,
-          title: vscode.l10n.t("Pulling all repositories..."),
-        },
-        () => pullAllReposImpl(ctx),
-      );
-      if (result.failed.length > 0) {
-        const details = result.failed
-          .map((f) => `${f.name}: ${f.error}`)
-          .join("; ");
-        void vscode.window.showErrorMessage(
-          vscode.l10n.t("Pull failed for some repositories: {0}", details),
-        );
-      }
+    // 打开 commit 面板的「拉取/推送仓库」勾选弹窗。命令本身不执行网络
+    // 操作，确认后由 webview 调用 pullAllRepos / pushAllRepos handler。
+    vscode.commands.registerCommand("git-atlas.pullAllRepos", () => {
+      ctx.messageRouter.broadcastEvent("showPullAllReposDialog", {});
+    }),
+    vscode.commands.registerCommand("git-atlas.pushAllRepos", () => {
+      ctx.messageRouter.broadcastEvent("showPushAllReposDialog", {});
     }),
   );
 }

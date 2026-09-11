@@ -220,13 +220,14 @@ export function registerQueryHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
+  // Multi-repo: requireGit resolves params.repoPath so the push-all dialog
+  // can expand non-active repos; falls back to the current repo (PushPanel).
   messageRouter.handle(
     "getAheadCommits",
     requireGit(ctx, async (gitService, params) => {
       const branchName = params.branchName as string;
       const remote = params.remote as string | undefined;
-      const commits = await gitService.getAheadCommits(branchName, remote);
-      return { commits };
+      return { commits: await gitService.getAheadCommits(branchName, remote) };
     }),
   );
 

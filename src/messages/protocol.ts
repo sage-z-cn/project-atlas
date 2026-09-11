@@ -132,9 +132,11 @@ export type CommandType =
   | "initializeRepository"
   // 多仓库批量操作（作用于 registry 中所有仓库，而非仅当前仓库）：
   // refreshAllRepos 重新扫描并刷新全部仓库缓存；pullAllRepos 串行 pull 所有
-  // 含 remote 的仓库，返回 { pulled, skipped, failed }。
+  // 含 remote 的仓库，返回 { pulled, skipped, failed }；pushAllRepos 串行
+  // 推送 repoPaths（缺省全部）的当前分支，返回 { pushed, skipped, failed }。
   | "refreshAllRepos"
   | "pullAllRepos"
+  | "pushAllRepos"
   | "getL10nBundle"
   | "getGitConfig"
   | "setGitConfig"
@@ -176,6 +178,9 @@ export type EventType =
   | "focusCommit"
   // commit 面板内部 tab 切换（git-atlas.newVersion 命令 → newVersion tab）
   | "switchTab"
+  // 打开 commit 面板「拉取/推送仓库」勾选弹窗（view/title 命令）
+  | "showPullAllReposDialog"
+  | "showPushAllReposDialog"
   // Gitee token 写入/清除（release tab 内的 prompt 或命令面板命令）→
   // 已打开的 webview 据此刷新 release targets 的认证状态
   | "giteeTokenChanged";

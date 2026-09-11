@@ -35,7 +35,58 @@ export function Toolbar({
     commitListStyle,
     groupByDirectory,
     changes,
+    skipPushConfirmation,
   } = useCommitStore();
+
+  // skipPushConfirmation=true 时工具栏「推送」直接推当前分支，不打开确认面板；
+  // 被拒则由后端打开 PushPanel 承载 rebase/merge。false 时保持原确认面板流程。
+  const handlePush = useCallback(async () => {
+    if (!skipPushConfirmation) {
+      await bridge.request("openPushPanel");
+      return;
+    }
+    try {
+      const result = (await bridge.request(
+        "openPushPanel",
+        { skipConfirmation: true },
+        // push 是网络操作，默认 10s 超时不够；与 commitAndPush 对齐到 60s。
+        { timeout: 60_000 },
+      )) as {
+        error?: string;
+        pushed?: boolean;
+        rejected?: boolean;
+        pushError?: string;
+        data?: { isUpToDate?: boolean; branch?: string; remote?: string };
+      };
+      if (result?.error) {
+        bridge
+          .request("showErrorNotification", { message: result.error })
+          .catch(() => {});
+        return;
+      }
+      if (result?.pushed) {
+        const message = result.data?.isUpToDate
+          ? t("Everything is up to date")
+          : t(
+              "Pushed to {0}/{1}",
+              result.data?.remote ?? "",
+              result.data?.branch ?? "",
+            );
+        bridge.request("showInfoNotification", { message }).catch(() => {});
+        return;
+      }
+      // rejected：后端已打开 PushPanel 展示 rebase/merge，无需再提示。
+      if (result?.rejected) return;
+      if (result?.pushError) {
+        bridge
+          .request("showErrorNotification", { message: result.pushError })
+          .catch(() => {});
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      bridge.request("showErrorNotification", { message: msg }).catch(() => {});
+    }
+  }, [skipPushConfirmation]);
 
   const handleExpandAll = useCallback(() => {
     // Expand file groups
@@ -108,11 +159,15 @@ export function Toolbar({
           <PullIcon />
         </button>
       </Tooltip>
-      <Tooltip text={t("Push...")}>
+      <Tooltip
+        text={
+          skipPushConfirmation ? t("Push") : t("Push...")
+        }
+      >
         <button
           type="button"
           className="commit-toolbar-btn"
-          onClick={() => bridge.request("openPushPanel")}
+          onClick={() => void handlePush()}
         >
           <PushIcon />
         </button>
