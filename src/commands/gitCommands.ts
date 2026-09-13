@@ -34,6 +34,41 @@ export function registerGitCommands(
   // （编辑器恢复、右键菜单、面板首次交互）时需等首次扫描完成再解析。
   // 纯导航/面板类命令（openGitLog / openCommitPanel / openConflicts 等）不
   // 碰 registry，无需兜底。
+
+  // Shared pipeline for file and folder history. `git log -- <pathspec>`
+  // accepts both a file path and a directory path (prefix match), so the
+  // same resolve-repo → relative path → focus → broadcast flow covers both.
+  const showPathHistory = async (uri?: vscode.Uri) => {
+    // Folders only arrive via explorer context menus (uri always set);
+    // files may also fall back to the active editor.
+    const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
+    if (!targetUri) return;
+    // Resolve the OWNING repo from the path (not the currently-active
+    // one) and switch to it, so git log runs against the right repo.
+    await ctx.registry.whenReady;
+    const repo = ctx.registry.findRepoForPath(targetUri.fsPath);
+    if (!repo) return; // path lives outside every known repo
+    if (repo.path !== ctx.registry.getCurrentRepoPath()) {
+      await ctx.registry.setCurrent(repo.path); // broadcasts repoChanged
+    }
+    // git log -- <path> needs a path relative to the REPO root, not the
+    // workspace root — they differ when the repo is a workspace subfolder.
+    // Normalize to "/" to match git's POSIX-style paths downstream.
+    // Empty string (repo root folder) is sent as-is; the webview treats
+    // an empty file filter as "no path filter".
+    const relativePath = toForwardSlash(
+      path.relative(repo.path, targetUri.fsPath),
+    );
+    // Ensure the Git Log panel is visible before sending the event
+    await vscode.commands.executeCommand("git-atlas.gitLog.focus");
+    // Carry repoPath so the store can sync if the repoChanged fetch (from
+    // setCurrent above) lands out of order with the file-filter fetch.
+    ctx.messageRouter.broadcastEvent("showFileHistory", {
+      file: relativePath,
+      repoPath: repo.path,
+    });
+  };
+
   context.subscriptions.push(
     vscode.commands.registerCommand("git-atlas.openPushPanel", async () => {
       await ctx.registry.whenReady;
@@ -101,32 +136,11 @@ export function registerGitCommands(
     ),
     vscode.commands.registerCommand(
       "git-atlas.showFileHistory",
-      async (uri?: vscode.Uri) => {
-        const fileUri = uri ?? vscode.window.activeTextEditor?.document.uri;
-        if (!fileUri) return;
-        // Resolve the OWNING repo from the file path (not the currently-active
-        // one) and switch to it, so git log runs against the right repo.
-        await ctx.registry.whenReady;
-        const repo = ctx.registry.findRepoForPath(fileUri.fsPath);
-        if (!repo) return; // file lives outside every known repo
-        if (repo.path !== ctx.registry.getCurrentRepoPath()) {
-          await ctx.registry.setCurrent(repo.path); // broadcasts repoChanged
-        }
-        // git log -- <file> needs a path relative to the REPO root, not the
-        // workspace root — they differ when the repo is a workspace subfolder.
-        // Normalize to "/" to match git's POSIX-style paths downstream.
-        const relativePath = toForwardSlash(
-          path.relative(repo.path, fileUri.fsPath),
-        );
-        // Ensure the Git Log panel is visible before sending the event
-        await vscode.commands.executeCommand("git-atlas.gitLog.focus");
-        // Carry repoPath so the store can sync if the repoChanged fetch (from
-        // setCurrent above) lands out of order with the file-filter fetch.
-        ctx.messageRouter.broadcastEvent("showFileHistory", {
-          file: relativePath,
-          repoPath: repo.path,
-        });
-      },
+      (uri?: vscode.Uri) => showPathHistory(uri),
+    ),
+    vscode.commands.registerCommand(
+      "git-atlas.showFolderHistory",
+      (uri?: vscode.Uri) => showPathHistory(uri),
     ),
     vscode.commands.registerCommand("git-atlas.openGitLog", async () => {
       // Reveal the bottom-panel Git Log view from the Commit panel toolbar.

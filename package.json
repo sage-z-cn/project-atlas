@@ -322,6 +322,11 @@
         "icon": "$(history)"
       },
       {
+        "command": "git-atlas.showFolderHistory",
+        "title": "%command.git-atlas.showFolderHistory%",
+        "icon": "$(history)"
+      },
+      {
         "command": "git-atlas.openGitLog",
         "title": "%command.git-atlas.openGitLog%",
         "icon": "$(history)"
@@ -468,6 +473,10 @@
         },
         {
           "command": "git-atlas.showFileHistory",
+          "when": "false"
+        },
+        {
+          "command": "git-atlas.showFolderHistory",
           "when": "false"
         },
         {
@@ -732,6 +741,11 @@
         {
           "command": "git-atlas.showFileHistory",
           "when": "!explorerResourceIsFolder",
+          "group": "git@1"
+        },
+        {
+          "command": "git-atlas.showFolderHistory",
+          "when": "explorerResourceIsFolder",
           "group": "git@1"
         }
       ]

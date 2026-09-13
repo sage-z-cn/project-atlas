@@ -44,6 +44,7 @@
   "command.git-atlas.openConflicts": "冲突",
   "command.git-atlas.openMergeEditorFromSCM": "在 Git Atlas 合并编辑器中打开",
   "command.git-atlas.showFileHistory": "Git Atlas: 显示文件历史",
+  "command.git-atlas.showFolderHistory": "Git Atlas: 显示文件夹历史",
   "command.git-atlas.editSource": "Git Atlas: 编辑源文件",
   "command.git-atlas.openGitLog": "打开 Git Log",
   "command.git-atlas.openCommitPanel": "打开提交面板",
