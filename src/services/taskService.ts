@@ -12,9 +12,6 @@ const EXCLUDE_PATTERN = "**/{node_modules,.git,dist,out,build,.vscode-test}/**";
  *  globalState would let multiple windows clobber each other's records. */
 const RUNNING_STORAGE_KEY = "taskAtlas.runningTasks";
 
-/** Terminal-name prefix so reconcile can tell our terminals from user-opened ones. */
-const TERMINAL_NAME_PREFIX = "Task Atlas · ";
-
 /** Delay before re-reading terminal.state.busy when a shell-end event arrives while
  *  the terminal still reports busy (state update and event ordering is not guaranteed). */
 const SHELL_END_BUSY_RETRY_MS = 200;
@@ -487,8 +484,7 @@ export class TaskService {
 
   /** Readable, unique terminal name used for persist/reconcile matching. */
   private buildTerminalName(relativeDir: string, label: string): string {
-    const mid = relativeDir ? `${relativeDir} · ` : "";
-    return `${TERMINAL_NAME_PREFIX}${mid}${label}`;
+    return relativeDir ? `${relativeDir} - ${label}` : label;
   }
 
   private trackTerminal(
