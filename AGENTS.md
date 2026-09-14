@@ -67,7 +67,7 @@ Note: `extension.ts` still defines `const refreshAll = () => {};` as a **no-op**
 - `src/webview/` — **8 files**: `reactHtml.ts` (shared HTML shell for every React webview), `reactViewProvider.ts` (generic provider keyed by `mode`), and Git-specific managers: `gitContentProvider`, `diffEditorManager`, `mergeEditorManager`, `conflictsManager`, `pushPanel`, `rollbackPanel`. No legacy hand-built HTML providers remain.
 - `src/git/` — Git Atlas core: `gitService`, `repoRegistry`, `repoScanner`, `repoPaths`, `graphLayout`, `cache`, `commitViewBadge`, `blameHoverProvider`, `types`, `setupGit`
 - `src/todo/` — `scanner.ts` (comment-tag scanning used by Todo Atlas)
-- `src/watchers/` — only `gitWatcher.ts`. The task cache watchers (`**/.vscode/tasks.json`, `**/package.json`) are created inline in `setupTask.ts`; the todo scan watcher lives in `setupTodo.ts`.
+- `src/watchers/` — only `gitWatcher.ts`. The task cache watchers (`{.vscode/tasks.json,*/.vscode/tasks.json}`, `{package.json,*/package.json}` — root + one level only) are created inline in `setupTask.ts`; the todo scan watcher lives in `setupTodo.ts`.
 - `src/utils/` — `validator`, `opener`, `scmUtils`, `projectTypeDetector`, `pathUtils`, `confirm`, `logger`
 - `webview/` — **separate npm workspace** (`"workspaces": ["webview"]`), React 19 + zustand + allotment + shiki + diff/node-diff3 + @tanstack/react-virtual + unplugin-icons (SVG icons via `@iconify/json`). Builds a single non-split JS bundle to `../out/webview/assets/main.js` (no code splitting — CSP nonce only covers the entry script). Webview source is organized by feature: `recent/`, `favorites/`, `tasks/`, `todos/`, `commit/`, `conflicts/`, `push/`, `rollback/`, `panel/`, `shared/`.
 - `l10n/` — runtime localization (`bundle.l10n.zh-cn.json`)

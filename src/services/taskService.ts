@@ -126,8 +126,8 @@ export class TaskService {
   }
 
   /**
-   * Discover all tasks recursively from the workspace.
-   * Scans all .vscode/tasks.json and package.json files, caches results.
+   * Discover tasks from the workspace root and one directory level deep only.
+   * Scans .vscode/tasks.json and package.json at those two levels, caches results.
    * Concurrent callers share a single in-flight scan (Task Atlas has 3 webviews).
    */
   async getTasks(): Promise<TaskItem[]> {
@@ -174,11 +174,17 @@ export class TaskService {
     for (const folder of workspaceFolders) {
       const workspaceRoot = folder.uri.fsPath;
 
-      // Recursively discover task files using findFiles
-      const pkgPattern = new vscode.RelativePattern(folder, "**/package.json");
+      // Only scan workspace root and one level deep (e.g. /package.json, /projectA/package.json)
+      const pkgPattern = new vscode.RelativePattern(
+        folder,
+        "{package.json,*/package.json}",
+      );
       const pkgFiles = await vscode.workspace.findFiles(pkgPattern, EXCLUDE_PATTERN);
 
-      const tasksPattern = new vscode.RelativePattern(folder, "**/.vscode/tasks.json");
+      const tasksPattern = new vscode.RelativePattern(
+        folder,
+        "{.vscode/tasks.json,*/.vscode/tasks.json}",
+      );
       const tasksFiles = await vscode.workspace.findFiles(tasksPattern, EXCLUDE_PATTERN);
 
       // Deduplicate all file URIs
@@ -600,7 +606,10 @@ export class TaskService {
     const allTasks = await vscode.tasks.fetchTasks();
     // Match by name AND scope to avoid wrong task in monorepos with duplicate labels
     const target = allTasks.find((t) => {
-      const nameMatch = t.name === name || t.definition?.label === name;
+      // type:"npm" tasks often omit label — VS Code may name them after the script
+      const nameMatch = t.name === name
+        || t.definition?.label === name
+        || (t.definition?.type === "npm" && t.definition?.script === name);
       if (!nameMatch) { return false; }
       // If task has a WorkspaceFolder scope, verify it matches the expected cwd
       if (t.scope && typeof t.scope === "object" && "uri" in t.scope) {
@@ -663,8 +672,14 @@ export class TaskService {
         return;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const taskDef = tasksArray.find((t: any) => t.label === name);
+      // Match by label, or by script for type:"npm" tasks that omit label.
+      // Discovery (parseVscodeTasks) uses the same name resolution — without
+      // this fallback, nested npm tasks like { type:"npm", script:"build" }
+      // fail with "Task not found" when the workspace root is a parent folder.
+      const taskDef = tasksArray.find((t: any) => {
+        const defName = t.label || (t.type === "npm" ? t.script : undefined);
+        return defName === name;
+      });
       if (!taskDef) {
         vscode.window.showWarningMessage(
           vscode.l10n.t("Task '{0}' not found.", name)
@@ -675,7 +690,9 @@ export class TaskService {
       // Resolve the command to execute
       let command: string;
       if (taskDef.type === "npm") {
-        const pm = this.taskPackageManager.get(taskId) || "npm";
+        // Detect from the project dir — vscode-sourced tasks hardcode "npm" in
+        // parseVscodeTasks, so the scan-time map is unreliable here.
+        const pm = this.detectPackageManager(cwd);
         const scriptName = taskDef.script || taskDef.label;
         command = pm === "npm" ? `npm run ${scriptName}`
           : pm === "pnpm" ? `pnpm run ${scriptName}`

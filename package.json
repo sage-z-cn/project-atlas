@@ -1076,9 +1076,9 @@
     "watch": "vite build --watch",
     "watch:extension": "vite build --watch",
     "watch:webview": "cd webview && npm run watch",
-    "pack": "npm run compile && npx @vscode/vsce package",
+    "pack": "npm run compile && npx @vscode/vsce package --no-dependencies",
     "build-and-install": "node scripts/build-and-install.js",
-    "publish": "npm run compile && npx @vscode/vsce publish",
+    "publish": "npm run compile && npx @vscode/vsce publish --no-dependencies",
     "pretest": "npm run compile:extension && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"

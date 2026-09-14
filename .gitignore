@@ -3,6 +3,6 @@ dist
 node_modules
 .vscode-test/
 *.vsix
-.slim/deepwork/
 .opencode
 .playwright-mcp
+.slim

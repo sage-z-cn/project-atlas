@@ -879,10 +879,17 @@ function TreeNodeView({
   onToggle: (key: string) => void;
 }) {
   const collapseKey = `${groupPrefix}:${node.fullPath}`;
+  const remoteUrls = usePanelStore((s) => s.remoteUrls);
 
   const branch = node.branch;
   if (node.isLeaf && branch) {
     const isCurrent = branch.name === currentBranch;
+    const tooltipText = branch.isRemote
+      ? remoteUrls[branch.name.substring(0, branch.name.indexOf("/"))] ||
+        branch.name
+      : branch.upstream
+        ? t("Tracks {0}", branch.upstream)
+        : t("No upstream");
     return (
       <BranchItem
         icon={
@@ -907,6 +914,7 @@ function TreeNodeView({
         depth={depth}
         ahead={branch.ahead}
         behind={branch.behind}
+        tooltipText={tooltipText}
       />
     );
   }
@@ -1119,6 +1127,7 @@ function BranchItem({
   depth,
   ahead = 0,
   behind = 0,
+  tooltipText,
 }: {
   icon: React.ReactNode;
   name: string;
@@ -1132,6 +1141,8 @@ function BranchItem({
   depth: number;
   ahead?: number;
   behind?: number;
+  /** Hover tooltip; defaults to the branch name. */
+  tooltipText?: string;
 }) {
   return (
     <div
@@ -1154,7 +1165,7 @@ function BranchItem({
       }}
     >
       <span style={{ flexShrink: 0 }}>{icon}</span>
-      <Tooltip text={name}>
+      <Tooltip text={tooltipText || name}>
         <span
           style={{
             flex: 1,
@@ -1334,13 +1345,58 @@ function BranchContextMenu({
     onClose();
     try {
       if (branch.isRemote) {
-        // For remote branches like "origin/dev", create a local tracking branch "dev"
-        const localName = branch.name.substring(branch.name.indexOf("/") + 1);
-        await bridgeWithProgress("createBranch", {
-          newBranchName: localName,
-          startPoint: branch.name,
-          checkout: true,
-        });
+        // For remote branches like "origin/dev", strip the remote prefix.
+        // If a local branch of that name already exists, just switch to it —
+        // creating it again fails with "a branch named 'dev' already exists".
+        // When the local branch tracks a *different* remote (e.g. local master
+        // tracks origin/master but the user clicked upstream/master), ask for
+        // a new local name and create it from the selected remote.
+        const slashIdx = branch.name.indexOf("/");
+        const remoteName = branch.name.substring(0, slashIdx);
+        const localName = branch.name.substring(slashIdx + 1);
+        const local = usePanelStore
+          .getState()
+          .branches.find((b) => !b.isRemote && b.name === localName);
+        if (local) {
+          const localRemote = local.upstream?.includes("/")
+            ? local.upstream.substring(0, local.upstream.indexOf("/"))
+            : undefined;
+          if (localRemote && localRemote !== remoteName) {
+            const defaultNewName = `${remoteName}-${localName}`;
+            const result = (await bridge.request("showInputBox", {
+              prompt: t(
+                "Local branch '{0}' tracks '{1}', not '{2}'. Enter a new local branch name to check out '{2}':",
+                localName,
+                local.upstream!,
+                branch.name,
+              ),
+              value: defaultNewName,
+              placeHolder: defaultNewName,
+            })) as { value: string | null };
+            const newBranchName = result.value?.trim();
+            if (!newBranchName) return;
+            if (newBranchName === localName) {
+              // User re-entered the existing local name — switch to it.
+              await bridgeWithProgress("checkoutBranch", {
+                branchName: localName,
+              });
+            } else {
+              await bridgeWithProgress("createBranch", {
+                newBranchName,
+                startPoint: branch.name,
+                checkout: true,
+              });
+            }
+          } else {
+            await bridgeWithProgress("checkoutBranch", { branchName: localName });
+          }
+        } else {
+          await bridgeWithProgress("createBranch", {
+            newBranchName: localName,
+            startPoint: branch.name,
+            checkout: true,
+          });
+        }
       } else {
         await bridgeWithProgress("checkoutBranch", { branchName: branch.name });
       }

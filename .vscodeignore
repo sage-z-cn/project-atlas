@@ -21,6 +21,7 @@ AGENTS.md
 .opencode/**
 .slim/**
 .sisyphus/**
+.playwright-mcp/**
 .ignore
 
 # 构建/开发脚本不打包（build-and-install.js 仅本地安装用）

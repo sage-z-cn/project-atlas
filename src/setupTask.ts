@@ -59,11 +59,13 @@ export function setupTask(
     }),
   );
 
-  // watcher：tasks.json / package.json 变更 → 失效缓存 + 广播
+  // watcher：仅根目录与下一层的 tasks.json / package.json（与 scanWorkspaceTasks 同深度）
   const tasksWatcher = vscode.workspace.createFileSystemWatcher(
-    "**/.vscode/tasks.json",
+    "{.vscode/tasks.json,*/.vscode/tasks.json}",
   );
-  const pkgWatcher = vscode.workspace.createFileSystemWatcher("**/package.json");
+  const pkgWatcher = vscode.workspace.createFileSystemWatcher(
+    "{package.json,*/package.json}",
+  );
   context.subscriptions.push(tasksWatcher, pkgWatcher);
   const refreshWithCache = (): void => {
     taskService.invalidateCache();

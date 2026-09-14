@@ -112,6 +112,8 @@ interface PanelStore {
   visibleCommits: Commit[];
   branches: BranchInfo[];
   tags: TagInfo[];
+  /** remote name → fetch/push URL (from getRemotes). Used for tooltips. */
+  remoteUrls: Record<string, string>;
   currentBranch: string;
   graphLayout: Record<string, LaneInfo>;
   laneSnapshot: LaneSnapshot | null;
@@ -364,6 +366,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   visibleCommits: [],
   branches: [],
   tags: [],
+  remoteUrls: {},
   currentBranch: "",
   graphLayout: {},
   laneSnapshot: null,
@@ -535,7 +538,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     try {
       const { filter } = get();
       const { since, until } = dateRangeToSinceUntil(filter);
-      const [graphSettled, branchesSettled, tagsSettled, identitySettled] =
+      const [graphSettled, branchesSettled, tagsSettled, identitySettled, remotesSettled] =
         await Promise.allSettled([
           bridge.request("getGraphData", {
             maxCount: 200,
@@ -557,6 +560,9 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
           bridge.request("getUserIdentity", { repoPath }) as Promise<{
             name: string;
             email: string;
+          } | null>,
+          bridge.request("getRemotes", { repoPath }) as Promise<{
+            remotes?: Array<{ name: string; url: string }>;
           } | null>,
         ]);
 
@@ -589,6 +595,13 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       const tags = tagsSettled.status === "fulfilled" ? tagsSettled.value : null;
       const identity =
         identitySettled.status === "fulfilled" ? identitySettled.value : null;
+      // Remotes are tooltip-only — never surface a failure in the error banner.
+      const remoteUrls: Record<string, string> = {};
+      if (remotesSettled.status === "fulfilled") {
+        for (const r of remotesSettled.value?.remotes ?? []) {
+          if (r?.name) remoteUrls[r.name] = r.url ?? "";
+        }
+      }
 
       // ★ Self-heal: the captured filter points at a ref that no longer
       // exists (e.g. branch deleted from the branch tree). getGraphData
@@ -644,6 +657,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
             laneSnapshot: snapshot,
             branches: branchList,
             tags: tagList,
+            remoteUrls,
             currentBranch: current,
             currentEmail: email,
             panelError,
@@ -678,6 +692,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         laneSnapshot: snapshot,
         branches: branchList,
         tags: tagList,
+        remoteUrls,
         currentBranch: current,
         currentEmail: email,
         panelError,
