@@ -20,6 +20,9 @@ import "./tasks.css";
 /** 面板分区：对齐 Project Atlas 的多视图结构。 */
 export type TasksPanelSection = "pinned" | "recent" | "all";
 
+/** 数据加载 spinner 延迟显示阈值：快响应时不闪动画。 */
+const LOADING_DELAY_MS = 200;
+
 export function TasksApp({ section = "all" }: { section?: TasksPanelSection }) {
   const pinnedItems = useTaskStore((s) => s.pinnedItems);
   const recentItems = useTaskStore((s) => s.recentItems);
@@ -63,7 +66,23 @@ export function TasksApp({ section = "all" }: { section?: TasksPanelSection }) {
       ? rootProject.tasks.length > 0 || hasSubProjects
       : sectionItems.length > 0;
 
-  if (loading && !hasContent) {
+  // 延迟显示 spinner：getTasks 很快返回时从不出现，避免闪烁
+  const [showLoading, setShowLoading] = useState(false);
+  const waitingForData = loading && !hasContent;
+  useEffect(() => {
+    if (!waitingForData) {
+      setShowLoading(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowLoading(true), LOADING_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [waitingForData]);
+
+  if (waitingForData && !showLoading) {
+    return null;
+  }
+
+  if (waitingForData && showLoading) {
     return (
       <div className="tasks-loading">
         <IconLoading width={16} height={16} className="tasks-spin" />

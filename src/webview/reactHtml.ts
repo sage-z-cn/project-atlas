@@ -48,7 +48,8 @@ export function getReactWebviewHtml(
   <style>
     /* Boot 占位样式：JS 加载执行前给 #root 一个非白屏的加载指示。
        CSP 的 style-src 'unsafe-inline' 允许此内联样式。
-       颜色只用 VSCode 变量 + color-mix 透明度分层，无硬编码色值。 */
+       颜色只用 VSCode 变量 + color-mix 透明度分层，无硬编码色值。
+       延迟 200ms 才淡入：快启动时 React 会先替换 #root，占位从不出现，避免闪烁。 */
     .atlas-boot {
       position: absolute;
       inset: 0;
@@ -58,6 +59,13 @@ export function getReactWebviewHtml(
       justify-content: center;
       gap: 12px;
       color: color-mix(in srgb, var(--vscode-foreground) 70%, transparent);
+      opacity: 0;
+      animation: atlas-boot-fade-in 0.12s ease-out 0.2s forwards;
+    }
+    @keyframes atlas-boot-fade-in {
+      to {
+        opacity: 1;
+      }
     }
     .atlas-boot-spinner {
       width: 24px;

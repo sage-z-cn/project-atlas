@@ -109,28 +109,63 @@ export class TaskService {
   private cachedTasks: TaskItem[] | undefined;
   /** Detected package manager per task: taskId → PackageManager */
   private taskPackageManager = new Map<string, PackageManager>();
+  /** In-flight workspace scan; concurrent getTasks() callers share one scan. */
+  private scanInFlight: Promise<TaskItem[]> | undefined;
+  /** Generation the in-flight scan belongs to; mismatch means it predates an invalidateCache(). */
+  private scanInFlightGen = 0;
+  /** Bumped by invalidateCache() so a scan started before invalidation is not applied. */
+  private scanGeneration = 0;
 
   /**
    * Invalidate the task cache. Called when file watchers detect changes.
    */
   invalidateCache(): void {
     this.cachedTasks = undefined;
+    this.scanGeneration++;
     this.taskPackageManager.clear();
   }
 
   /**
    * Discover all tasks recursively from the workspace.
    * Scans all .vscode/tasks.json and package.json files, caches results.
+   * Concurrent callers share a single in-flight scan (Task Atlas has 3 webviews).
    */
   async getTasks(): Promise<TaskItem[]> {
     if (this.cachedTasks) {
       return this.cachedTasks;
     }
+    if (this.scanInFlight && this.scanInFlightGen === this.scanGeneration) {
+      return this.scanInFlight;
+    }
 
+    const generation = this.scanGeneration;
+    const thisScan = this.scanWorkspaceTasks()
+      .then((tasks) => {
+        // Drop results from a scan that started before invalidateCache().
+        if (generation === this.scanGeneration) {
+          this.taskPackageManager.clear();
+          for (const t of tasks) {
+            this.taskPackageManager.set(t.id, t.packageManager);
+          }
+          this.cachedTasks = tasks;
+        }
+        return tasks;
+      })
+      .finally(() => {
+        // Guard: a newer scan may already be registered (this one predates an invalidation).
+        if (this.scanInFlight === thisScan) {
+          this.scanInFlight = undefined;
+        }
+      });
+    this.scanInFlight = thisScan;
+    this.scanInFlightGen = generation;
+    return thisScan;
+  }
+
+  private async scanWorkspaceTasks(): Promise<TaskItem[]> {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
-      this.cachedTasks = [];
-      return this.cachedTasks;
+      return [];
     }
 
     const tasks: TaskItem[] = [];
@@ -184,12 +219,6 @@ export class TaskService {
       }
     }
 
-    // Build package manager lookup map
-    this.taskPackageManager.clear();
-    for (const t of tasks) {
-      this.taskPackageManager.set(t.id, t.packageManager);
-    }
-
     // Apply persisted order
     if (this.taskOrder.size > 0) {
       tasks.sort((a, b) => {
@@ -202,7 +231,6 @@ export class TaskService {
       });
     }
 
-    this.cachedTasks = tasks;
     return tasks;
   }
 
