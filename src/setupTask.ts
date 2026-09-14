@@ -59,6 +59,9 @@ export function setupTask(
     }),
   );
 
+  // 启动时对账：扩展重载后按持久化记录 + 现存终端/taskExecutions 恢复运行态
+  void taskService.reconcileRunning();
+
   // watcher：仅根目录与下一层的 tasks.json / package.json（与 scanWorkspaceTasks 同深度）
   const tasksWatcher = vscode.workspace.createFileSystemWatcher(
     "{.vscode/tasks.json,*/.vscode/tasks.json}",
@@ -89,10 +92,13 @@ export function setupTask(
     }),
   );
 
-  // 窗口聚焦 → 广播
+  // 窗口聚焦 → 先对账再广播，避免长时间运行后 UI 显示已停止
   context.subscriptions.push(
-    vscode.window.onDidChangeWindowState((e) => {
-      if (e.focused) messageRouter.broadcastEvent(TASK_EVENTS.changed, {});
+    vscode.window.onDidChangeWindowState(async (e) => {
+      if (e.focused) {
+        await taskService.reconcileRunning();
+        messageRouter.broadcastEvent(TASK_EVENTS.changed, {});
+      }
     }),
   );
 

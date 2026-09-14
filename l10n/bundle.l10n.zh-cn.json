@@ -65,6 +65,8 @@
   "No recent runs": "暂无最近运行",
   "Run": "运行",
   "Stop": "停止",
+  "Re-run": "重新运行",
+  "Task '{0}' is already running. Re-run it?": "任务 '{0}' 正在运行。要重新运行吗？",
   "npm Scripts": "npm 脚本",
   "No open workspace": "未打开工作区",
   "Loading tasks...": "加载任务中...",

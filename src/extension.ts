@@ -23,6 +23,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const groupService = new GroupService(storage);
   const taskService = new TaskService();
   taskService.initStorage(context.globalState);
+  taskService.initWorkspaceStorage(context.workspaceState);
 
   // Recent / Favorites / Tasks 全部迁移到 React。storage.onDidChange 与
   // openMode/config 变更由 setupProject 广播 projectDataChanged/openModeChanged

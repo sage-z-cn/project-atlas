@@ -7,6 +7,30 @@ import { toForwardSlash } from "../utils/pathUtils";
 /** Glob exclude pattern for findFiles */
 const EXCLUDE_PATTERN = "**/{node_modules,.git,dist,out,build,.vscode-test}/**";
 
+/** workspaceState key: in-flight Task Atlas runs, used to re-attach after extension reload.
+ *  Workspace-scoped because terminals live in the window that owns the workspace —
+ *  globalState would let multiple windows clobber each other's records. */
+const RUNNING_STORAGE_KEY = "taskAtlas.runningTasks";
+
+/** Terminal-name prefix so reconcile can tell our terminals from user-opened ones. */
+const TERMINAL_NAME_PREFIX = "Task Atlas · ";
+
+/** Delay before re-reading terminal.state.busy when a shell-end event arrives while
+ *  the terminal still reports busy (state update and event ordering is not guaranteed). */
+const SHELL_END_BUSY_RETRY_MS = 200;
+
+/** Persisted running-task record (survives extension-host reload in the same window). */
+interface PersistedRunningTask {
+  taskId: string;
+  kind: "terminal" | "execution";
+  /** Exact terminal name at creation — primary re-match key after reload. */
+  terminalName?: string;
+  /** VS Code task name/label/script — used to re-match taskExecutions. */
+  taskName?: string;
+  cwd?: string;
+  startedAt: number;
+}
+
 /**
  * Parse JSONC (JSON with `//` / `/* *\/` comments and trailing commas).
  * String-aware: `//` inside string literals (e.g. "http://...") is preserved,
@@ -96,15 +120,19 @@ function parseJsonc(text: string): any {
 }
 
 export class TaskService {
-  /** Running npm scripts: taskId → Terminal */
+  /** Running npm scripts / sub-project terminal tasks: taskId → Terminal */
   private runningTerminals = new Map<string, vscode.Terminal>();
-  /** Running vscode tasks: taskId → TaskExecution */
+  /** Running vscode tasks started via executeTask: taskId → TaskExecution */
   private runningExecutions = new Map<string, vscode.TaskExecution>();
+  /** Metadata for persist/reconcile; kept in sync with the two maps above. */
+  private runningMeta = new Map<string, PersistedRunningTask>();
   private _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChange = this._onDidChange.event;
   /** Persisted task order: map of task id to its ordinal position */
   private taskOrder = new Map<string, number>();
   private _memento: vscode.Memento | undefined;
+  /** Workspace-scoped store for running-task records (RUNNING_STORAGE_KEY). */
+  private _workspaceMemento: vscode.Memento | undefined;
   /** Cached task list; invalidated by file watchers via invalidateCache() */
   private cachedTasks: TaskItem[] | undefined;
   /** Detected package manager per task: taskId → PackageManager */
@@ -240,26 +268,61 @@ export class TaskService {
     return tasks;
   }
 
+  /**
+   * Whether a task is currently running. Prunes dead handles so a disposed
+   * terminal / ended execution never keeps showing as "running".
+   */
   isRunning(taskId: string): boolean {
-    return this.runningTerminals.has(taskId) || this.runningExecutions.has(taskId);
+    const term = this.runningTerminals.get(taskId);
+    if (term) {
+      if (this.isTerminalAlive(term)) {
+        return true;
+      }
+      this.runningTerminals.delete(taskId);
+      this.runningMeta.delete(taskId);
+      this.persistRunning();
+    }
+    const exec = this.runningExecutions.get(taskId);
+    if (exec) {
+      if (vscode.tasks.taskExecutions.includes(exec)) {
+        return true;
+      }
+      this.runningExecutions.delete(taskId);
+      this.runningMeta.delete(taskId);
+      this.persistRunning();
+    }
+    return false;
   }
 
   /**
    * Execute a task. For vscode tasks, use vscode.tasks.executeTask.
    * For npm scripts, run in integrated terminal with correct cwd.
+   * If already running, asks whether to re-run (stop + start again).
    */
   async runTask(taskId: string): Promise<void> {
+    const { source, relativeDir, name } = this.parseTaskId(taskId);
+
     if (this.isRunning(taskId)) {
-      return;
+      const displayName = this.getTaskDisplayName(taskId, name);
+      const rerun = vscode.l10n.t("Re-run");
+      const result = await vscode.window.showWarningMessage(
+        vscode.l10n.t("Task '{0}' is already running. Re-run it?", displayName),
+        { modal: true },
+        rerun,
+      );
+      if (result !== rerun) {
+        // Clear webview optimistic "running" state via refresh.
+        this._onDidChange.fire();
+        return;
+      }
+      this.stopTask(taskId);
     }
 
     this.addRecentRun(taskId);
 
-    const { source, relativeDir, name } = this.parseTaskId(taskId);
-
     if (source === "npm") {
       const cwd = this.resolveCwd(relativeDir);
-      await this.runNpmScript(taskId, name, cwd);
+      await this.runNpmScript(taskId, name, cwd, relativeDir);
     } else if (source === "vscode") {
       const cwd = this.resolveCwd(relativeDir);
       await this.runVscodeTask(taskId, name, cwd, relativeDir);
@@ -274,6 +337,8 @@ export class TaskService {
     if (terminal) {
       terminal.dispose();
       this.runningTerminals.delete(taskId);
+      this.runningMeta.delete(taskId);
+      this.persistRunning();
       this._onDidChange.fire();
       return;
     }
@@ -281,26 +346,99 @@ export class TaskService {
     if (execution) {
       execution.terminate();
       this.runningExecutions.delete(taskId);
+      this.runningMeta.delete(taskId);
+      this.persistRunning();
       this._onDidChange.fire();
     }
   }
 
   /**
-   * Get all currently running task IDs.
+   * Get all currently running task IDs (prunes dead handles first).
    */
   getRunningTaskIds(): string[] {
+    for (const id of [...this.runningTerminals.keys()]) {
+      this.isRunning(id);
+    }
+    for (const id of [...this.runningExecutions.keys()]) {
+      this.isRunning(id);
+    }
     return [...this.runningTerminals.keys(), ...this.runningExecutions.keys()];
   }
 
+  /**
+   * Re-attach running state after extension reload / window focus.
+   * Matches persisted records against live terminals and task executions.
+   * Each live terminal / execution is consumed by at most one record, so
+   * same-named entries never both attach to the first match.
+   */
+  async reconcileRunning(): Promise<void> {
+    const persisted =
+      this._workspaceMemento?.get<PersistedRunningTask[]>(RUNNING_STORAGE_KEY, []) ?? [];
+
+    // Drop in-memory handles that are no longer alive.
+    for (const id of [...this.runningTerminals.keys()]) {
+      const term = this.runningTerminals.get(id);
+      if (!term || !this.isTerminalAlive(term)) {
+        this.runningTerminals.delete(id);
+        this.runningMeta.delete(id);
+      }
+    }
+    for (const id of [...this.runningExecutions.keys()]) {
+      const exec = this.runningExecutions.get(id);
+      if (!exec || !vscode.tasks.taskExecutions.includes(exec)) {
+        this.runningExecutions.delete(id);
+        this.runningMeta.delete(id);
+      }
+    }
+
+    // Restore terminal-backed tasks by exact terminal name.
+    const terminalCandidates = [...vscode.window.terminals];
+    const executionCandidates = [...vscode.tasks.taskExecutions];
+    for (const entry of persisted) {
+      if (this.runningTerminals.has(entry.taskId) || this.runningExecutions.has(entry.taskId)) {
+        continue;
+      }
+      if (entry.kind === "terminal" && entry.terminalName) {
+        const idx = terminalCandidates.findIndex((t) => t.name === entry.terminalName);
+        if (idx < 0) {
+          continue;
+        }
+        const term = terminalCandidates.splice(idx, 1)[0];
+        // busy === undefined means no busy signal is available — trust the name match.
+        if (this.readTerminalBusy(term) !== false) {
+          this.attachTerminalListeners(entry.taskId, term);
+          this.runningTerminals.set(entry.taskId, term);
+          this.runningMeta.set(entry.taskId, entry);
+        }
+      } else if (entry.kind === "execution" && entry.taskName) {
+        const idx = executionCandidates.findIndex((e) => {
+          const t = e.task;
+          return (
+            t.name === entry.taskName ||
+            t.definition?.label === entry.taskName ||
+            t.definition?.script === entry.taskName
+          );
+        });
+        if (idx < 0) {
+          continue;
+        }
+        const exec = executionCandidates.splice(idx, 1)[0];
+        this.attachExecutionListeners(entry.taskId, exec);
+        this.runningExecutions.set(entry.taskId, exec);
+        this.runningMeta.set(entry.taskId, entry);
+      }
+    }
+
+    this.persistRunning();
+  }
+
   dispose(): void {
-    for (const terminal of this.runningTerminals.values()) {
-      terminal.dispose();
-    }
+    // Do NOT dispose terminals / terminate executions on deactivate.
+    // Long-running dev servers must survive extension reload; persisted meta
+    // lets reconcileRunning() re-attach to the same terminals afterwards.
     this.runningTerminals.clear();
-    for (const execution of this.runningExecutions.values()) {
-      execution.terminate();
-    }
     this.runningExecutions.clear();
+    this.runningMeta.clear();
   }
 
   /**
@@ -312,6 +450,156 @@ export class TaskService {
     for (const [id, order] of Object.entries(saved)) {
       this.taskOrder.set(id, order);
     }
+  }
+
+  /**
+   * Provide the workspace-scoped store used for running-task records.
+   */
+  initWorkspaceStorage(memento: vscode.Memento): void {
+    this._workspaceMemento = memento;
+  }
+
+  // --- Running-state helpers ---
+
+  private isTerminalAlive(term: vscode.Terminal): boolean {
+    return vscode.window.terminals.includes(term);
+  }
+
+  /**
+   * Terminal busy signal, available only when the runtime exposes it via shell
+   * integration; undefined on stable TerminalState versions. Callers must treat
+   * undefined as "unknown" and fall back to name-based heuristics.
+   */
+  private readTerminalBusy(term: vscode.Terminal): boolean | undefined {
+    return (term.state as { busy?: boolean }).busy;
+  }
+
+  private getTaskDisplayName(taskId: string, fallback: string): string {
+    const cached = this.cachedTasks?.find((t) => t.id === taskId);
+    if (cached) {
+      return cached.relativeDir
+        ? `${cached.relativeDir} · ${cached.name}`
+        : cached.name;
+    }
+    const { relativeDir } = this.parseTaskId(taskId);
+    return relativeDir ? `${relativeDir} · ${fallback}` : fallback;
+  }
+
+  /** Readable, unique terminal name used for persist/reconcile matching. */
+  private buildTerminalName(relativeDir: string, label: string): string {
+    const mid = relativeDir ? `${relativeDir} · ` : "";
+    return `${TERMINAL_NAME_PREFIX}${mid}${label}`;
+  }
+
+  private trackTerminal(
+    taskId: string,
+    terminal: vscode.Terminal,
+    meta: Omit<PersistedRunningTask, "taskId" | "kind" | "startedAt">,
+  ): void {
+    this.runningTerminals.set(taskId, terminal);
+    this.runningMeta.set(taskId, {
+      taskId,
+      kind: "terminal",
+      startedAt: Date.now(),
+      ...meta,
+    });
+    this.persistRunning();
+    this._onDidChange.fire();
+    this.attachTerminalListeners(taskId, terminal);
+  }
+
+  /**
+   * Close / shell-end listeners for a tracked terminal. Also used when
+   * re-attaching after extension reload (listeners die with the old host).
+   */
+  private attachTerminalListeners(taskId: string, terminal: vscode.Terminal): void {
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let done = false;
+    const cleanup = (): void => {
+      if (done) {
+        return;
+      }
+      done = true;
+      if (retryTimer !== undefined) {
+        clearTimeout(retryTimer);
+        retryTimer = undefined;
+      }
+      if (this.runningTerminals.get(taskId) === terminal) {
+        this.runningTerminals.delete(taskId);
+        this.runningMeta.delete(taskId);
+        this.persistRunning();
+        this._onDidChange.fire();
+      }
+      closeDisposable.dispose();
+      shellEndDisposable.dispose();
+    };
+
+    const closeDisposable = vscode.window.onDidCloseTerminal((closed) => {
+      if (closed === terminal) {
+        cleanup();
+      }
+    });
+
+    const shellEndDisposable = vscode.window.onDidEndTerminalShellExecution((e) => {
+      if (e.terminal !== terminal) {
+        return;
+      }
+      // Only clear when the terminal is actually idle (busy === undefined means no
+      // busy signal — treat as idle). Spurious shell-end events on a runtime that
+      // does report busy must not flip a still-running long task off.
+      if (!this.readTerminalBusy(terminal)) {
+        cleanup();
+        return;
+      }
+      // busy may lag the event (state update ordering is not guaranteed);
+      // re-check once so a finite task is not stuck showing as running.
+      retryTimer = setTimeout(() => {
+        retryTimer = undefined;
+        if (!this.readTerminalBusy(terminal)) {
+          cleanup();
+        }
+      }, SHELL_END_BUSY_RETRY_MS);
+    });
+  }
+
+  private trackExecution(
+    taskId: string,
+    execution: vscode.TaskExecution,
+    taskName: string,
+  ): void {
+    this.runningExecutions.set(taskId, execution);
+    this.runningMeta.set(taskId, {
+      taskId,
+      kind: "execution",
+      taskName,
+      startedAt: Date.now(),
+    });
+    this.persistRunning();
+    this._onDidChange.fire();
+    this.attachExecutionListeners(taskId, execution);
+  }
+
+  /** onDidEndTask listener; re-attached after extension reload via reconcile. */
+  private attachExecutionListeners(taskId: string, execution: vscode.TaskExecution): void {
+    const disposable = vscode.tasks.onDidEndTask((e) => {
+      if (e.execution === execution) {
+        if (this.runningExecutions.get(taskId) === execution) {
+          this.runningExecutions.delete(taskId);
+          this.runningMeta.delete(taskId);
+          this.persistRunning();
+          this._onDidChange.fire();
+        }
+        disposable.dispose();
+      }
+    });
+  }
+
+  private persistRunning(): void {
+    if (!this._workspaceMemento) {
+      return;
+    }
+    const list = [...this.runningMeta.values()];
+    void this._workspaceMemento.update(RUNNING_STORAGE_KEY, list);
   }
 
   /**
@@ -558,7 +846,12 @@ export class TaskService {
     return path.join(workspaceFolders[0].uri.fsPath, relativeDir);
   }
 
-  private async runNpmScript(taskId: string, scriptName: string, cwd: string): Promise<void> {
+  private async runNpmScript(
+    taskId: string,
+    scriptName: string,
+    cwd: string,
+    relativeDir = "",
+  ): Promise<void> {
     if (!cwd) {
       return;
     }
@@ -569,35 +862,17 @@ export class TaskService {
       : pm === "yarn" ? `yarn ${scriptName}`
       : `bun run ${scriptName}`;
 
+    const terminalName = this.buildTerminalName(relativeDir, `${pm}: ${scriptName}`);
     const terminal = vscode.window.createTerminal({
-      name: `${pm}: ${scriptName}`,
+      name: terminalName,
       cwd,
     });
     terminal.show(true);
     terminal.sendText(runCmd);
 
-    this.runningTerminals.set(taskId, terminal);
-    this._onDidChange.fire();
-
-    const cleanup = () => {
-      if (this.runningTerminals.has(taskId)) {
-        this.runningTerminals.delete(taskId);
-        this._onDidChange.fire();
-      }
-      closeDisposable.dispose();
-      shellEndDisposable.dispose();
-    };
-
-    const closeDisposable = vscode.window.onDidCloseTerminal((closed) => {
-      if (closed === terminal) {
-        cleanup();
-      }
-    });
-
-    const shellEndDisposable = vscode.window.onDidEndTerminalShellExecution((e) => {
-      if (e.terminal === terminal) {
-        cleanup();
-      }
+    this.trackTerminal(taskId, terminal, {
+      terminalName,
+      cwd,
     });
   }
 
@@ -621,22 +896,13 @@ export class TaskService {
 
     if (target) {
       const execution = await vscode.tasks.executeTask(target);
-      this.runningExecutions.set(taskId, execution);
-      this._onDidChange.fire();
-
-      const disposable = vscode.tasks.onDidEndTask((e) => {
-        if (e.execution === execution) {
-          this.runningExecutions.delete(taskId);
-          this._onDidChange.fire();
-          disposable.dispose();
-        }
-      });
+      this.trackExecution(taskId, execution, target.name || name);
       return;
     }
 
     // Fallback for sub-project tasks: read tasks.json and run command in terminal
     if (relativeDir) {
-      await this.runSubProjectTask(taskId, name, cwd);
+      await this.runSubProjectTask(taskId, name, cwd, relativeDir);
       return;
     }
 
@@ -651,7 +917,12 @@ export class TaskService {
    * VS Code's fetchTasks() only discovers root-level tasks, so sub-project
    * tasks need to be run by reading the tasks.json and executing the command directly.
    */
-  private async runSubProjectTask(taskId: string, name: string, cwd: string): Promise<void> {
+  private async runSubProjectTask(
+    taskId: string,
+    name: string,
+    cwd: string,
+    relativeDir = "",
+  ): Promise<void> {
     const tasksJsonPath = path.join(cwd, ".vscode", "tasks.json");
     if (!fs.existsSync(tasksJsonPath)) {
       vscode.window.showWarningMessage(
@@ -689,6 +960,7 @@ export class TaskService {
 
       // Resolve the command to execute
       let command: string;
+      let runLabel = name;
       if (taskDef.type === "npm") {
         // Detect from the project dir — vscode-sourced tasks hardcode "npm" in
         // parseVscodeTasks, so the scan-time map is unreliable here.
@@ -698,6 +970,7 @@ export class TaskService {
           : pm === "pnpm" ? `pnpm run ${scriptName}`
           : pm === "yarn" ? `yarn ${scriptName}`
           : `bun run ${scriptName}`;
+        runLabel = `${pm}: ${scriptName}`;
         // npm tasks should run from the project directory containing package.json
         // If taskDef.path is set, cwd is relative to the workspace folder
         if (taskDef.path) {
@@ -719,36 +992,17 @@ export class TaskService {
         return;
       }
 
-      // Execute via terminal (same lifecycle tracking as npm scripts)
+      const terminalName = this.buildTerminalName(relativeDir, runLabel);
       const terminal = vscode.window.createTerminal({
-        name: name,
+        name: terminalName,
         cwd,
       });
       terminal.show(true);
       terminal.sendText(command);
 
-      this.runningTerminals.set(taskId, terminal);
-      this._onDidChange.fire();
-
-      const cleanup = () => {
-        if (this.runningTerminals.has(taskId)) {
-          this.runningTerminals.delete(taskId);
-          this._onDidChange.fire();
-        }
-        closeDisposable.dispose();
-        shellEndDisposable.dispose();
-      };
-
-      const closeDisposable = vscode.window.onDidCloseTerminal((closed) => {
-        if (closed === terminal) {
-          cleanup();
-        }
-      });
-
-      const shellEndDisposable = vscode.window.onDidEndTerminalShellExecution((e) => {
-        if (e.terminal === terminal) {
-          cleanup();
-        }
+      this.trackTerminal(taskId, terminal, {
+        terminalName,
+        cwd,
       });
     } catch {
       vscode.window.showWarningMessage(
