@@ -4,6 +4,15 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.26.0
+**新功能**
+- **任务**: 支持任务运行状态在扩展重载后恢复
+- **命令**: 添加显示文件夹历史的命令
+
+**Bug 修复**
+- **任务**: 限制任务扫描深度并修复 vsce 打包问题
+- **任务**: 消除任务面板加载时的闪烁并防止并发扫描竞态
+
 #### 1.25.1
 **新功能**
 - **Commit**: 错误横幅重构为通用消息横幅，新增远程操作结果反馈
