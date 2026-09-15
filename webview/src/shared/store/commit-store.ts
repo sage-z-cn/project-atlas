@@ -150,6 +150,16 @@ interface CommitStore {
   setRemoteSuccess: (message: string | null) => void;
   /** 设置成功 banner 并在 ms 后自动关闭（按 token 判定，仅关闭仍是最新一条时）。 */
   showRemoteSuccess: (message: string, ms?: number) => void;
+  /**
+   * 推送成功后短暂打勾的仓库 path（RepoSelector 用它替换该 chip 的
+   * ahead/behind 徽章）。null = 无打勾。
+   */
+  successFlashRepo: string | null;
+  /**
+   * 在对应仓库 chip 的 ahead/behind 位短暂显示打勾（默认 3s），期间隐藏
+   * ahead/behind。repoPath 缺省取当前仓库。
+   */
+  showRepoSuccessFlash: (repoPath?: string | null, ms?: number) => void;
   // AI commit message 生成
   aiGenerating: boolean;
   /** 用户已请求取消当前生成（generateCommitMessage 的 catch 据此跳过错误提示）。 */
@@ -289,6 +299,9 @@ let stashPromptResolver: ((result: StashPromptResult | null) => void) | null =
  */
 let remoteSuccessSeq = 0;
 
+/** 仓库 chip 打勾的单调 token：与 remoteSuccessSeq 同理，防旧定时器误关新打勾。 */
+let successFlashSeq = 0;
+
 export const useCommitStore = create<CommitStore>((set, get) => ({
   // ── Multi-repo ─────────────────────────────────────────────────────
   currentRepoPath: null,
@@ -342,6 +355,21 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         useCommitStore.getState().remoteSuccess !== null
       ) {
         useCommitStore.getState().setRemoteSuccess(null);
+      }
+    }, ms);
+  },
+  successFlashRepo: null,
+  showRepoSuccessFlash: (repoPath, ms = 3000) => {
+    const path = repoPath ?? get().currentRepoPath;
+    if (!path) return;
+    const myToken = ++successFlashSeq;
+    set({ successFlashRepo: path });
+    setTimeout(() => {
+      if (
+        successFlashSeq === myToken &&
+        useCommitStore.getState().successFlashRepo === path
+      ) {
+        useCommitStore.setState({ successFlashRepo: null });
       }
     }, ms);
   },
@@ -1225,6 +1253,7 @@ bridge.onEvent((event, data) => {
         commitError: null,
         remoteError: null,
         remoteSuccess: null,
+        successFlashRepo: null,
       });
       useCommitStore.getState().refresh();
       useCommitStore.getState().fetchRepoStatuses();
@@ -1257,6 +1286,7 @@ bridge.onEvent((event, data) => {
       commitError: null,
       remoteError: null,
       remoteSuccess: null,
+      successFlashRepo: null,
     });
     useCommitStore.getState().fetchChanges();
     // Stash 列表也是 per-repo 状态（上面已整体清空），切换后同样要回填。

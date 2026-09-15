@@ -59,6 +59,7 @@ function CommitRepoSelector() {
       currentRepoPath={useCommitStore((s) => s.currentRepoPath)}
       switchRepo={useCommitStore((s) => s.switchRepo)}
       repoStatuses={useCommitStore((s) => s.repoStatuses)}
+      successFlashRepo={useCommitStore((s) => s.successFlashRepo)}
       orientation="vertical"
     />
   );
@@ -70,6 +71,11 @@ interface BodyProps {
   switchRepo: (path: string) => Promise<void>;
   /** Per-repo ahead/behind/dirty counts keyed by repo path (for chip badges). */
   repoStatuses: Record<string, RepoStatus>;
+  /**
+   * 推送成功后短暂打勾的仓库 path。命中时该 chip 用 ✓ 替换 ahead/behind
+   * 徽章（dirty 仍显示），约 3s 后恢复。仅 commit 面板启用。
+   */
+  successFlashRepo?: string | null;
   /** Layout direction: "horizontal" for the bottom panel (wide), "vertical" for the sidebar (narrow). */
   orientation: "horizontal" | "vertical";
 }
@@ -93,6 +99,7 @@ function RepoSelectorBody({
   currentRepoPath,
   switchRepo,
   repoStatuses,
+  successFlashRepo,
   orientation,
 }: BodyProps) {
   const [menu, setMenu] = useState<{
@@ -133,7 +140,10 @@ function RepoSelectorBody({
           <RepoSelectedIcon width={14} height={14} />
           <span className="repo-name">{repo.name}</span>
           <RepoBranch status={repoStatuses[repo.path]} />
-          <RepoBadges status={repoStatuses[repo.path]} />
+          <RepoBadges
+            status={repoStatuses[repo.path]}
+            flashSuccess={successFlashRepo === repo.path}
+          />
         </div>
         {menuEl}
       </div>
@@ -160,7 +170,10 @@ function RepoSelectorBody({
           )}
           <span className="repo-name">{repo.name}</span>
           <RepoBranch status={repoStatuses[repo.path]} />
-          <RepoBadges status={repoStatuses[repo.path]} />
+          <RepoBadges
+            status={repoStatuses[repo.path]}
+            flashSuccess={successFlashRepo === repo.path}
+          />
         </button>
       ))}
       {menuEl}
@@ -192,10 +205,32 @@ function RepoBranch({ status }: { status?: RepoStatus }) {
  * truthy: `null` (no upstream / detached HEAD) hides ↑↓, and `0` hides any of
  * them. When all are zero/null the whole cluster is absent and the chip shows
  * only the repo name.
+ *
+ * `flashSuccess` (push succeeded) temporarily replaces ahead/behind with a ✓
+ * for ~3s — dirty is left alone since it is unrelated to the push.
  */
-function RepoBadges({ status }: { status?: RepoStatus }) {
-  if (!status) return null;
-  const { ahead, behind, dirty } = status;
+function RepoBadges({
+  status,
+  flashSuccess,
+}: {
+  status?: RepoStatus;
+  flashSuccess?: boolean;
+}) {
+  const { ahead, behind, dirty } = status ?? {};
+  if (flashSuccess) {
+    return (
+      <span className="repo-badges">
+        <span className="badge success-flash" title={t("Push succeeded")}>
+          ✓
+        </span>
+        {dirty ? (
+          <span className="badge dirty" title={t("{0} uncommitted files", dirty)}>
+            ●{dirty}
+          </span>
+        ) : null}
+      </span>
+    );
+  }
   // Avoid rendering an empty badges wrapper when everything is hidden.
   if (!ahead && !behind && !dirty) return null;
   return (

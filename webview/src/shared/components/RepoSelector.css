@@ -178,6 +178,18 @@
  * active) — no per-status colors, no background. Status is conveyed by the
  * ↑/↓/● glyph itself, not by color. */
 
+/* Push-success flash: green ✓ temporarily replaces ↑/↓ (same badge metrics).
+ * Active chip sits on button-bg (often the same green), so inherit button-fg
+ * there instead of painting another green on green. */
+.repo-selector .repo-chip .badge.success-flash {
+  color: var(--vscode-debugIcon-startForeground, #89d185);
+  padding: 0 2px;
+}
+
+.repo-selector .repo-chip.active .badge.success-flash {
+  color: inherit;
+}
+
 /* ─── Read-only status strip (single-repo workspace) ───────────────────
  * When the workspace has exactly one repo there's nothing to switch, but we
  * still surface its branch + badges as a non-interactive chip. Kill the

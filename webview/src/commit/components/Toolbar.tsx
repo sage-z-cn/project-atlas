@@ -69,15 +69,9 @@ export function Toolbar({
         return;
       }
       if (result?.pushed) {
-        const message = result.data?.isUpToDate
-          ? t("Everything is up to date")
-          : t(
-              "Pushed to {0}/{1}",
-              result.data?.remote ?? "",
-              result.data?.branch ?? "",
-            );
-        // 成功提示走面板顶部 banner，不再弹系统通知。
-        useCommitStore.getState().showRemoteSuccess(message);
+        // 成功反馈：在对应仓库 chip 的 ahead/behind 位短暂打勾（约 3s），
+        // 期间隐藏 ahead/behind；不再走顶部 MessageBanner。
+        useCommitStore.getState().showRepoSuccessFlash();
         return;
       }
       // rejected：后端已打开 PushPanel 展示 rebase/merge，无需再提示。
