@@ -140,16 +140,9 @@ interface CommitStore {
   /** 提交/推送失败的内联错误信息（显示在提交消息框上方），null 时隐藏。 */
   commitError: string | null;
   setCommitError: (error: string | null) => void;
-  /** 远程操作（如 pull）失败的内联错误信息（显示在工具栏下方 banner），null 时隐藏。
-   *  写入非 null 时互斥清掉 remoteSuccess（新错误顶掉旧成功提示）。 */
+  /** 远程操作（如 pull）失败的内联错误信息（显示在工具栏下方 banner），null 时隐藏。 */
   remoteError: string | null;
   setRemoteError: (error: string | null) => void;
-  /** 远程操作成功提示（如推送完成），显示在工具栏下方成功 banner，null 时隐藏。
-   *  写入非 null 时互斥清掉 remoteError（新成功顶掉旧错误提示）。 */
-  remoteSuccess: string | null;
-  setRemoteSuccess: (message: string | null) => void;
-  /** 设置成功 banner 并在 ms 后自动关闭（按 token 判定，仅关闭仍是最新一条时）。 */
-  showRemoteSuccess: (message: string, ms?: number) => void;
   /**
    * 推送成功后短暂打勾：true 时当前仓库 chip 用 ✓ 替换 ahead/behind
    * （约 3s）。用布尔而非 path，避免 currentRepoPath / repo.path 字符串
@@ -291,13 +284,9 @@ let stashPromptResolver: ((result: StashPromptResult | null) => void) | null =
   null;
 
 /**
- * 成功 banner 的单调 token：每次 showRemoteSuccess 递增，旧定时器回调发现
- * token 已变（被更新的提示接管）即放弃关闭。比按消息文本比较可靠 —— 连续
- * 两次相同文案的成功（如连续两次空推送）不会被第一个定时器提前关掉。
+ * 仓库 chip 打勾的单调 token：每次 showRepoSuccessFlash 递增，旧定时器
+ * 回调发现 token 已变（被更新的打勾接管）即放弃关闭，防旧定时器误关新打勾。
  */
-let remoteSuccessSeq = 0;
-
-/** 仓库 chip 打勾的单调 token：与 remoteSuccessSeq 同理，防旧定时器误关新打勾。 */
 let successFlashSeq = 0;
 
 export const useCommitStore = create<CommitStore>((set, get) => ({
@@ -334,28 +323,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   commitError: null,
   setCommitError: (error) => set({ commitError: error }),
   remoteError: null,
-  // 互斥在写入时完成（而非组件 effect 兜底）：新错误顶掉成功 banner，反之亦然。
-  // effect 方案无法区分「成功刚到」还是「错误刚到」，会在成功 banner 存活期
-  // 间静默吞掉新到的拉取错误。
-  setRemoteError: (error) =>
-    set(error === null ? { remoteError: null } : { remoteError: error, remoteSuccess: null }),
-  remoteSuccess: null,
-  setRemoteSuccess: (message) =>
-    set(message === null ? { remoteSuccess: null } : { remoteSuccess: message, remoteError: null }),
-  showRemoteSuccess: (message, ms = 5000) => {
-    const myToken = ++remoteSuccessSeq;
-    set({ remoteSuccess: message, remoteError: null });
-    setTimeout(() => {
-      // token 不匹配 = 已被更新的成功提示接管；remoteSuccess 非空防御
-      // 「手动关闭后无新提示」时的空转 set。
-      if (
-        remoteSuccessSeq === myToken &&
-        useCommitStore.getState().remoteSuccess !== null
-      ) {
-        useCommitStore.getState().setRemoteSuccess(null);
-      }
-    }, ms);
-  },
+  setRemoteError: (error) => set({ remoteError: error }),
   successFlash: false,
   showRepoSuccessFlash: (ms = 3000) => {
     const myToken = ++successFlashSeq;
@@ -1246,7 +1214,6 @@ bridge.onEvent((event, data) => {
         amend: false,
         commitError: null,
         remoteError: null,
-        remoteSuccess: null,
         successFlash: false,
       });
       useCommitStore.getState().refresh();
@@ -1279,7 +1246,6 @@ bridge.onEvent((event, data) => {
       amend: false,
       commitError: null,
       remoteError: null,
-      remoteSuccess: null,
       successFlash: false,
     });
     useCommitStore.getState().fetchChanges();

@@ -1,7 +1,6 @@
 import { t } from "../../shared/i18n";
 import { useCommitStore } from "../../shared/store/commit-store";
 import ErrorIcon from "~icons/codicon/error";
-import CheckIcon from "~icons/codicon/check";
 import CloseIcon from "~icons/codicon/close";
 
 /**
@@ -24,7 +23,6 @@ export function MessageBanner() {
 
   return (
     <BannerItem
-      variant="error"
       message={commitError}
       onDismiss={() => setCommitError(null)}
     />
@@ -34,58 +32,34 @@ export function MessageBanner() {
 /**
  * 工具栏下方的远程操作反馈 banner：
  * - remoteError：远程操作（如 pull）失败的 git 错误。
- * - remoteSuccess：远程操作成功提示（如推送完成），5s 后自动消失（store
- *   showRemoteSuccess 负责计时），也可手动关闭。
- * 两者互斥由 store 写入时保证（setRemoteError / setRemoteSuccess 非空写入
- * 顶掉对方），不叠两条 banner。
+ * 推送成功反馈已改为仓库 chip 短暂打勾（见 commit-store 的
+ * showRepoSuccessFlash），不再走此处。
  */
 export function RemoteBanner() {
   const remoteError = useCommitStore((s) => s.remoteError);
   const setRemoteError = useCommitStore((s) => s.setRemoteError);
-  const remoteSuccess = useCommitStore((s) => s.remoteSuccess);
-  const setRemoteSuccess = useCommitStore((s) => s.setRemoteSuccess);
+
+  if (!remoteError) return null;
 
   return (
-    <>
-      {remoteError && (
-        <BannerItem
-          variant="error"
-          message={remoteError}
-          onDismiss={() => setRemoteError(null)}
-        />
-      )}
-      {remoteSuccess && (
-        <BannerItem
-          variant="success"
-          message={remoteSuccess}
-          onDismiss={() => setRemoteSuccess(null)}
-        />
-      )}
-    </>
+    <BannerItem
+      message={remoteError}
+      onDismiss={() => setRemoteError(null)}
+    />
   );
 }
 
 function BannerItem({
-  variant,
   message,
   onDismiss,
 }: {
-  variant: "error" | "success";
   message: string;
   onDismiss: () => void;
 }) {
-  const isError = variant === "error";
   return (
     <div style={{ padding: "4px 8px", flexShrink: 0 }}>
-      <div
-        className={isError ? "commit-message-banner" : "commit-message-banner-success"}
-        role={isError ? "alert" : "status"}
-      >
-        {isError ? (
-          <ErrorIcon className="commit-message-banner-icon" />
-        ) : (
-          <CheckIcon className="commit-message-banner-icon-success" />
-        )}
+      <div className="commit-message-banner" role="alert">
+        <ErrorIcon className="commit-message-banner-icon" />
         <span className="commit-message-banner-text">{message}</span>
         <button
           type="button"

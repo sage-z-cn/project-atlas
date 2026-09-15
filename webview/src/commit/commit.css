@@ -498,35 +498,6 @@
   background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, 0.12));
 }
 
-/* 成功 banner：与 error 同结构，绿系配色（对齐 debugIcon-startForeground）。 */
-.commit-message-banner-success {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: color-mix(
-    in srgb,
-    var(--vscode-debugIcon-startForeground, #89d185) 12%,
-    transparent
-  );
-  border: 1px solid
-    color-mix(
-      in srgb,
-      var(--vscode-debugIcon-startForeground, #89d185) 45%,
-      transparent
-    );
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.commit-message-banner-icon-success {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  color: var(--vscode-debugIcon-startForeground, #89d185);
-}
-
 .commit-message-banner-close svg {
   width: 14px;
   height: 14px;
