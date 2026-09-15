@@ -65,6 +65,18 @@ interface CommitStore {
    */
   commitEpoch: number;
   /**
+   * 发起中的 commit / commitAndPush 的关联 id。host 在 `git commit` 成功后
+   * 广播 `commitLanded{clientOpId}`；webview 匹配后立刻清空提交信息并刷新
+   * 更改列表，不必等 push 返回（消除「列表先空、输入框还在」的空窗）。
+   * null = 无 in-flight。
+   */
+  pendingCommitOpId: string | null;
+  /**
+   * 本次 in-flight 提交发出时的消息快照。commitLanded / response 兜底时
+   * 仅当输入框内容仍是该快照才清空，避免覆盖用户在等待期间新敲的字。
+   */
+  submittedCommitMessage: string | null;
+  /**
    * Per-repo ahead/behind/dirty counts keyed by normalized repo path, backing
    * the RepoSelector chip badges. Refreshed by fetchRepoStatuses on init,
    * repoChanged, and every gitStateChanged.
@@ -289,12 +301,59 @@ let stashPromptResolver: ((result: StashPromptResult | null) => void) | null =
  */
 let successFlashSeq = 0;
 
+let commitOpSeq = 0;
+function nextCommitOpId(): string {
+  return `commit-op-${++commitOpSeq}`;
+}
+
+/**
+ * `git commit` 已确认落地：若输入框内容仍是本次提交文案则清空 + 刷草稿 +
+ * 刷新更改列表；用户在等待期间改过则只结束关联、保留新输入。
+ * 幂等：commitLanded 与 response 兜底都可调用；第二次因 pending 已空而 no-op。
+ */
+async function settleCommitMessageAfterCommit(
+  clientOpId: string,
+): Promise<void> {
+  const state = useCommitStore.getState();
+  if (state.pendingCommitOpId !== clientOpId) return;
+
+  const submitted = state.submittedCommitMessage;
+  const shouldClear = submitted !== null && state.commitMessage === submitted;
+
+  useCommitStore.setState({
+    pendingCommitOpId: null,
+    submittedCommitMessage: null,
+  });
+
+  if (!shouldClear) return;
+
+  useCommitStore.setState({
+    commitMessage: "",
+    amend: false,
+    commitEpoch: useCommitStore.getState().commitEpoch + 1,
+  });
+  flushDraftSave(state.currentRepoPath, "");
+  await useCommitStore.getState().fetchChanges();
+}
+
+/** commit 失败（非超时）：只结束关联，绝不碰用户输入框。 */
+function abandonCommitOp(clientOpId: string): void {
+  const state = useCommitStore.getState();
+  if (state.pendingCommitOpId !== clientOpId) return;
+  useCommitStore.setState({
+    pendingCommitOpId: null,
+    submittedCommitMessage: null,
+  });
+}
+
 export const useCommitStore = create<CommitStore>((set, get) => ({
   // ── Multi-repo ─────────────────────────────────────────────────────
   currentRepoPath: null,
   repos: [],
   repoSeq: 0,
   commitEpoch: 0,
+  pendingCommitOpId: null,
+  submittedCommitMessage: null,
   repoStatuses: {},
   repoInitialized: false,
 
@@ -667,6 +726,10 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   },
 
   async commit() {
+    // 单槽位互斥：pendingCommitOpId 非空说明有一次提交在途（含 vscode 风格
+    // 确认弹窗期间 loading 尚为 false 的窗口），并发进入会覆盖槽位，使首次
+    // 提交的 commitLanded 关联失效、输入框不清空。
+    if (get().pendingCommitOpId !== null) return false;
     const { commitMessage, amend, changes, selectedFiles } = get();
     if (!commitMessage.trim()) return false;
 
@@ -675,8 +738,13 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       .filter((f) => !f.staged && selectedFiles.has(`${f.path}:${f.staged}`))
       .map((f) => f.path);
 
+    const clientOpId = nextCommitOpId();
     try {
-      set({ loading: true });
+      set({
+        loading: true,
+        pendingCommitOpId: clientOpId,
+        submittedCommitMessage: commitMessage,
+      });
       // 对齐 commitAndPush 的 60s 超时：本地 commit 通常毫秒级，但 pre-commit
       // hook / 大 diff / 慢磁盘可能拖到数秒~十余秒。默认 10s 超时会在 commit
       // 实际已成功（后端仍在执行）时误判失败，导致输入框残留且无错误提示。
@@ -687,31 +755,23 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
           amend,
           filePaths: filesToStage,
           repoPath: get().currentRepoPath,
+          clientOpId,
         },
         { timeout: 60_000 },
       );
-      set({
-        commitMessage: "",
-        amend: false,
-        commitEpoch: get().commitEpoch + 1,
-      });
-      flushDraftSave(get().currentRepoPath, "");
-      await get().fetchChanges();
+      // commitLanded 通常已清空；事件丢失时此处兜底。
+      await settleCommitMessageAfterCommit(clientOpId);
       return true;
     } catch (err) {
       console.error("commit failed:", err);
       // 超时兜底：commitChanges handler 先 stage（毫秒级）后 commit，能撑到
-      // 60s 超时，commit 几乎必然已落地。不清空会让"已提交却残留输入框"的
-      // 状态出现，故与 commitAndPush 的超时分支保持一致：清空并刷新。
+      // 60s 超时，commit 几乎必然已落地。与 commitAndPush 的超时分支一致。
       const isTimeout = err instanceof Error && err.name === "BridgeTimeout";
       if (isTimeout) {
-        set({
-          commitMessage: "",
-          amend: false,
-          commitEpoch: get().commitEpoch + 1,
-        });
-        flushDraftSave(get().currentRepoPath, "");
-        await get().fetchChanges();
+        await settleCommitMessageAfterCommit(clientOpId);
+      } else {
+        // commit 未落地：只结束关联，保留输入框与草稿供重试。
+        abandonCommitOp(clientOpId);
       }
       return false;
     } finally {
@@ -720,6 +780,8 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   },
 
   async commitAndPush() {
+    // 同 commit()：单槽位互斥，防并发调用覆盖 pendingCommitOpId。
+    if (get().pendingCommitOpId !== null) return false;
     const { commitMessage, amend, changes, selectedFiles } = get();
     if (!commitMessage.trim()) return false;
     // 清除上一次的内联错误，避免残留干扰本次结果。
@@ -729,8 +791,13 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       .filter((f) => !f.staged && selectedFiles.has(`${f.path}:${f.staged}`))
       .map((f) => f.path);
 
+    const clientOpId = nextCommitOpId();
     try {
-      set({ loading: true });
+      set({
+        loading: true,
+        pendingCommitOpId: clientOpId,
+        submittedCommitMessage: commitMessage,
+      });
       const result = (await bridge.request(
         "commitAndPush",
         {
@@ -738,6 +805,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
           amend,
           filePaths: filesToStage,
           repoPath: get().currentRepoPath,
+          clientOpId,
         },
         // push 是网络操作，默认 10s 超时不够；放宽到 60s。
         { timeout: 60_000 },
@@ -748,13 +816,8 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       };
       // The commit itself succeeded (the request resolved), so clear the
       // message and draft regardless of whether the push went through.
-      set({
-        commitMessage: "",
-        amend: false,
-        commitEpoch: get().commitEpoch + 1,
-      });
-      flushDraftSave(get().currentRepoPath, "");
-      await get().fetchChanges();
+      // commitLanded 通常已在 push 前清空；事件丢失时此处兜底。
+      await settleCommitMessageAfterCommit(clientOpId);
       // 推送被拒时 commit 已落地，不能回滚。
       if (result?.pushed) {
         // 与工具栏推送一致：当前仓库 chip 短暂打勾，不再走 MessageBanner。
@@ -779,13 +842,10 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       // 用 err.name 而非 message 文本判定（翻译后 message 不含 "timed out"）。
       const isTimeout = err instanceof Error && err.name === "BridgeTimeout";
       if (isTimeout) {
-        set({
-          commitMessage: "",
-          amend: false,
-          commitEpoch: get().commitEpoch + 1,
-        });
-        flushDraftSave(get().currentRepoPath, "");
-        await get().fetchChanges();
+        await settleCommitMessageAfterCommit(clientOpId);
+      } else {
+        // 请求在 commit 前失败（无 remote、stage 失败等）：保留输入框。
+        abandonCommitOp(clientOpId);
       }
       set({ commitError: msg });
       return false;
@@ -1212,6 +1272,8 @@ bridge.onEvent((event, data) => {
         stashes: [],
         commitMessage: "",
         amend: false,
+        pendingCommitOpId: null,
+        submittedCommitMessage: null,
         commitError: null,
         remoteError: null,
         successFlash: false,
@@ -1244,6 +1306,8 @@ bridge.onEvent((event, data) => {
       stashes: [],
       commitMessage: "",
       amend: false,
+      pendingCommitOpId: null,
+      submittedCommitMessage: null,
       commitError: null,
       remoteError: null,
       successFlash: false,
@@ -1257,6 +1321,16 @@ bridge.onEvent((event, data) => {
     useCommitStore.getState().loadCommitDraft();
     // 刷新 remote 状态（驱动"提交并推送"按钮禁用）。
     useCommitStore.getState().fetchHasRemote();
+    return;
+  }
+  if (event === "commitLanded") {
+    // host 在 git commit 成功后、push 之前广播。匹配本次 in-flight op 则立刻
+    // 清空提交信息并刷新更改列表，与「列表因 gitStateChanged 变空」同帧，
+    // 消除 commitAndPush 在 push 网络耗时期间的空窗。
+    const { clientOpId } = (data ?? {}) as { clientOpId?: string };
+    if (clientOpId) {
+      void settleCommitMessageAfterCommit(clientOpId);
+    }
     return;
   }
   if (event === "commitStateChanged" || event === "gitStateChanged") {

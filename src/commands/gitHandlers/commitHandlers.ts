@@ -84,6 +84,7 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
       const message = params.message as string;
       const amend = params.amend as boolean | undefined;
       const filePaths = params.filePaths as string[] | undefined;
+      const clientOpId = params.clientOpId as string | undefined;
 
       // Stage specified files if provided
       if (filePaths && filePaths.length > 0) {
@@ -91,6 +92,10 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
       }
 
       await gitService.commit(message, amend ?? false);
+      // commit 已落地：先通知发起方清空提交信息 + 刷列表，再走通用 git 状态。
+      if (clientOpId) {
+        messageRouter.broadcastEvent("commitLanded", { clientOpId });
+      }
       // 监听方均同时订阅 gitStateChanged，成对广播合并为单次（见文件头注释）。
       messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
       return { success: true };
@@ -103,6 +108,7 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
       const message = params.message as string;
       const amend = params.amend as boolean | undefined;
       const filePaths = params.filePaths as string[] | undefined;
+      const clientOpId = params.clientOpId as string | undefined;
 
       // 第二道门槛：无 remote 时友好拦截，避免 `git push` 抛出 ugly 错误。
       // 放在 stage/commit 之前确保零副作用；message 经 l10n 翻译后由前端
@@ -124,6 +130,11 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
         // webview) even when the subsequent push is rejected, so broadcast
         // state changes here instead of after push.
         await gitService.commit(message, amend ?? false);
+        // commit 已落地、push 尚未开始：先让 webview 清空提交信息并刷新
+        // 更改列表，避免 push 网络耗时期间「列表先空、输入框还在」。
+        if (clientOpId) {
+          messageRouter.broadcastEvent("commitLanded", { clientOpId });
+        }
         // 监听方均同时订阅 gitStateChanged，成对广播合并为单次（见文件头注释）。
         messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
 

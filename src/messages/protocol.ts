@@ -170,6 +170,13 @@ export type EventType =
   | "operationStart"
   | "operationEnd"
   | "commitStateChanged"
+  /**
+   * commitChanges / commitAndPush 在 `git commit` 成功后、（若有）push 之前
+   * 广播。webview 用 clientOpId 关联本次发起的请求，收到后立刻清空提交信息
+   * 并刷新更改列表——避免「列表先空、输入框还在」的空窗（push 期间事件路径
+   * 会先于 response 刷新列表）。外部 commit / amendCommit 不发此事件。
+   */
+  | "commitLanded"
   | "rollbackPanelInit"
   | "repoChanged"
   | "reposChanged"
