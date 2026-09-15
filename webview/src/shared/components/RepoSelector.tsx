@@ -59,7 +59,7 @@ function CommitRepoSelector() {
       currentRepoPath={useCommitStore((s) => s.currentRepoPath)}
       switchRepo={useCommitStore((s) => s.switchRepo)}
       repoStatuses={useCommitStore((s) => s.repoStatuses)}
-      successFlashRepo={useCommitStore((s) => s.successFlashRepo)}
+      successFlash={useCommitStore((s) => s.successFlash)}
       orientation="vertical"
     />
   );
@@ -72,10 +72,10 @@ interface BodyProps {
   /** Per-repo ahead/behind/dirty counts keyed by repo path (for chip badges). */
   repoStatuses: Record<string, RepoStatus>;
   /**
-   * 推送成功后短暂打勾的仓库 path。命中时该 chip 用 ✓ 替换 ahead/behind
-   * 徽章（dirty 仍显示），约 3s 后恢复。仅 commit 面板启用。
+   * 推送成功后短暂打勾。命中当前仓库 chip（单仓库 strip 则是唯一 chip），
+   * 用 ✓ 替换 ahead/behind（dirty 仍显示），约 3s 后恢复。仅 commit 面板启用。
    */
-  successFlashRepo?: string | null;
+  successFlash?: boolean;
   /** Layout direction: "horizontal" for the bottom panel (wide), "vertical" for the sidebar (narrow). */
   orientation: "horizontal" | "vertical";
 }
@@ -99,7 +99,7 @@ function RepoSelectorBody({
   currentRepoPath,
   switchRepo,
   repoStatuses,
-  successFlashRepo,
+  successFlash,
   orientation,
 }: BodyProps) {
   const [menu, setMenu] = useState<{
@@ -142,7 +142,7 @@ function RepoSelectorBody({
           <RepoBranch status={repoStatuses[repo.path]} />
           <RepoBadges
             status={repoStatuses[repo.path]}
-            flashSuccess={successFlashRepo === repo.path}
+            flashSuccess={!!successFlash}
           />
         </div>
         {menuEl}
@@ -172,7 +172,7 @@ function RepoSelectorBody({
           <RepoBranch status={repoStatuses[repo.path]} />
           <RepoBadges
             status={repoStatuses[repo.path]}
-            flashSuccess={successFlashRepo === repo.path}
+            flashSuccess={!!successFlash && repo.path === currentRepoPath}
           />
         </button>
       ))}

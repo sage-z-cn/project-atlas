@@ -151,15 +151,13 @@ interface CommitStore {
   /** 设置成功 banner 并在 ms 后自动关闭（按 token 判定，仅关闭仍是最新一条时）。 */
   showRemoteSuccess: (message: string, ms?: number) => void;
   /**
-   * 推送成功后短暂打勾的仓库 path（RepoSelector 用它替换该 chip 的
-   * ahead/behind 徽章）。null = 无打勾。
+   * 推送成功后短暂打勾：true 时当前仓库 chip 用 ✓ 替换 ahead/behind
+   * （约 3s）。用布尔而非 path，避免 currentRepoPath / repo.path 字符串
+   * 变体导致对不上、勾不显示。
    */
-  successFlashRepo: string | null;
-  /**
-   * 在对应仓库 chip 的 ahead/behind 位短暂显示打勾（默认 3s），期间隐藏
-   * ahead/behind。repoPath 缺省取当前仓库。
-   */
-  showRepoSuccessFlash: (repoPath?: string | null, ms?: number) => void;
+  successFlash: boolean;
+  /** 在当前仓库 chip 的 ahead/behind 位短暂显示打勾（默认 3s）。 */
+  showRepoSuccessFlash: (ms?: number) => void;
   // AI commit message 生成
   aiGenerating: boolean;
   /** 用户已请求取消当前生成（generateCommitMessage 的 catch 据此跳过错误提示）。 */
@@ -358,18 +356,13 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       }
     }, ms);
   },
-  successFlashRepo: null,
-  showRepoSuccessFlash: (repoPath, ms = 3000) => {
-    const path = repoPath ?? get().currentRepoPath;
-    if (!path) return;
+  successFlash: false,
+  showRepoSuccessFlash: (ms = 3000) => {
     const myToken = ++successFlashSeq;
-    set({ successFlashRepo: path });
+    set({ successFlash: true });
     setTimeout(() => {
-      if (
-        successFlashSeq === myToken &&
-        useCommitStore.getState().successFlashRepo === path
-      ) {
-        useCommitStore.setState({ successFlashRepo: null });
+      if (successFlashSeq === myToken && useCommitStore.getState().successFlash) {
+        useCommitStore.setState({ successFlash: false });
       }
     }, ms);
   },
@@ -795,17 +788,18 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       flushDraftSave(get().currentRepoPath, "");
       await get().fetchChanges();
       // 推送被拒时 commit 已落地，不能回滚。
-      if (!result?.pushed) {
-        if (result?.rejected) {
-          // 远程有新提交需要 rebase/merge：转交给 PushPanel 承载处理入口。
-          // 不再内联显示错误，避免与 PushPanel 的 rebase/merge 对话框重复。
-          await bridge.request("openPushPanel", {
-            initialPushError: result.pushError,
-          });
-        } else {
-          const msg = result?.pushError || t("Push failed");
-          set({ commitError: msg });
-        }
+      if (result?.pushed) {
+        // 与工具栏推送一致：当前仓库 chip 短暂打勾，不再走 MessageBanner。
+        get().showRepoSuccessFlash();
+      } else if (result?.rejected) {
+        // 远程有新提交需要 rebase/merge：转交给 PushPanel 承载处理入口。
+        // 不再内联显示错误，避免与 PushPanel 的 rebase/merge 对话框重复。
+        await bridge.request("openPushPanel", {
+          initialPushError: result.pushError,
+        });
+      } else {
+        const msg = result?.pushError || t("Push failed");
+        set({ commitError: msg });
       }
       return true;
     } catch (err) {
@@ -1253,7 +1247,7 @@ bridge.onEvent((event, data) => {
         commitError: null,
         remoteError: null,
         remoteSuccess: null,
-        successFlashRepo: null,
+        successFlash: false,
       });
       useCommitStore.getState().refresh();
       useCommitStore.getState().fetchRepoStatuses();
@@ -1286,7 +1280,7 @@ bridge.onEvent((event, data) => {
       commitError: null,
       remoteError: null,
       remoteSuccess: null,
-      successFlashRepo: null,
+      successFlash: false,
     });
     useCommitStore.getState().fetchChanges();
     // Stash 列表也是 per-repo 状态（上面已整体清空），切换后同样要回填。
