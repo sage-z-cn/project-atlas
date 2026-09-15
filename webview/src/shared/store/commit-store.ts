@@ -103,8 +103,8 @@ interface CommitStore {
   stashes: StashEntry[];
   /**
    * Stash 子系统操作（unstashChanges/deleteStash/unstashFile）进行中。
-   * 独立于 `loading`（后者由 fetchChanges/commit 等高频复用且有 300ms
-   * 最小显示，若复用会因无关操作反复禁用 stash 列表）。驱动 StashTab
+   * 独立于 `loading`（后者由 fetchChanges/commit 等高频复用；事件驱动路径
+   * 会传 silent，若复用会因无关操作反复禁用 stash 列表）。驱动 StashTab
    * 列表与右键菜单的交互禁用。
    */
   stashLoading: boolean;
@@ -195,7 +195,12 @@ interface CommitStore {
   fetchRepoStatuses: () => Promise<void>;
 
   // Actions
-  fetchChanges: () => Promise<void>;
+  /**
+   * Pull working-tree changes. `silent` skips the progress-bar `loading`
+   * flag — used by event-driven auto-refresh so a user-facing operation's
+   * bar isn't followed by a second flash from the debounced refetch.
+   */
+  fetchChanges: (opts?: { silent?: boolean }) => Promise<void>;
   fetchStashes: () => Promise<void>;
   setCommitMessage: (msg: string) => void;
   /** 从 host 读取当前 repo 的草稿并回填（不走持久化，避免回写）。 */
@@ -451,7 +456,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       set({ repoInitialized: true });
     }
     // Run the changes/stashes fetch and the badge fetch concurrently so badge
-    // counts don't wait on the (300ms min-display) changes round-trip.
+    // counts don't wait on the changes round-trip.
     await Promise.all([
       get().refresh(),
       get().fetchRepoStatuses(),
@@ -499,12 +504,12 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     }
   },
 
-  async fetchChanges() {
+  async fetchChanges(opts) {
+    const silent = opts?.silent === true;
     // ★ Capture seq + repoPath at issue time for the in-flight race guard.
     const mySeq = get().repoSeq;
     const repoPath = get().currentRepoPath;
-    set({ loading: true });
-    const start = Date.now();
+    if (!silent) set({ loading: true });
     try {
       const result = (await bridge.request("getWorkingTreeChanges", {
         repoPath,
@@ -529,13 +534,9 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     } catch (err) {
       console.error("fetchChanges failed:", err);
     } finally {
-      // Ensure loading bar is visible for at least 300ms
-      const elapsed = Date.now() - start;
-      if (elapsed < 300) {
-        await new Promise((r) => setTimeout(r, 300 - elapsed));
-      }
+      // Anti-flicker lives in ProgressBar (rising-edge delay); no min-hold here.
       // ★ Only clear loading if we're still the active seq.
-      if (mySeq === get().repoSeq) set({ loading: false });
+      if (!silent && mySeq === get().repoSeq) set({ loading: false });
     }
   },
 
@@ -1364,7 +1365,10 @@ bridge.onEvent((event, data) => {
       if (!isGlobal && (!current || !repoPaths.has(current))) {
         return;
       }
-      useCommitStore.getState().fetchChanges();
+      // Silent: the event is an auto-refresh after a user-facing operation
+      // (or a watcher tick). A visible fetch here re-flashes the progress bar
+      // right after commit()/withProgress already cleared it.
+      useCommitStore.getState().fetchChanges({ silent: true });
       useCommitStore.getState().fetchStashes();
       // 覆盖外部 `git remote add/remove`（修改 .git/config → watcher 广播
       // gitStateChanged），保持"提交并推送"按钮禁用状态与实际 remote 一致。

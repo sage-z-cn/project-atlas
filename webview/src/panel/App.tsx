@@ -6,6 +6,7 @@ import { RepoSelector } from "../shared/components/RepoSelector";
 import { Tooltip } from "../shared/components/Tooltip";
 import "../shared/components/Tooltip.css";
 import { usePreventSelect } from "../shared/hooks/usePreventSelect";
+import { useDelayedVisible } from "../shared/hooks/useDelayedVisible";
 import { usePanelStore } from "../shared/store/panel-store";
 import { t } from "../shared/i18n";
 import { bridge } from "../shared/bridge";
@@ -76,7 +77,8 @@ function savePanelLayout(partial: Partial<PanelLayout>): void {
 }
 
 function ProgressBar({ visible }: { visible: boolean }) {
-  if (!visible) return null;
+  const shown = useDelayedVisible(visible);
+  if (!shown) return null;
   return (
     <div
       style={{

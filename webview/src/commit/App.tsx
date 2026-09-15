@@ -15,12 +15,14 @@ import { PushAllReposModal } from "./components/PushAllReposModal";
 import { PullAllReposModal } from "./components/PullAllReposModal";
 import { MessageBanner } from "./components/MessageBanner";
 import "./commit.css";
+import { useDelayedVisible } from "../shared/hooks/useDelayedVisible";
 import "./commit-vscode.css";
 
 function ProgressBar({ visible }: { visible: boolean }) {
+  const shown = useDelayedVisible(visible);
   return (
-    <div className={`commit-progress-bar ${visible ? "" : "hidden"}`}>
-      {visible && <div className="commit-progress-bar-inner" />}
+    <div className={`commit-progress-bar ${shown ? "" : "hidden"}`}>
+      {shown && <div className="commit-progress-bar-inner" />}
     </div>
   );
 }

@@ -168,6 +168,19 @@ interface PanelStore {
   hasMore: boolean;
   operationInProgress: boolean;
   /**
+   * Monotonic in-flight counter for graph fetches (fetchInitialData + loadMore).
+   * `loading` only drives the ProgressBar and is skipped on silent auto-refresh;
+   * this counter is what serializes loadMore against an in-flight graph fetch
+   * (including silent ones) so a late append can't clobber a fresh page-1 list.
+   */
+  graphFetchDepth: number;
+  /**
+   * Bumped whenever fetchInitialData starts. A loadMore that issued against an
+   * older epoch must drop its response — the list it was paging into has been
+   * replaced.
+   */
+  graphEpoch: number;
+  /**
    * Top-level error banner message for the Git Log panel (null = hidden).
    * Set by panel event handlers (BranchTree / context menus) when a git
    * operation fails so the user sees the git error inline. Cleared on repo
@@ -186,7 +199,13 @@ interface PanelStore {
   /** Fetch ahead/behind/dirty counts for every repo (drives the chip badges). */
   fetchRepoStatuses: () => Promise<void>;
 
-  fetchInitialData: () => Promise<void>;
+  /**
+   * Pull graph/branches/tags/identity/remotes for the active repo.
+   * `silent` skips the progress-bar `loading` flag — used by event-driven
+   * auto-refresh so a withProgress operation's bar isn't followed by a
+   * second flash from the debounced refetch.
+   */
+  fetchInitialData: (opts?: { silent?: boolean }) => Promise<void>;
   loadMore: () => Promise<void>;
   selectCommit: (
     hash: string,
@@ -222,7 +241,7 @@ interface PanelStore {
    */
   setDetailPanelPosition: (position: "right" | "bottom") => void;
   setPanelError: (error: string | null) => void;
-  refresh: () => Promise<void>;
+  refresh: (opts?: { silent?: boolean }) => Promise<void>;
   /**
    * Jump the Git Log to the page containing `hash`, select + scroll to it.
    * Shared by the focusCommit event (webview already live) and initRepo's
@@ -428,6 +447,8 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   loading: false,
   hasMore: true,
   operationInProgress: false,
+  graphFetchDepth: 0,
+  graphEpoch: 0,
   panelError: null,
 
   // ── Multi-repo actions ─────────────────────────────────────────────
@@ -486,7 +507,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       set({ repoInitialized: true });
     }
     // Run the graph fetch and the badge fetch concurrently so the (fast) badge
-    // counts don't wait on the (slow, 1s+ min-display) getGraphData round-trip.
+    // counts don't wait on the (slower) getGraphData round-trip.
     await Promise.all([
       get().fetchInitialData(),
       get().fetchRepoStatuses(),
@@ -527,14 +548,18 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     }
   },
 
-  async fetchInitialData() {
+  async fetchInitialData(opts) {
+    const silent = opts?.silent === true;
     // ★ Capture seq + repoPath at issue time. A switch that happens during the
     // await below bumps repoSeq, so `mySeq` becomes stale and we drop the
     // response instead of overwriting the new repo's data.
     const mySeq = get().repoSeq;
     const repoPath = get().currentRepoPath;
-    set({ loading: true });
-    const start = Date.now();
+    set({
+      graphFetchDepth: get().graphFetchDepth + 1,
+      graphEpoch: get().graphEpoch + 1,
+    });
+    if (!silent) set({ loading: true });
     try {
       const { filter } = get();
       const { since, until } = dateRangeToSinceUntil(filter);
@@ -722,25 +747,28 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     } catch (err) {
       console.error("fetchInitialData failed:", err);
     } finally {
-      const elapsed = Date.now() - start;
-      if (elapsed < 1000) {
-        await new Promise((r) => setTimeout(r, 1000 - elapsed));
-      }
-      // ★ Only clear loading if we're still the active seq — otherwise the
-      // newer fetch owns the loading indicator.
+      // Anti-flicker lives in ProgressBar (rising-edge delay); no min-hold here.
+      set({ graphFetchDepth: Math.max(0, get().graphFetchDepth - 1) });
+      // ★ Clear loading whenever we're still the active seq — silent fetches
+      // must also settle a bar a dropped loadMore may have stranded.
       if (mySeq === get().repoSeq) set({ loading: false });
     }
   },
 
   async loadMore() {
-    const { commits, laneSnapshot, hasMore, loading, filter } = get();
-    if (!hasMore || loading) return;
+    const { commits, laneSnapshot, hasMore, loading, graphFetchDepth, filter } =
+      get();
+    // Block against any in-flight graph fetch (including silent auto-refresh):
+    // appending to a list that fetchInitialData is about to replace would
+    // clobber the fresh page-1 data.
+    if (!hasMore || loading || graphFetchDepth > 0) return;
 
-    // ★ Capture seq + repoPath for the in-flight guard.
+    // ★ Capture seq + repoPath + epoch for the in-flight guard.
     const mySeq = get().repoSeq;
+    const myEpoch = get().graphEpoch;
     const repoPath = get().currentRepoPath;
 
-    set({ loading: true });
+    set({ loading: true, graphFetchDepth: get().graphFetchDepth + 1 });
     try {
       const { since, until } = dateRangeToSinceUntil(filter);
       const result = (await bridge.request("loadMoreLog", {
@@ -759,8 +787,8 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
         snapshot: LaneSnapshot;
       } | null;
 
-      // ★ Race guard: a switch happened during the load → drop stale page.
-      if (mySeq !== get().repoSeq) return;
+      // ★ Race guard: a switch or a newer fetchInitialData replaced the list.
+      if (mySeq !== get().repoSeq || myEpoch !== get().graphEpoch) return;
 
       if (result?.graphData?.commits?.length) {
         const newCommits = result.graphData.commits;
@@ -771,13 +799,17 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
           graphLayout: { ...get().graphLayout, ...result.graphData.lanes },
           laneSnapshot: result.snapshot,
           hasMore: newCommits.length >= 200,
-          loading: false,
         });
       } else {
-        set({ hasMore: false, loading: false });
+        set({ hasMore: false });
       }
     } catch (err) {
       console.error("loadMore failed:", err);
+    } finally {
+      set({ graphFetchDepth: Math.max(0, get().graphFetchDepth - 1) });
+      // ★ Clear loading even when dropped by the epoch guard — the silent
+      // refresh that bumped the epoch never touches loading, so this fetch
+      // must settle the bar it raised.
       if (mySeq === get().repoSeq) set({ loading: false });
     }
   },
@@ -1170,9 +1202,9 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     }
   },
 
-  async refresh() {
+  async refresh(opts) {
     set({ collapsedSequenceIds: new Set(), collapsedIntermediates: new Map() });
-    await get().fetchInitialData();
+    await get().fetchInitialData(opts);
   },
 
   focusCommitByHash(hash: string) {
@@ -1436,7 +1468,10 @@ bridge.onEvent((event, data) => {
       if (!isGlobal && (!current || !repoPaths.has(current))) {
         return;
       }
-      usePanelStore.getState().refresh();
+      // Silent: event-driven auto-refresh. The preceding withProgress /
+      // command already showed a bar; a visible fetchInitialData here would
+      // flash a second one ~400ms later.
+      usePanelStore.getState().refresh({ silent: true });
     }, 400);
     return;
   }
