@@ -19,7 +19,7 @@ export function CommitRangeList({ commits }: { commits: NewVersionCommit[] }) {
 
   if (commits.length === 0) {
     return (
-      <section className="new-version-section">
+      <section className="new-version-range-section">
         <div className="new-version-empty">
           {t("No new commits since last version")}
         </div>
@@ -34,7 +34,7 @@ export function CommitRangeList({ commits }: { commits: NewVersionCommit[] }) {
   const someSelected = selectedCount > 0 && !allSelected;
 
   return (
-    <section className="new-version-section">
+    <section className="new-version-range-section">
       {/* 与 commit 面板 toolbar 同视觉：全选 + 标题 + 计数在左，展开/收起在右。 */}
       <div className="commit-toolbar new-version-range-toolbar">
         <input
@@ -81,16 +81,16 @@ export function CommitRangeList({ commits }: { commits: NewVersionCommit[] }) {
               onClick={() => locateCommit(c.hash)}
             >
               <input
-                    type="checkbox"
-                    className="new-version-commit-check"
-                    checked={selectedCommitHashes.includes(c.hash)}
-                    aria-label={t("Include in changelog generation")}
-                    title={t("Include in changelog generation")}
-                    // Keep the row's locate-click out of the checkbox hit.
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={() => toggleCommitSelected(c.hash)}
-                  />
-                  <span className="new-version-commit-subject">{c.subject}</span>
+                type="checkbox"
+                className="new-version-commit-check"
+                checked={selectedCommitHashes.includes(c.hash)}
+                aria-label={t("Include in changelog generation")}
+                title={t("Include in changelog generation")}
+                // Keep the row's locate-click out of the checkbox hit.
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => toggleCommitSelected(c.hash)}
+              />
+              <span className="new-version-commit-subject">{c.subject}</span>
               <span className="new-version-commit-meta">
                 {c.author} · {formatRelativeTime(c.date)}
               </span>

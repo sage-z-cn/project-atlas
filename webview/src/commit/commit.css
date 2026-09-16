@@ -1021,8 +1021,15 @@ button.commit-dropdown-item:hover:not(:disabled) {
 .new-version-section {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+/* 提交范围列表专属 section：是 scroll 区唯一内容——撑满剩余高度，列表内部滚动。
+ * 不可把这三条写进 .new-version-section，Release 标签页的表单 section 共用该类。 */
+.new-version-range-section {
+  display: flex;
+  flex-direction: column;
   gap: 0;
-  /* 提交范围列表是 scroll 区唯一内容：撑满剩余高度，列表内部滚动。 */
   flex: 1;
   min-height: 0;
 }
