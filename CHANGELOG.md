@@ -4,6 +4,10 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.28.0
+**改进**
+- **Commit**: 优化新版本提交范围列表的交互与展示
+
 #### 1.27.0
 **新功能**
 - **贮藏**: 支持批量删除贮藏的更改
