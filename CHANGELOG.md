@@ -4,6 +4,13 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.28.1
+**Bug 修复**
+- **Git**: 修复合并提交在 diff 查看时无法正确显示变更的问题
+
+**改进**
+- **Webview**: 拆分提交范围列表专用样式类，避免滚动布局互相影响
+
 #### 1.28.0
 **改进**
 - **Commit**: 优化新版本提交范围列表的交互与展示
