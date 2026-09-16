@@ -4,6 +4,17 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.27.0
+**新功能**
+- **贮藏**: 支持批量删除贮藏的更改
+- **Commit**: 新增 commitLanded 事件，提交成功后即时清空提交信息并刷新列表
+- **Commit**: 推送成功后在仓库 chip 上短暂打勾，替代原有推送反馈方式
+- **任务**: 更改任务终端名称
+
+**改进**
+- **Webview**: 延迟显示进度条并支持静默刷新，消除界面闪烁
+- **Commit**: 移除成功横幅，简化提交成功后的界面反馈
+
 #### 1.26.0
 **新功能**
 - **任务**: 支持任务运行状态在扩展重载后恢复
