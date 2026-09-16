@@ -81,6 +81,7 @@ export type CommandType =
   | "stashChanges"
   | "unstashChanges"
   | "deleteStash"
+  | "deleteStashes"
   | "showStashFileDiff"
   | "unstashFile"
   | "showDiffForWorkingFile"

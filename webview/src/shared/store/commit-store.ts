@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { bridge } from "../bridge";
 import type {
   DeleteStashParams,
+  DeleteStashesParams,
   StashChangesParams,
   StashEntry,
   UnstashChangesParams,
@@ -245,6 +246,11 @@ interface CommitStore {
   /** stashRef 必须传 StashEntry.sha（完整 stash 提交 SHA），不是 stash@{n}。 */
   unstashChanges: (stashRef: string, drop?: boolean) => Promise<void>;
   deleteStash: (stashRef: string) => Promise<void>;
+  /**
+   * 批量删除（webview 内 DeleteStashesModal 已确认，扩展端不再弹原生框）。
+   * stashRefs 必须是完整 SHA；空数组直接 no-op。
+   */
+  deleteStashes: (stashRefs: string[]) => Promise<void>;
   /**
    * 从 stash 恢复单个文件。repoPath 可传入打开菜单时的快照，防止菜单
    * 开启期间 repo 切换导致请求打到新 repo；缺省取当前 currentRepoPath。
@@ -961,6 +967,30 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       // 取消则中止 —— 不乐观移除、不 refetch，避免条目闪回/缺失。
       if (result?.success === false) return;
       set({ stashes: get().stashes.filter((s) => s.sha !== stashRef) });
+      await get().fetchStashes();
+    } catch (err) {
+      set({ commitError: err instanceof Error ? err.message : String(err) });
+    } finally {
+      set({ stashLoading: false });
+    }
+  },
+
+  async deleteStashes(stashRefs: string[]) {
+    if (stashRefs.length === 0) return;
+    try {
+      set({ stashLoading: true });
+      const result = await bridge.request<{ success: boolean }>(
+        "deleteStashes",
+        {
+          stashRefs,
+          repoPath: get().currentRepoPath,
+        } satisfies DeleteStashesParams,
+      );
+      // 与 deleteStash / unstashChanges 同口径：host 对无效入参正常 resolve
+      // { success: false } —— 此时中止，不做乐观移除、不 refetch。
+      if (result?.success === false) return;
+      const dropSet = new Set(stashRefs);
+      set({ stashes: get().stashes.filter((s) => !dropSet.has(s.sha)) });
       await get().fetchStashes();
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });

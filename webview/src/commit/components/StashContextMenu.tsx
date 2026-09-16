@@ -8,6 +8,9 @@ interface StashContextMenuProps {
   x: number;
   y: number;
   entry: StashEntry;
+  /** >1 时进入批量模式：仅展示「删除 N 项」，由父级打开确认弹窗。 */
+  batchCount?: number;
+  onDeleteBatch?: () => void;
   onClose: () => void;
 }
 
@@ -15,6 +18,8 @@ export function StashContextMenu({
   x,
   y,
   entry,
+  batchCount,
+  onDeleteBatch,
   onClose,
 }: StashContextMenuProps) {
   const menuRef = useContextMenuOverlay(onClose);
@@ -43,6 +48,26 @@ export function StashContextMenu({
     void deleteStash(entry.sha);
     onClose();
   }, [entry, deleteStash, onClose]);
+
+  // 多选命中：只保留批量删除（多条 Restore/Unstash 语义复杂，本期不做）。
+  if (batchCount != null && batchCount > 1) {
+    return (
+      <div className="commit-context-menu" ref={menuRef} style={style}>
+        <button
+          type="button"
+          className="commit-context-menu-item"
+          disabled={stashLoading}
+          onClick={() => {
+            onDeleteBatch?.();
+            onClose();
+          }}
+        >
+          <DeleteIcon />
+          <span>{t("Delete {0} stashes", batchCount)}</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="commit-context-menu" ref={menuRef} style={style}>

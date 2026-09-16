@@ -75,6 +75,7 @@ export type CommandType =
   | "stashChanges"
   | "unstashChanges"
   | "deleteStash"
+  | "deleteStashes"
   | "showStashFileDiff"
   | "unstashFile"
   | "showDiffForWorkingFile"
@@ -171,6 +172,12 @@ export type UnstashChangesParams = {
 
 export type DeleteStashParams = {
   stashRef: string;
+  repoPath: string | null;
+};
+
+export type DeleteStashesParams = {
+  /** Full stash commit SHAs (StashEntry.sha), not stash@{n}. */
+  stashRefs: string[];
   repoPath: string | null;
 };
 

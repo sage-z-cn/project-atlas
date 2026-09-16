@@ -87,6 +87,23 @@ export function registerStashHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
+  // Batch drop. Webview already confirmed via DeleteStashesModal — no second
+  // native prompt here. SHA 寻址稳定，顺序 drop 不受 stash@{n} 重排影响。
+  messageRouter.handle(
+    "deleteStashes",
+    requireGitOrThrow(ctx, async (gitService, params) => {
+      const stashRefs = params.stashRefs as string[] | undefined;
+      if (!Array.isArray(stashRefs) || stashRefs.length === 0) {
+        return { success: false };
+      }
+      for (const stashRef of stashRefs) {
+        await gitService.deleteStash(stashRef);
+      }
+      messageRouter.broadcastEvent("commitStateChanged", {});
+      return { success: true };
+    }),
+  );
+
   messageRouter.handle(
     "showStashFileDiff",
     requireGitOrThrow(ctx, async (gitService, params) => {
