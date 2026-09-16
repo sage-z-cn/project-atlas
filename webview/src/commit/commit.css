@@ -963,7 +963,9 @@ button.commit-dropdown-item:hover:not(:disabled) {
 }
 
 .commit-tab-icon {
-  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .btn {

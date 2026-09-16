@@ -14,6 +14,10 @@ import { StashPromptModal } from "./components/StashPromptModal";
 import { PushAllReposModal } from "./components/PushAllReposModal";
 import { PullAllReposModal } from "./components/PullAllReposModal";
 import { MessageBanner } from "./components/MessageBanner";
+import CommitIcon from "~icons/codicon/git-commit";
+import StashIcon from "~icons/codicon/archive";
+import TagIcon from "~icons/codicon/tag";
+import RocketIcon from "~icons/codicon/rocket";
 import "./commit.css";
 import { useDelayedVisible } from "../shared/hooks/useDelayedVisible";
 import "./commit-vscode.css";
@@ -622,6 +626,7 @@ export function CommitApp() {
           className={`commit-tab ${activeTab === "commit" ? "active" : ""}`}
           onClick={() => setActiveTab("commit")}
         >
+          <CommitIcon className="commit-tab-icon" />
           {t("Commit")}
         </button>
         <button
@@ -629,6 +634,7 @@ export function CommitApp() {
           className={`commit-tab ${activeTab === "stash" ? "active" : ""}`}
           onClick={() => setActiveTab("stash")}
         >
+          <StashIcon className="commit-tab-icon" />
           {t("Stash")}
         </button>
         <button
@@ -636,13 +642,15 @@ export function CommitApp() {
           className={`commit-tab ${activeTab === "newVersion" ? "active" : ""}`}
           onClick={() => setActiveTab("newVersion")}
         >
-          {t("New Version")}
+          <TagIcon className="commit-tab-icon" />
+          {t("Version")}
         </button>
         <button
           type="button"
           className={`commit-tab ${activeTab === "release" ? "active" : ""}`}
           onClick={() => setActiveTab("release")}
         >
+          <RocketIcon className="commit-tab-icon" />
           {t("Release")}
         </button>
       </div>
