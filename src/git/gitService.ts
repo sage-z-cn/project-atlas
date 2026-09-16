@@ -581,6 +581,9 @@ export class GitService {
   }
 
   async getCommitFiles(hash: string): Promise<DiffFile[]> {
+    // -m --first-parent: without -m, diff-tree emits nothing for merge commits
+    // (UI then falls back to "select a commit"). First-parent is the
+    // GitHub/GitLens convention and matches openDiffEditor's leftRef = parents[0].
     const output = await this.execGit([
       "diff-tree",
       "--root",
@@ -588,6 +591,8 @@ export class GitService {
       "-r",
       "--name-status",
       "-M",
+      "-m",
+      "--first-parent",
       hash,
     ]);
     return parseDiffNameStatus(output);
