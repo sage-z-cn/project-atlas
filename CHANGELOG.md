@@ -4,6 +4,13 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.29.0
+**新功能**
+- **Commit**: 为标签页添加图标，并将 New Version 重命名为 Version
+
+**改进**
+- **资源**: 更新应用图标及项目、任务图标
+
 #### 1.28.1
 **Bug 修复**
 - **Git**: 修复合并提交在 diff 查看时无法正确显示变更的问题
