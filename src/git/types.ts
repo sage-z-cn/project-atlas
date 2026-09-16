@@ -109,6 +109,8 @@ export interface NewVersionCommitSummary {
   author: string;
   /** ISO 日期字符串 YYYY-MM-DD（由 %at unix 秒转换，用本地时区） */
   shortDate: string;
+  /** 完整 ISO 时间戳（%at unix 秒），webview 相对时间展示用。 */
+  date: string;
 }
 
 export interface MergeState {

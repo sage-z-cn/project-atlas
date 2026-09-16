@@ -269,6 +269,7 @@ function CreateSection({
   const createError = useNewVersionStore((s) => s.createError);
   const setConfirmOpen = useNewVersionStore((s) => s.setConfirmOpen);
   const createNewVersion = useNewVersionStore((s) => s.createNewVersion);
+  const pushAfterCreate = useNewVersionStore((s) => s.pushAfterCreate);
 
   // AI generate (icon lives in the checkbox row, right-aligned — the same
   // position as the commit panel's AI button in its amend row).
@@ -444,7 +445,11 @@ function CreateSection({
                 onClick={() => void createNewVersion()}
               >
                 {creating && <LoadingIcon className="new-version-spin" />}
-                {creating ? t("Creating new version...") : t("Confirm")}
+                {creating
+                  ? t("Creating new version...")
+                  : pushAfterCreate
+                    ? t("Create and Push")
+                    : t("Confirm")}
               </button>
             </div>
           </>
@@ -513,14 +518,25 @@ function CreateSection({
       <div className="btn-row">
         <button
           type="button"
+          className="btn btn-secondary"
+          disabled={!canCreate}
+          title={createTitle}
+          onClick={() => {
+            if (canCreate) setConfirmOpen(true, true);
+          }}
+        >
+          {t("Create and Push")}
+        </button>
+        <button
+          type="button"
           className="btn btn-primary"
           disabled={!canCreate}
           title={createTitle}
           onClick={() => {
-            if (canCreate) setConfirmOpen(true);
+            if (canCreate) setConfirmOpen(true, false);
           }}
         >
-          {t("Create New Version")}
+          {t("Create")}
         </button>
       </div>
     </>

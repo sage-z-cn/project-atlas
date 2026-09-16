@@ -4,6 +4,7 @@ import {
   useCommitStore,
 } from "../../shared/store/commit-store";
 import { t } from "../../shared/i18n";
+import { formatRelativeTime } from "../../shared/utils/relativeTime";
 import { Tooltip } from "../../shared/components/Tooltip";
 import "../../shared/components/Tooltip.css";
 import { getCommitFileIcon } from "../utils/file-icon";
@@ -286,7 +287,7 @@ function StashItem({
   onContextMenu,
   onFileContextMenu,
 }: StashItemProps) {
-  const dateStr = formatDate(entry.date);
+  const dateStr = formatRelativeTime(entry.date);
 
   return (
     <div className="stash-item-container" onContextMenu={onContextMenu}>
@@ -355,28 +356,6 @@ function StashFileRow({
       {dirPath && <span className="stash-file-path">{dirPath}</span>}
     </div>
   );
-}
-
-function formatDate(isoDate: string): string {
-  if (!isoDate) return "";
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) return "";
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffHr = Math.floor(diffMs / 3600000);
-  const diffDay = Math.floor(diffHr / 24);
-
-  if (diffHr < 1) return t("just now");
-  if (diffHr < 24) return t("{0}h ago", diffHr);
-  if (diffDay < 7) return t("{0}d ago", diffDay);
-
-  // 与 CommitRow / CommitInfo 同口径：yyyy-MM-dd HH:mm
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  const hh = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
 }
 
 function ChevronIcon() {

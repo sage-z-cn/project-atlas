@@ -9,6 +9,8 @@ export interface NewVersionCommit {
   subject: string;
   author: string;
   shortDate: string;
+  /** 完整 ISO 时间戳，相对时间展示用。 */
+  date: string;
 }
 
 export interface NewVersionContext {
@@ -197,6 +199,7 @@ function defaultForm() {
     promptDraft: "",
     promptError: null as string | null,
     confirmOpen: false,
+    pushAfterCreate: false,
   };
 }
 
@@ -230,6 +233,8 @@ interface NewVersionState {
   promptDraft: string;
   promptError: string | null;
   confirmOpen: boolean;
+  /** 打开确认框时的意图：true = 创建成功后自动推送。 */
+  pushAfterCreate: boolean;
 
   // Changelog generation
   generating: boolean;
@@ -264,6 +269,8 @@ interface NewVersionState {
   setChangelogDraft: (v: string) => void;
   /** Toggle one commit in/out of the changelog prompt selection. */
   toggleCommitSelected: (hash: string) => void;
+  /** 顶栏全选：false=清空，true=context.commits 全选。 */
+  setAllCommitsSelected: (selected: boolean) => void;
   /** Override the detected changelog language (null = back to detected). */
   setChangelogLanguageOverride: (lang: "zh" | "en" | null) => void;
   setPromptOpen: (open: boolean) => void;
@@ -272,7 +279,8 @@ interface NewVersionState {
   setGenError: (e: string | null) => void;
   savePrompt: () => Promise<void>;
   restorePrompt: () => Promise<void>;
-  setConfirmOpen: (open: boolean) => void;
+  /** open=true 时可带 pushAfter：创建成功后是否自动推送。 */
+  setConfirmOpen: (open: boolean, pushAfter?: boolean) => void;
 
   // Actions — execution
   generateChangelog: () => Promise<void>;
@@ -480,6 +488,13 @@ export const useNewVersionStore = create<NewVersionState>((set, get) => ({
     }));
   },
 
+  setAllCommitsSelected(selected) {
+    const commits = get().context?.commits ?? [];
+    set({
+      selectedCommitHashes: selected ? commits.map((c) => c.hash) : [],
+    });
+  },
+
   setChangelogLanguageOverride(lang) {
     set({ changelogLanguageOverride: lang });
   },
@@ -546,8 +561,12 @@ export const useNewVersionStore = create<NewVersionState>((set, get) => ({
     }
   },
 
-  setConfirmOpen(open) {
-    set({ confirmOpen: open, createError: null });
+  setConfirmOpen(open, pushAfter = false) {
+    set({
+      confirmOpen: open,
+      createError: null,
+      pushAfterCreate: open ? pushAfter : false,
+    });
   },
 
   // ── Execution ──────────────────────────────────────────────────
@@ -630,6 +649,12 @@ export const useNewVersionStore = create<NewVersionState>((set, get) => ({
         confirmOpen: false,
         fromVersion: s.context.currentVersion,
       });
+      // 「创建并推送」入口：结果面板展示后自动发起推送（面板内推送
+      // 按钮/进度复用 pushCreatedNewVersion）。
+      if (s.pushAfterCreate) {
+        set({ pushAfterCreate: false });
+        void get().pushCreatedNewVersion();
+      }
       // Panel contract: refresh the commit area + git state right away
       // (refresh() = host refreshGitState + fetchChanges + fetchStashes).
       void useCommitStore.getState().refresh();

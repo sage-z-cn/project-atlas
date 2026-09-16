@@ -85,6 +85,15 @@ export function ChangelogInitForm({ defaultLanguage }: { defaultLanguage: "zh" |
             </button>
           </div>
         </div>
+        <button
+          type="button"
+          className="btn btn-primary new-version-init-btn"
+          disabled={!nameOk || initializing}
+          onClick={() => void handleInit()}
+        >
+          {initializing ? <LoadingIcon className="new-version-spin" /> : <NewFileIcon />}
+          {t("Initialize")}
+        </button>
       </div>
 
       {!nameOk && trimmed.length > 0 && (
@@ -99,18 +108,6 @@ export function ChangelogInitForm({ defaultLanguage }: { defaultLanguage: "zh" |
           <span className="commit-message-banner-text">{error}</span>
         </div>
       )}
-
-      <div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!nameOk || initializing}
-          onClick={() => void handleInit()}
-        >
-          {initializing ? <LoadingIcon className="new-version-spin" /> : <NewFileIcon />}
-          {t("Initialize")}
-        </button>
-      </div>
     </div>
   );
 }

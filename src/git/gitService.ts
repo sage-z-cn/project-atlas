@@ -178,6 +178,7 @@ export class GitService {
         subject: parts[1] ?? "",
         author: parts[2] ?? "",
         shortDate: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+        date: d.toISOString(),
       });
     }
     return commits;
