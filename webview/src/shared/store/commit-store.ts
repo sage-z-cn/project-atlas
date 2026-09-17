@@ -172,6 +172,16 @@ interface CommitStore {
   aiApiUrl: string;
   aiModel: string;
   aiTimeout: number;
+  /** AI commit language：effective=get 合并值；workspaceOverride 非空表示项目级覆盖。 */
+  aiLanguage: {
+    effective: "auto" | "en" | "zh" | "follow-locale";
+    workspaceOverride: "auto" | "en" | "zh" | "follow-locale" | null;
+    globalDefault: "auto" | "en" | "zh" | "follow-locale";
+  };
+  /** 写项目级语言；null = 清除覆盖，回落全局默认。 */
+  setAiLanguage: (
+    language: "auto" | "en" | "zh" | "follow-locale" | null,
+  ) => Promise<void>;
   fetchGitConfig: () => Promise<void>;
   fetchAiConfig: () => Promise<void>;
   generateCommitMessage: () => Promise<void>;
@@ -410,6 +420,20 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   aiApiUrl: "",
   aiModel: "",
   aiTimeout: 30,
+  aiLanguage: {
+    effective: "auto",
+    workspaceOverride: null,
+    globalDefault: "auto",
+  },
+
+  async setAiLanguage(language) {
+    try {
+      await bridge.request("setAiLanguage", { language });
+      // host broadcasts aiConfigChanged → fetchAiConfig refreshes aiLanguage
+    } catch (err) {
+      console.error("setAiLanguage failed:", err);
+    }
+  },
 
   // ── Multi-repo actions ─────────────────────────────────────────────
   async switchRepo(path: string) {
@@ -1096,12 +1120,25 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         apiUrl: string;
         model: string;
         timeout: number;
+        language?: {
+          effective?: string;
+          workspaceOverride?: string | null;
+          globalDefault?: string;
+        };
       };
+      const lang = result?.language;
       set({
         aiConfigured: result?.configured ?? false,
         aiApiUrl: result?.apiUrl ?? "",
         aiModel: result?.model ?? "",
         aiTimeout: result?.timeout ?? 30,
+        aiLanguage: {
+          effective: (lang?.effective as "auto") ?? "auto",
+          workspaceOverride:
+            (lang?.workspaceOverride as "auto" | "en" | "zh" | "follow-locale" | null) ??
+            null,
+          globalDefault: (lang?.globalDefault as "auto") ?? "auto",
+        },
       });
     } catch (err) {
       console.error("fetchAiConfig failed:", err);

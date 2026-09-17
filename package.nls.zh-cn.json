@@ -93,7 +93,7 @@
   "config.gitAtlas.detailPanelPosition.bottom": "显示在日志列表底部。",
   "config.projectAtlas.ai.apiUrl": "AI API 基础地址或完整端点（OpenAI 兼容）。如果缺少 /chat/completions 后缀会自动补全，如 https://api.openai.com/v1 或 https://open.bigmodel.cn/api/paas/v4",
   "config.projectAtlas.ai.model": "AI 模型名称（如 gpt-4o-mini、deepseek-chat）。",
-  "config.projectAtlas.ai.language": "生成提交信息的语言。",
+  "config.projectAtlas.ai.language": "生成提交信息的全局默认语言。可在 Commit 面板中按项目（工作区）覆盖，项目级设置优先。",
   "config.projectAtlas.ai.language.auto": "根据最近的 git 提交历史自动检测。",
   "config.projectAtlas.ai.language.en": "英文",
   "config.projectAtlas.ai.language.zh": "中文",

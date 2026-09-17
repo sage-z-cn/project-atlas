@@ -105,7 +105,7 @@
 | `projectAtlas.showRevealActiveFile` | 布尔 | `true` | 在内置资源管理器视图标题栏显示"定位当前文件"按钮 |
 | `projectAtlas.ai.apiUrl` | 字符串 | `""` | AI API 基础地址或完整端点（OpenAI 兼容） |
 | `projectAtlas.ai.model` | 字符串 | `""` | AI 模型名称（如 gpt-4o-mini、deepseek-chat） |
-| `projectAtlas.ai.language` | 枚举 | `auto` | 生成提交信息的语言。可选值：`auto`（自动检测）、`en`、`zh`、`follow-locale`（跟随显示语言） |
+| `projectAtlas.ai.language` | 枚举 | `auto` | 生成提交信息的全局默认语言。可选值：`auto`（自动检测）、`en`、`zh`、`follow-locale`（跟随显示语言）。可在 Commit 面板按项目覆盖，项目级优先 |
 | `projectAtlas.ai.maxDiffChars` | 数字 | `8000` | 发送给 AI 的最大 diff 字符数（500–50000），超出截断 |
 | `projectAtlas.ai.customInstructions` | 字符串 | `""` | 追加到 AI 提示词的自定义提交规则 |
 | `projectAtlas.ai.timeout` | 数字 | `30` | AI 生成提交信息的超时时间（秒，5–300） |

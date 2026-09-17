@@ -12,6 +12,8 @@ import StopIcon from "~icons/codicon/debug-stop";
 import ErrorIcon from "~icons/codicon/error";
 import CloseIcon from "~icons/codicon/close";
 
+type AiLanguageValue = "auto" | "en" | "zh" | "follow-locale";
+
 export function CommitMessageArea() {
   const {
     commitMessage,
@@ -33,6 +35,8 @@ export function CommitMessageArea() {
     aiConfigured,
     aiApiUrl,
     aiModel,
+    aiLanguage,
+    setAiLanguage,
     generateCommitMessage,
     cancelCommitMessage,
   } = useCommitStore();
@@ -376,6 +380,12 @@ export function CommitMessageArea() {
               {aiElapsed}
             </span>
           )}
+          <AiLanguageChip
+            value={aiLanguage.effective}
+            hasOverride={aiLanguage.workspaceOverride != null}
+            globalDefault={aiLanguage.globalDefault}
+            onSelect={(lang) => void setAiLanguage(lang)}
+          />
           <Tooltip text={aiTooltip}>
             <span
               onClick={handleAiGenerate}
@@ -487,6 +497,117 @@ export function CommitMessageArea() {
         </button>
       </div>
     </div>
+  );
+}
+
+/** AI language short label shown on the chip. */
+function aiLangShort(lang: AiLanguageValue): string {
+  if (lang === "zh") return "zh";
+  if (lang === "en") return "en";
+  if (lang === "follow-locale") return "locale";
+  return "auto";
+}
+
+function aiLangLabel(lang: AiLanguageValue): string {
+  if (lang === "zh") return t("Chinese");
+  if (lang === "en") return t("English");
+  if (lang === "follow-locale") return t("Follow VS Code");
+  return t("Auto detect");
+}
+
+/**
+ * Commit-message AI language chip (same interaction as the new-version
+ * changelog language chip). Writes a Workspace override; "use global"
+ * clears it so the User setting applies again.
+ */
+function AiLanguageChip({
+  value,
+  hasOverride,
+  globalDefault,
+  onSelect,
+}: {
+  value: AiLanguageValue;
+  hasOverride: boolean;
+  globalDefault: AiLanguageValue;
+  onSelect: (lang: AiLanguageValue | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick, true);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick, true);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  const label = t("Commit language");
+  const title = hasOverride
+    ? `${label}: ${aiLangLabel(value)} (${t("Workspace")})`
+    : `${label}: ${aiLangLabel(value)} (${t("Global default")})`;
+
+  const options: AiLanguageValue[] = ["auto", "en", "zh", "follow-locale"];
+
+  return (
+    <span className="new-version-lang-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className="new-version-lang-chip interactive"
+        title={title}
+        aria-label={title}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        {aiLangShort(value)}
+      </button>
+      {open && (
+        <span className="new-version-lang-menu opens-upward" role="menu">
+          {options.map((lang) => (
+            <button
+              key={lang}
+              type="button"
+              role="menuitemradio"
+              aria-checked={value === lang && (hasOverride || lang === globalDefault)}
+              className={`new-version-lang-option${value === lang && hasOverride ? " active" : ""}`}
+              onClick={() => {
+                onSelect(lang);
+                setOpen(false);
+              }}
+            >
+              {aiLangLabel(lang)}
+            </button>
+          ))}
+          {hasOverride && (
+            <>
+              <div className="commit-dropdown-separator" />
+              <button
+                type="button"
+                role="menuitem"
+                className="new-version-lang-option"
+                onClick={() => {
+                  onSelect(null);
+                  setOpen(false);
+                }}
+              >
+                {t("Use global default ({0})", aiLangLabel(globalDefault))}
+              </button>
+            </>
+          )}
+        </span>
+      )}
+    </span>
   );
 }
 

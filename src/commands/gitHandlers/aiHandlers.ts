@@ -9,9 +9,47 @@ export function registerAiHandlers(ctx: GitHandlerContext): void {
   const { messageRouter, context } = ctx;
   const aiService = new AiCommitService(context);
 
-  // 查询 AI 配置状态（不返回 key 明文）
+  // 查询 AI 配置状态（不返回 key 明文）+ 语言分层信息
   messageRouter.handle("getAiConfig", async () => {
-    return aiService.getStatus();
+    const status = await aiService.getStatus();
+    const cfg = vscode.workspace.getConfiguration("projectAtlas.ai");
+    const inspected = cfg.inspect<string>("language");
+    return {
+      ...status,
+      language: {
+        // get() 自动合并 Workspace > User；与 getStatus 同源
+        effective: cfg.get<string>("language", "auto"),
+        workspaceOverride: inspected?.workspaceValue ?? null,
+        globalDefault: inspected?.globalValue ?? "auto",
+      },
+    };
+  });
+
+  // 写项目级（Workspace）AI 语言；language=null 清除覆盖，回落全局默认
+  messageRouter.handle("setAiLanguage", async (params) => {
+    const language = params?.language as
+      | "auto"
+      | "en"
+      | "zh"
+      | "follow-locale"
+      | null
+      | undefined;
+    if (
+      language !== null &&
+      language !== undefined &&
+      !["auto", "en", "zh", "follow-locale"].includes(language)
+    ) {
+      throw new Error("Invalid language. Use auto/en/zh/follow-locale or null.");
+    }
+    const cfg = vscode.workspace.getConfiguration("projectAtlas.ai");
+    await cfg.update(
+      "language",
+      language ?? undefined,
+      vscode.ConfigurationTarget.Workspace,
+    );
+    // 同步广播（onDidChangeConfiguration 也会触发，这里保证时序确定）
+    messageRouter.broadcastEvent("aiConfigChanged", {});
+    return { success: true };
   });
 
   // 生成 commit message

@@ -142,6 +142,7 @@ export type CommandType =
   | "getGitConfig"
   | "setGitConfig"
   | "getAiConfig"
+  | "setAiLanguage"
   | "generateCommitMessage"
   | "cancelCommitMessageGeneration"
   | "setAiApiKey"

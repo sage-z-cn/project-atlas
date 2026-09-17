@@ -192,12 +192,15 @@ export async function setupGit(context: vscode.ExtensionContext): Promise<void> 
     ),
   );
 
-  // 配置变更监听：gitAtlas.* 配置变化时通知 webview 热刷新
+  // 配置变更监听：gitAtlas.* / projectAtlas.ai.language 配置变化时通知 webview 热刷新
   // （面板显隐由 package.json when 子句的 config.* 键原生驱动，无需 setContext）
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("gitAtlas")) {
         messageRouter.broadcastEvent("gitConfigChanged", {});
+      }
+      if (e.affectsConfiguration("projectAtlas.ai.language")) {
+        messageRouter.broadcastEvent("aiConfigChanged", {});
       }
     }),
   );

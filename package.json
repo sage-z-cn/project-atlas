@@ -1014,6 +1014,7 @@
         "projectAtlas.ai.language": {
           "type": "string",
           "default": "auto",
+          "scope": "window",
           "enum": [
             "auto",
             "en",

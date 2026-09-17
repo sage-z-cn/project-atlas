@@ -109,7 +109,7 @@
 | `projectAtlas.showRevealActiveFile` | `boolean` | `true` | Show 'Reveal Active File' button in the built-in file explorer view title |
 | `projectAtlas.ai.apiUrl` | `string` | `""` | AI API base URL or full endpoint (OpenAI-compatible) |
 | `projectAtlas.ai.model` | `string` | `""` | AI model name (e.g. gpt-4o-mini, deepseek-chat) |
-| `projectAtlas.ai.language` | `auto` / `en` / `zh` / `follow-locale` | `auto` | Language for generated commit messages |
+| `projectAtlas.ai.language` | `auto` / `en` / `zh` / `follow-locale` | `auto` | Global default language for generated commit messages; overridable per project from the Commit panel (project-level wins) |
 | `projectAtlas.ai.maxDiffChars` | `number` | `8000` | Max diff characters sent to the AI (500–50000) |
 | `projectAtlas.ai.customInstructions` | `string` | `""` | Custom instructions appended to the AI prompt |
 | `projectAtlas.ai.timeout` | `number` | `30` | Timeout in seconds for AI generation (5–300) |

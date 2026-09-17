@@ -1195,13 +1195,20 @@ button.commit-dropdown-item:hover:not(:disabled) {
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  min-width: 110px;
+  min-width: 130px;
   padding: 3px;
   border-radius: 6px;
   background: var(--vscode-menu-background, var(--vscode-editor-background));
   border: 1px solid var(--vscode-menu-border, var(--border));
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   animation: modal-fade 0.1s ease;
+}
+
+/* Bottom-anchored hosts (commit message AI row) must flip upward or the
+ * popover overflows the panel. */
+.new-version-lang-menu.opens-upward {
+  top: auto;
+  bottom: calc(100% + 4px);
 }
 
 .new-version-lang-option {
