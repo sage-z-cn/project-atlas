@@ -4,6 +4,7 @@ import { useCommitStore } from "../../shared/store/commit-store";
 import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
 import { promptAndStash } from "../utils/stashPrompt";
+import { addToGitignore, openGitignoreFile } from "../utils/gitignore";
 import type { VscodeGroupType } from "./VscodeFileItem";
 import AddIcon from "~icons/codicon/add";
 import RemoveIcon from "~icons/codicon/remove";
@@ -122,6 +123,20 @@ export function VscodeBatchContextMenu({
     onClose();
   }, [onClose]);
 
+  const untrackedPaths = files
+    .filter((f) => f.status === "untracked")
+    .map((f) => f.path);
+
+  const handleAddUntrackedToGitignore = useCallback(() => {
+    onClose();
+    void addToGitignore(untrackedPaths, "file");
+  }, [untrackedPaths, onClose]);
+
+  const handleOpenGitignore = useCallback(() => {
+    onClose();
+    void openGitignoreFile();
+  }, [onClose]);
+
   const style: React.CSSProperties = {
     position: "fixed",
     left: position.left,
@@ -168,6 +183,32 @@ export function VscodeBatchContextMenu({
             </span>
             <span>{t("Stash Changes...")}</span>
           </button>
+          {untrackedPaths.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="commit-context-menu-item"
+                onClick={handleAddUntrackedToGitignore}
+              >
+                <span className="commit-context-menu-icon">
+                  <AddIcon />
+                </span>
+                <span>
+                  {t("Add to .gitignore ({0})", untrackedPaths.length)}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="commit-context-menu-item"
+                onClick={handleOpenGitignore}
+              >
+                <span className="commit-context-menu-icon">
+                  <FolderIcon />
+                </span>
+                <span>{t("Open .gitignore")}</span>
+              </button>
+            </>
+          )}
           <div className="commit-context-menu-separator" />
           <button
             type="button"

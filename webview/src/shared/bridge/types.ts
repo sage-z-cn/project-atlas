@@ -96,6 +96,8 @@ export type CommandType =
   | "cherryPickAction"
   | "cherryPick"
   | "cherryPickRange"
+  | "addToGitignore"
+  | "openGitignore"
   | "setBranchUpstream"
   | "unsetBranchUpstream"
   | "showErrorNotification"

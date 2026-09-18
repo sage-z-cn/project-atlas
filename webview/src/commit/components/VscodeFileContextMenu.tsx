@@ -4,6 +4,11 @@ import { useCommitStore } from "../../shared/store/commit-store";
 import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
 import { promptAndStash } from "../utils/stashPrompt";
+import {
+  addToGitignore,
+  openGitignoreFile,
+  parentDirPattern,
+} from "../utils/gitignore";
 import OpenFileIcon from "~icons/codicon/go-to-file";
 import DiffIcon from "~icons/codicon/git-compare";
 import AddIcon from "~icons/codicon/add";
@@ -189,6 +194,35 @@ export function VscodeFileContextMenu({
     onClose();
   }, [onClose]);
 
+  const isUntracked = file.status === "untracked";
+  const untrackedPaths = isUntracked
+    ? multiSelected
+      ? resolvePaths().filter((p) => {
+          const f = changes.find((c) => c.path === p && !c.staged);
+          return f?.status === "untracked";
+        })
+      : [file.path]
+    : [];
+  const parentDir = parentDirPattern(file.path);
+
+  const handleAddToGitignore = useCallback(() => {
+    onClose();
+    void addToGitignore(
+      untrackedPaths.length > 0 ? untrackedPaths : [file.path],
+      "file",
+    );
+  }, [untrackedPaths, file.path, onClose]);
+
+  const handleAddDirToGitignore = useCallback(() => {
+    onClose();
+    if (parentDir) void addToGitignore([parentDir], "folder");
+  }, [parentDir, onClose]);
+
+  const handleOpenGitignore = useCallback(() => {
+    onClose();
+    void openGitignoreFile();
+  }, [onClose]);
+
   const style: React.CSSProperties = {
     position: "fixed",
     left: position.left,
@@ -281,6 +315,47 @@ export function VscodeFileContextMenu({
               </span>
               <span>{t("Stage Changes")}</span>
             </button>
+          )}
+
+          {isUntracked && (
+            <>
+              <button
+                type="button"
+                className="commit-context-menu-item"
+                onClick={handleAddToGitignore}
+              >
+                <span className="commit-context-menu-icon">
+                  <AddIcon />
+                </span>
+                <span>
+                  {untrackedPaths.length > 1
+                    ? t("Add to .gitignore ({0})", untrackedPaths.length)
+                    : t("Add to .gitignore")}
+                </span>
+              </button>
+              {parentDir && (
+                <button
+                  type="button"
+                  className="commit-context-menu-item"
+                  onClick={handleAddDirToGitignore}
+                >
+                  <span className="commit-context-menu-icon">
+                    <RevealIcon />
+                  </span>
+                  <span>{t("Add Directory '{0}' to .gitignore", parentDir)}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                className="commit-context-menu-item"
+                onClick={handleOpenGitignore}
+              >
+                <span className="commit-context-menu-icon">
+                  <RevealIcon />
+                </span>
+                <span>{t("Open .gitignore")}</span>
+              </button>
+            </>
           )}
 
           <div className="commit-context-menu-separator" />

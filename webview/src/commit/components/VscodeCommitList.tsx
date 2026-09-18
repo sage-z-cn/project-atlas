@@ -19,6 +19,7 @@ interface VscodeBatchMenuState {
   y: number;
   files: WorkingTreeFile[];
   groupType: VscodeGroupType;
+  fullPath?: string;
 }
 
 export function VscodeCommitList() {
@@ -71,8 +72,9 @@ export function VscodeCommitList() {
     e: React.MouseEvent,
     files: WorkingTreeFile[],
     groupType: VscodeGroupType,
+    fullPath?: string,
   ) => {
-    setBatchMenu({ x: e.clientX, y: e.clientY, files, groupType });
+    setBatchMenu({ x: e.clientX, y: e.clientY, files, groupType, fullPath });
   };
 
   const closeBatchMenu = () => setBatchMenu(null);

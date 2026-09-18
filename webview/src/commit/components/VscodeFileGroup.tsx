@@ -38,6 +38,7 @@ export interface VscodeFileGroupProps {
     e: React.MouseEvent,
     files: WorkingTreeFile[],
     groupType: VscodeGroupType,
+    fullPath?: string,
   ) => void;
 }
 
@@ -204,6 +205,7 @@ function VscodeDirNodeView({
     e: React.MouseEvent,
     files: WorkingTreeFile[],
     groupType: VscodeGroupType,
+    fullPath?: string,
   ) => void;
 }) {
   const { stageFiles, unstageFiles, rollbackFiles } = useCommitStore();
@@ -224,7 +226,12 @@ function VscodeDirNodeView({
                 onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onDirContextMenu(e, collectDirFiles(child), groupType);
+                  onDirContextMenu(
+                    e,
+                    collectDirFiles(child),
+                    groupType,
+                    child.fullPath,
+                  );
                 }}
               >
                 <span

@@ -50,6 +50,7 @@ export function CommitTab() {
     files: WorkingTreeFile[];
     dirName: string;
     isGroup?: boolean;
+    fullPath?: string;
   } | null>(null);
 
   // Group files: staged (Changes) vs unstaged/untracked (Unversioned Files)
@@ -93,10 +94,18 @@ export function CommitTab() {
       files: WorkingTreeFile[],
       dirName: string,
       isGroup?: boolean,
+      fullPath?: string,
     ) => {
       e.preventDefault();
       e.stopPropagation();
-      setDirContextMenu({ x: e.clientX, y: e.clientY, files, dirName, isGroup });
+      setDirContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        files,
+        dirName,
+        isGroup,
+        fullPath,
+      });
       setContextMenu(null);
     },
     [],
@@ -267,6 +276,7 @@ export function CommitTab() {
           files={dirContextMenu.files}
           dirName={dirContextMenu.dirName}
           isGroup={dirContextMenu.isGroup}
+          fullPath={dirContextMenu.fullPath}
           onClose={closeDirContextMenu}
         />
       )}
@@ -293,6 +303,7 @@ interface FileGroupProps {
     files: WorkingTreeFile[],
     dirName: string,
     isGroup?: boolean,
+    fullPath?: string,
   ) => void;
   action?: React.ReactNode;
 }
@@ -487,6 +498,7 @@ function DirectoryTree({
     files: WorkingTreeFile[],
     dirName: string,
     isGroup?: boolean,
+    fullPath?: string,
   ) => void;
 }) {
   const { collapsedDirs, toggleDir } = useCommitStore();
@@ -540,6 +552,7 @@ function DirNodeView({
     files: WorkingTreeFile[],
     dirName: string,
     isGroup?: boolean,
+    fullPath?: string,
   ) => void;
 }) {
   return (
@@ -565,7 +578,13 @@ function DirNodeView({
                   e.preventDefault();
                   e.stopPropagation();
                   const allFiles = collectDirFiles(child);
-                  onDirContextMenu(e, allFiles, child.name);
+                  onDirContextMenu(
+                    e,
+                    allFiles,
+                    child.name,
+                    false,
+                    child.fullPath,
+                  );
                 }}
               >
                 <span
@@ -647,6 +666,7 @@ function DirContextMenu({
   files,
   dirName,
   isGroup,
+  fullPath,
   onClose,
 }: {
   x: number;
@@ -654,6 +674,7 @@ function DirContextMenu({
   files: WorkingTreeFile[];
   dirName: string;
   isGroup?: boolean;
+  fullPath?: string;
   onClose: () => void;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -755,6 +776,34 @@ function DirContextMenu({
     await promptAndStash(files.map((f) => f.path));
   }, [files, onClose]);
 
+  const untrackedPaths = files
+    .filter((f) => f.status === "untracked")
+    .map((f) => f.path);
+  const hasUntracked = untrackedPaths.length > 0;
+  // Directory menu: ignore the folder itself when a real dir path is present.
+  const ignoreTarget =
+    !isGroup && fullPath ? fullPath.replace(/\\/g, "/") : null;
+
+  const handleAddToGitignore = useCallback(() => {
+    onClose();
+    void (async () => {
+      const { addToGitignore } = await import("../utils/gitignore");
+      if (ignoreTarget) {
+        await addToGitignore([ignoreTarget], "folder");
+      } else if (untrackedPaths.length > 0) {
+        await addToGitignore(untrackedPaths, "file");
+      }
+    })();
+  }, [ignoreTarget, untrackedPaths, onClose]);
+
+  const handleOpenGitignore = useCallback(() => {
+    onClose();
+    void (async () => {
+      const { openGitignoreFile } = await import("../utils/gitignore");
+      await openGitignoreFile();
+    })();
+  }, [onClose]);
+
   return (
     <div
       className="commit-context-menu"
@@ -799,6 +848,35 @@ function DirContextMenu({
         <span>{t("Stash Changes...")}</span>
       </button>
 
+      {hasUntracked && (
+        <>
+          <button
+            type="button"
+            className="commit-context-menu-item"
+            onClick={handleAddToGitignore}
+          >
+            <span className="commit-context-menu-icon">
+              <IgnoreDirIcon />
+            </span>
+            <span>
+              {ignoreTarget
+                ? t("Add Directory '{0}' to .gitignore", dirName)
+                : t("Add to .gitignore ({0})", untrackedPaths.length)}
+            </span>
+          </button>
+          <button
+            type="button"
+            className="commit-context-menu-item"
+            onClick={handleOpenGitignore}
+          >
+            <span className="commit-context-menu-icon">
+              <FolderOpenIcon />
+            </span>
+            <span>{t("Open .gitignore")}</span>
+          </button>
+        </>
+      )}
+
       {!isGroup && (
         <>
           <div className="commit-context-menu-separator" />
@@ -815,6 +893,21 @@ function DirContextMenu({
         </>
       )}
     </div>
+  );
+}
+
+function IgnoreDirIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      className="commit-context-menu-icon"
+    >
+      <circle cx="8" cy="8" r="5.5" stroke="currentColor" />
+      <path d="M4 12L12 4" stroke="currentColor" strokeLinecap="round" />
+    </svg>
   );
 }
 

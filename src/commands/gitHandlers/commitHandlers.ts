@@ -282,6 +282,63 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
+  // ── Unversioned → .gitignore ───────────────────────────────────────────
+  messageRouter.handle(
+    "addToGitignore",
+    requireGit(ctx, async (gitService, params) => {
+      const rawPaths = params.paths;
+      const paths = Array.isArray(rawPaths)
+        ? (rawPaths as unknown[]).filter((p): p is string => typeof p === "string" && p.length > 0)
+        : typeof rawPaths === "string" && rawPaths
+          ? [rawPaths]
+          : [];
+      if (paths.length === 0) {
+        return {
+          success: false,
+          error: "No paths to ignore",
+        };
+      }
+      const mode =
+        params.mode === "folder" ? ("folder" as const) : ("file" as const);
+      const result = await gitService.addToGitignore(paths, mode);
+      // Status cache holds working-tree untracked list — must drop immediately
+      // so the refresh after gitStateChanged does not re-show ignored files.
+      messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+      messageRouter.broadcastEvent("commitStateChanged", {});
+      return { success: true, ...result };
+    }),
+  );
+
+  messageRouter.handle(
+    "openGitignore",
+    requireGit(ctx, async (gitService) => {
+      const gitignorePath = gitService.getGitignorePath();
+      let created = false;
+      try {
+        await vscode.workspace.fs.stat(vscode.Uri.file(gitignorePath));
+      } catch {
+        // Create an empty file so the editor can open a real buffer.
+        await vscode.workspace.fs.writeFile(
+          vscode.Uri.file(gitignorePath),
+          new Uint8Array(0),
+        );
+        created = true;
+      }
+      if (created) {
+        // New untracked .gitignore won't trigger gitWatcher — drop caches and
+        // notify so the commit panel picks it up immediately.
+        gitService.invalidateCache();
+        messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+        messageRouter.broadcastEvent("commitStateChanged", {});
+      }
+      await vscode.commands.executeCommand(
+        "vscode.open",
+        vscode.Uri.file(gitignorePath),
+      );
+      return { success: true, path: gitignorePath };
+    }),
+  );
+
   // ── Commit message draft (project-level, multi-repo) ───────────────────
   // 缓存在 workspaceState（项目级，跨重载持久化），按 repoPath 分键，支持多 repo。
   // 空 message 时删除该 repo 的键，避免堆积空草稿。

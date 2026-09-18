@@ -1036,6 +1036,93 @@ export class GitService {
   }
 
   /**
+   * Append ignore patterns for the given repo-relative paths to `.gitignore`
+   * at the repo root (created if missing). Paths already present (exact or
+   * with a leading `/`) are skipped. Directories get a trailing slash.
+   */
+  async addToGitignore(
+    paths: string[],
+    mode: "file" | "folder" = "file",
+  ): Promise<{ added: string[]; skipped: string[]; gitignorePath: string }> {
+    const gitignorePath = path.join(this.cwd, ".gitignore");
+    let content = "";
+    try {
+      content = await fs.readFile(gitignorePath, "utf-8");
+    } catch {
+      content = "";
+    }
+
+    const existing = new Set(
+      content
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l && !l.startsWith("#")),
+    );
+
+    const added: string[] = [];
+    const skipped: string[] = [];
+    const newEntries: string[] = [];
+
+    for (const raw of paths) {
+      const pattern = this.toGitignorePattern(raw, mode);
+      if (!pattern) {
+        skipped.push(raw);
+        continue;
+      }
+      const bare = pattern.replace(/\/$/, "");
+      if (
+        existing.has(pattern) ||
+        existing.has(bare) ||
+        existing.has(`/${pattern}`) ||
+        existing.has(`/${bare}`) ||
+        existing.has(`**/${bare}`) ||
+        existing.has(`**/${pattern}`)
+      ) {
+        skipped.push(raw);
+        continue;
+      }
+      newEntries.push(pattern);
+      added.push(raw);
+      existing.add(pattern);
+    }
+
+    if (newEntries.length > 0) {
+      const needsNewline = content.length > 0 && !content.endsWith("\n");
+      const prefix = content.length === 0 ? "" : needsNewline ? "\n" : "";
+      await fs.appendFile(
+        gitignorePath,
+        `${prefix}${newEntries.join("\n")}\n`,
+        "utf-8",
+      );
+      this.invalidateCache();
+    }
+
+    return { added, skipped, gitignorePath };
+  }
+
+  /** Absolute path of the repo-root `.gitignore` (may not exist yet). */
+  getGitignorePath(): string {
+    return path.join(this.cwd, ".gitignore");
+  }
+
+  private toGitignorePattern(
+    relPath: string,
+    mode: "file" | "folder",
+  ): string | null {
+    const normalized = String(relPath || "")
+      .replace(/\\/g, "/")
+      .replace(/^(\.\/)+/, "")
+      .replace(/^\/+/, "");
+    if (!normalized || normalized.split("/").includes("..")) {
+      return null;
+    }
+    if (mode === "folder" || normalized.endsWith("/")) {
+      return normalized.endsWith("/") ? normalized : `${normalized}/`;
+    }
+    return normalized;
+  }
+
+  /**
    * Sequentially cherry-pick commits oldest-first. Stops at the first
    * failure (conflict / empty / etc.) and reports how far it got.
    *
