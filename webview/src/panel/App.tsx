@@ -2,7 +2,6 @@ import { Allotment, LayoutPriority, type AllotmentHandle } from "allotment";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "allotment/dist/style.css";
 import { EmptyRepoState } from "../shared/components/EmptyRepoState";
-import { RepoSelector } from "../shared/components/RepoSelector";
 import { Tooltip } from "../shared/components/Tooltip";
 import "../shared/components/Tooltip.css";
 import { usePreventSelect } from "../shared/hooks/usePreventSelect";
@@ -321,7 +320,6 @@ export function PanelApp() {
     >
       <ProgressBar visible={operationInProgress || loading} />
       <MessageBanner />
-      <RepoSelector store="panel" />
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* Left branch panel — outside Allotment to avoid flicker.
             Collapsed = toolbar-only strip: BranchTree keeps rendering (the

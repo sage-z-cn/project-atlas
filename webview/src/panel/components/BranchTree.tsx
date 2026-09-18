@@ -7,6 +7,7 @@ import { usePreventSelect } from "../../shared/hooks/usePreventSelect";
 import { t } from "../../shared/i18n";
 import { usePanelStore } from "../../shared/store/panel-store";
 import type { BranchInfo, TagInfo } from "../../shared/types/git";
+import { RepoSelector } from "../../shared/components/RepoSelector";
 import { BranchSidebar as BranchSidebarComponent } from "./BranchSidebar";
 import { CreateBranchDialog } from "./CreateBranchDialog";
 import { ManageRemotesDialog } from "./ManageRemotesDialog";
@@ -557,6 +558,18 @@ export function BranchTree({
           display: panelVisible ? undefined : "none",
         }}
       >
+        {/* Repo selector — vertical chips, above the branch/tag search bar. */}
+        <RepoSelector store="panel" />
+
+        <div
+          style={{
+            height: 1,
+            background: "var(--border)",
+            margin: "2px 0 4px",
+            flexShrink: 0,
+          }}
+        />
+
         <div
           style={{
             padding: "4px 8px",

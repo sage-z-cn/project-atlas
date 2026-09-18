@@ -9,6 +9,12 @@
   background: var(--vscode-sideBar-background);
 }
 
+/* Repo list sits above the tabs; base RepoSelector has no border (the
+ * git-log branch sidebar draws its own separator under the list). */
+.commit-app > .repo-selector {
+  border-bottom: 1px solid var(--border);
+}
+
 /* All checkboxes in commit panel (including modals portaled to body) */
 .commit-app input[type="checkbox"],
 .modal input[type="checkbox"] {

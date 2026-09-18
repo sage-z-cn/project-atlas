@@ -20,14 +20,14 @@ interface Props {
 /**
  * Repo chip list for picking the active repo (phase B').
  *
- * Orientation adapts to the host container: the bottom panel (panel mode) is
- * wide, so chips lay out horizontally; the sidebar (commit mode) is narrow and
- * vertical, so chips stack vertically.
+ * Orientation is vertical in both hosts: the git-log panel hosts it inside the
+ * branch sidebar (above the Current Branch row), and the commit panel hosts it
+ * at the top of the narrow activity-bar sidebar. Chips therefore stack.
  *
  * Multi-repo chips are draggable to reorder the list; the new order is
  * persisted host-side under `gitAtlas.repoOrder` and shared across both views.
- * Right-click also offers direction-aware move actions (Left/Right in the
- * horizontal panel strip, Up/Down in the vertical sidebar) for precise tweaks.
+ * Right-click also offers direction-aware move actions (Up/Down) for precise
+ * tweaks.
  */
 export function RepoSelector({ store }: Props) {
   return store === "panel" ? <PanelRepoSelector /> : <CommitRepoSelector />;
@@ -77,7 +77,7 @@ function PanelRepoSelector() {
       currentRepoPath={usePanelStore((s) => s.currentRepoPath)}
       switchRepo={usePanelStore((s) => s.switchRepo)}
       repoStatuses={usePanelStore((s) => s.repoStatuses)}
-      orientation="horizontal"
+      orientation="vertical"
     />
   );
 }
@@ -108,7 +108,7 @@ interface BodyProps {
    * 用 ✓ 替换 ahead/behind（dirty 仍显示），约 3s 后恢复。仅 commit 面板启用。
    */
   successFlash?: boolean;
-  /** Layout direction: "horizontal" for the bottom panel (wide), "vertical" for the sidebar (narrow). */
+  /** Layout direction: both current hosts pass "vertical" (branch/commit sidebars). */
   orientation: "horizontal" | "vertical";
 }
 

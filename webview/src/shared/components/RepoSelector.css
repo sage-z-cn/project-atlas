@@ -1,19 +1,22 @@
-/* ─── RepoSelector (repo chip strip) ───────────────────────────────────
- * Horizontal single-row chip list. Overflow-x keeps every repo one click
- * away rather than collapsing to a dropdown. Hidden by the component when
- * there are zero repos; a single-repo workspace renders a read-only status
- * strip (see the .readonly rules at the bottom) instead of the clickable
- * chips.
+/* ─── RepoSelector (repo chip list) ────────────────────────────────────
+ * Vertical stacked chip list by default (both hosts place it in a sidebar:
+ * git-log branch sidebar above Current Branch, commit panel at the top).
+ * Hidden by the component when there are zero repos; a single-repo workspace
+ * renders a read-only status strip (see the .readonly rules at the bottom)
+ * instead of the clickable chips.
  */
 .repo-selector {
   display: flex;
+  flex-direction: column;
   gap: 4px;
-  padding: 4px 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  border-bottom: 1px solid var(--border);
+  padding: 4px 8px 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* Separator lives in BranchTree between the list and the search bar —
+   * no border here so the two hosts can control their own spacing. */
   flex-shrink: 0;
   scrollbar-width: thin;
+  max-height: 35vh;
 }
 
 /* chips sit on the panel background, not the generic button style */
@@ -39,16 +42,16 @@
     opacity 0.12s;
 }
 
-/* The bottom panel (horizontal) sits on a lighter background than the sidebar,
- * so the default inactiveSelection tint barely shows. Use a deeper tint there.
- *
- * Horizontal chips must not flex-shrink: the strip above is designed to
- * overflow-x and scroll. With the default shrink=1 every chip got squeezed
- * proportionally whenever the row overflowed — collapsing repo names into
- * ellipsis long before real space ran short (the inner overflow:hidden labels
- * contribute near-zero minimum size, so there was nothing stopping the crush).
- * shrink:0 keeps each chip at natural content width; scarcity is absorbed by
- * the scrollbar instead of the text. */
+/* Horizontal strip (legacy orientation, kept for the type union): chips must
+ * not flex-shrink — the strip overflows-x and scrolls. Vertical chips below
+ * take full width instead. */
+.repo-selector.horizontal {
+  flex-direction: row;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-height: none;
+}
+
 .repo-selector.horizontal .repo-chip {
   background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.15));
   flex-shrink: 0;
@@ -132,11 +135,10 @@
 /* Resting cursor is default (chip is primarily a click-to-switch control).
    The grab/grabbing cursors appear only once a drag has started (.dragging). */
 
-/* No fixed max-width here: a hard cap truncated the name even when the strip
- * had plenty of room left. Scarcity is positional instead — horizontal chips
- * are content-width inside a scrolling strip (nothing ever truncates), and
- * vertical chips share the finite sidebar width (truncates only when the whole
- * chip genuinely overflows). The ellipsis machinery stays for that case. */
+/* No fixed max-width here: a hard cap truncated the name even when the list
+ * had plenty of room left. Scarcity is positional instead — vertical chips
+ * share the finite sidebar width (truncates only when the whole chip
+ * genuinely overflows). The ellipsis machinery stays for that case. */
 .repo-selector .repo-chip .repo-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -150,9 +152,9 @@
  * detached HEAD / unknown branch, so these rules are inert then.
  *
  * Like the repo-name, uncapped: horizontal chips are content-width inside a
- * scrolling strip and must show the full branch; vertical shares the sidebar
- * width and trims HERE first when space runs short (high flex-shrink in the
- * vertical rule below) before the higher-priority repo-name yields anything.
+ * vertical chips share the sidebar width and trims HERE first when space runs
+ * short (high flex-shrink in the vertical rule below) before the
+ * higher-priority repo-name yields anything.
  */
 .repo-selector .repo-chip .repo-branch {
   display: inline-flex;
@@ -195,18 +197,10 @@
   flex-shrink: 0;
 }
 
-/* ─── Vertical layout (sidebar / commit panel) ─────────────────────────
- * The activitybar sidebar is narrow and tall, so chips stack vertically and
- * each takes full width. A max-height keeps the list from crowding out the
- * commit content when there are many repos; overflow-y scrolls within it.
+/* ─── Vertical layout (branch sidebar / commit panel) ──────────────────
+ * Chips stack and each takes full width. max-height + overflow-y live on the
+ * base .repo-selector rule so both hosts share them.
  */
-.repo-selector.vertical {
-  flex-direction: column;
-  overflow-x: hidden;
-  overflow-y: auto;
-  max-height: 35vh;
-}
-
 .repo-selector.vertical .repo-chip {
   width: 100%;
   justify-content: flex-start;

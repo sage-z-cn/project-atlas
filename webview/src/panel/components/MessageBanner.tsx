@@ -10,7 +10,7 @@ import CloseIcon from "~icons/codicon/close";
  *
  * 使用 panel.css 里的 panel-message-banner 样式（多行 stderr 通过
  * `white-space: pre-wrap` 自然换行）。容器外层加 padding + flexShrink: 0
- * 让它贴边显示。挂在 RepoSelector 之上、ProgressBar 之下。
+ * 让它贴边显示。挂在分支侧栏上方、ProgressBar 之下。
  */
 export function MessageBanner() {
   const panelError = usePanelStore((s) => s.panelError);
