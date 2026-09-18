@@ -4,6 +4,14 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.30.0
+**新功能**
+- **Repo**: 支持仓库列表拖拽排序并持久化顺序
+- **Commit**: 支持将未版本控制文件添加到 .gitignore
+- **Git**: 支持多选提交批量 Cherry-Pick
+- **Branch**: 支持在分支树中管理上游跟踪
+- **Commit**: 支持项目级 AI 提交语言覆盖
+
 #### 1.29.0
 **新功能**
 - **Commit**: 为标签页添加图标，并将 New Version 重命名为 Version
