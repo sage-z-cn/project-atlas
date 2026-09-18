@@ -12,11 +12,13 @@
   padding: 4px 8px 6px;
   overflow-x: hidden;
   overflow-y: auto;
-  /* Separator lives in BranchTree between the list and the search bar —
-   * no border here so the two hosts can control their own spacing. */
+  /* Separator lives in BranchTree between the list and the scrollable
+   * branch/tag area — no border here so hosts control their own spacing. */
   flex-shrink: 0;
   scrollbar-width: thin;
-  max-height: 35vh;
+  /* Cap only the chip list itself when many repos; the host pins this block
+   * so overflow scrolls inside it without pushing the lower pane down. */
+  max-height: 40vh;
 }
 
 /* chips sit on the panel background, not the generic button style */

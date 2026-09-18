@@ -544,32 +544,45 @@ export function BranchTree({
         }
         onManageRemotes={() => setShowManageRemotes(true)}
       />
+      {/* Outer column: repo list pinned at top; only the lower half scrolls. */}
       <div
         ref={containerRef}
         style={{
           flex: 1,
           height: "100%",
-          overflow: "auto",
+          minWidth: 0,
+          display: panelVisible ? "flex" : "none",
+          flexDirection: "column",
+          overflow: "hidden",
           // Collapsed: keep the subtree mounted so React state (selection,
           // folder collapse flags, search query) survives, but out of layout.
           // Scroll position is NOT preserved — Blink resets scrollTop to 0
           // on display:none. Dialogs/context menus portal to document.body,
           // unaffected.
-          display: panelVisible ? undefined : "none",
         }}
       >
-        {/* Repo selector — vertical chips, above the branch/tag search bar. */}
+        {/* Repo selector — vertical chips, fixed above the scrollable area. */}
         <RepoSelector store="panel" />
 
         <div
           style={{
             height: 1,
             background: "var(--border)",
-            margin: "2px 0 4px",
+            margin: "2px 0 0",
             flexShrink: 0,
           }}
         />
 
+        {/* Scrollable lower half: search + current branch + branch/tag trees.
+            Plain block (not flex) so children keep natural height and the
+            container scrolls instead of squashing flex items. */}
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: "auto",
+          }}
+        >
         <div
           style={{
             padding: "4px 8px",
@@ -770,8 +783,9 @@ export function BranchTree({
                 onTagContextMenu={handleTagContextMenu}
               />
             ))}
-          </GroupSection>
-        )}
+            </GroupSection>
+          )}
+        </div>
 
         {/* Context Menu */}
         {contextMenu &&
