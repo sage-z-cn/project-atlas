@@ -103,6 +103,9 @@ export type CommandType =
   | "rebaseAction"
   | "mergeAction"
   | "cherryPickAction"
+  // 批量 cherry-pick：hashes 为提交哈希数组；服务端按时间旧→新排序后顺序应用，
+  // 首个冲突/失败即停止。返回 { appliedHashes, total, failedHash?, conflicted?, error? }
+  | "cherryPickRange"
   | "openConflictsPanel"
   | "createBranchPrompt"
   | "deleteBranchPrompt"

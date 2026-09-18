@@ -28,16 +28,17 @@
 
 ## 2. Cherry-pick 范围
 
-**状态**: 待做
+**状态**: 已完成
 
 **目标**: Git Log 中多选提交后，按时间顺序（旧→新）批量 cherry-pick。
 
-- [ ] Log 列表多选（或 commit 右键「Cherry-pick Range…」选起止）
-- [ ] 协议：`cherryPickRange { hashes: string[] }`（服务端按 commit 拓扑/时间排序）
-- [ ] `GitService.cherryPickRange`：逐个 `cherry-pick`，冲突时停止并进入现有冲突流程
-- [ ] 返回 `{ applied, failedHash?, error? }`，webview 展示进度/结果
-- [ ] 中文本地化
-- [ ] 构建 + lint
+- [x] Log 列表多选（Ctrl/Shift 已有）+ 右键「Cherry-Pick N Commits」
+- [x] 协议：`cherryPickRange { hashes: string[] }`（服务端 `rev-list --no-walk=sorted --reverse` 旧→新）
+- [x] `GitService.cherryPickRange`：逐个 cherry-pick，冲突/失败即停并返回进度
+- [x] 返回 `{ appliedHashes, total, failedHash?, conflicted?, error? }`；冲突时 toast + 打开冲突面板
+- [x] 多选时保留「Cherry-Pick（仅此提交）」单项操作
+- [x] 中文本地化
+- [x] `npm run compile` + `npm run lint`
 
 ---
 

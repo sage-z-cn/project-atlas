@@ -1035,6 +1035,87 @@ export class GitService {
     this.invalidateCache();
   }
 
+  /**
+   * Sequentially cherry-pick commits oldest-first. Stops at the first
+   * failure (conflict / empty / etc.) and reports how far it got.
+   *
+   * Order: `git rev-list --no-walk=unsorted --topo-order --reverse` so parent
+   * commits are applied before their children regardless of the caller's
+   * selection order or skewed committer dates (`sorted` orders by commit
+   * time, which can invert parent/child after clock drift or history rewrites).
+   */
+  async cherryPickRange(hashes: string[]): Promise<{
+    appliedHashes: string[];
+    total: number;
+    failedHash?: string;
+    conflicted?: boolean;
+    error?: string;
+  }> {
+    if (!hashes || hashes.length === 0) {
+      throw new Error("No commits to cherry-pick");
+    }
+
+    let ordered = [...hashes];
+    if (hashes.length > 1) {
+      try {
+        const out = await this.execGit([
+          "rev-list",
+          "--no-walk=unsorted",
+          "--topo-order",
+          "--reverse",
+          ...hashes,
+        ]);
+        const sorted = out
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean);
+        if (sorted.length === hashes.length) {
+          // rev-list emits full SHAs; if the caller passed short hashes,
+          // map each full SHA back to the original entry when possible.
+          ordered = sorted.map((full) => {
+            if (hashes.includes(full)) return full;
+            const short = hashes.find(
+              (h) => full.startsWith(h) || h.startsWith(full),
+            );
+            return short ?? full;
+          });
+        }
+      } catch {
+        // Fall back to caller order if rev-list cannot resolve the set.
+      }
+    }
+
+    const appliedHashes: string[] = [];
+    for (const hash of ordered) {
+      try {
+        await this.execGit(["cherry-pick", hash]);
+        appliedHashes.push(hash);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        let conflicted = false;
+        try {
+          // A failed cherry-pick also leaves CHERRY_PICK_HEAD when the
+          // commit is already applied (empty) — only unresolved files
+          // count as a real conflict.
+          const conflicts = await this.getConflictFiles();
+          conflicted = conflicts.length > 0;
+        } catch {
+          conflicted = false;
+        }
+        this.invalidateCache();
+        return {
+          appliedHashes,
+          total: ordered.length,
+          failedHash: hash,
+          conflicted,
+          error: message,
+        };
+      }
+    }
+    this.invalidateCache();
+    return { appliedHashes, total: ordered.length };
+  }
+
   async checkoutCommit(hash: string): Promise<void> {
     await this.execGit(["checkout", hash]);
     this.invalidateCache();

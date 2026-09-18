@@ -230,6 +230,81 @@ export function CommitContextMenu({
     }
   };
 
+  /** Multi-select: cherry-pick every selected commit, oldest first. */
+  const handleCherryPickRange = async () => {
+    onClose();
+    const selected = usePanelStore.getState().selectedCommitHashes;
+    if (selected.length < 2) {
+      usePanelStore.getState().setPanelError(t("Select at least 2 commits"));
+      return;
+    }
+    const branchLabel = currentBranch || t("current branch");
+    const confirmed = (await bridge.request("showConfirmMessage", {
+      message: t(
+        "Cherry-pick {0} commits onto '{1}'?\n\nCommits are applied oldest first. A conflict stops the sequence.",
+        selected.length,
+        branchLabel,
+      ),
+      confirmLabel: t("Cherry-Pick"),
+    })) as { confirmed: boolean };
+    if (!confirmed.confirmed) return;
+
+    try {
+      // Each commit is a separate git process; scale the timeout with the
+      // selection size so large ranges don't time out client-side while the
+      // extension keeps applying commits in the background.
+      const res = (await bridge.request(
+        "cherryPickRange",
+        { hashes: selected },
+        { timeout: 30_000 + selected.length * 10_000 },
+      )) as {
+        success?: boolean;
+        appliedHashes?: string[];
+        total?: number;
+        failedHash?: string;
+        conflicted?: boolean;
+        error?: string;
+      };
+
+      const applied = res.appliedHashes?.length ?? 0;
+      const total = res.total ?? selected.length;
+
+      if (res.failedHash) {
+        const short = res.failedHash.slice(0, 8);
+        if (res.conflicted) {
+          void bridge.request("showInfoNotification", {
+            message: t(
+              "Cherry-pick applied {0}/{1}. Conflict at {2} — resolve to continue.",
+              applied,
+              total,
+              short,
+            ),
+          });
+          void bridge.request("openConflictsPanel");
+        } else {
+          usePanelStore
+            .getState()
+            .setPanelError(
+              t(
+                "Cherry-pick stopped after {0}/{1} commits at {2}: {3}",
+                applied,
+                total,
+                short,
+                res.error || t("Unknown error"),
+              ),
+            );
+        }
+        return;
+      }
+
+      void bridge.request("showInfoNotification", {
+        message: t("Cherry-picked {0} commit(s)", applied),
+      });
+    } catch (err) {
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   const handleCheckoutRevision = async () => {
     onClose();
     try {
@@ -359,6 +434,13 @@ export function CommitContextMenu({
   const isDropCommitDisabled =
     !currentBranch || isRebasing || isMerging || isCherryPicking;
 
+  // Multi-select cherry-pick: only offered when the right-clicked commit is
+  // part of a selection of 2+ commits (Ctrl/Shift click in the log list).
+  const rangeSelection = usePanelStore((s) => s.selectedCommitHashes);
+  const isInRangeSelection =
+    rangeSelection.length > 1 && rangeSelection.includes(commit.hash);
+  const rangeCount = isInRangeSelection ? rangeSelection.length : 0;
+
   const items: {
     label: string;
     action: () => void;
@@ -377,10 +459,24 @@ export function CommitContextMenu({
       icon: <IconCopy />,
     },
     {
-      label: t("Cherry-Pick"),
+      label: isInRangeSelection
+        ? t("Cherry-Pick (this commit only)")
+        : t("Cherry-Pick"),
       action: handleCherryPick,
       icon: <IconCherryPick />,
     },
+  ];
+
+  if (isInRangeSelection) {
+    items.push({
+      label: t("Cherry-Pick {0} Commits", rangeCount),
+      action: handleCherryPickRange,
+      icon: <IconCherryPick />,
+      disabled: isRebasing || isMerging || isCherryPicking,
+    });
+  }
+
+  items.push(
     { label: "", action: () => {}, separator: true },
     { label: t("Checkout Revision"), action: handleCheckoutRevision },
     { label: "", action: () => {}, separator: true },
@@ -409,7 +505,7 @@ export function CommitContextMenu({
     { label: "", action: () => {}, separator: true },
     { label: t("New Branch..."), action: handleNewBranch, icon: <IconBranch /> },
     { label: t("New Tag..."), action: handleNewTag, icon: <IconTag /> },
-  ];
+  );
 
   // Add "Show in Git Log" when file filter is active
   if (filter.file) {

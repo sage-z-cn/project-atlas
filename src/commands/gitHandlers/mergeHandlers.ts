@@ -92,6 +92,27 @@ export function registerMergeHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
+  /**
+   * Sequential cherry-pick of a multi-selection. Always returns success so the
+   * webview can render partial-progress details; failure is reported via
+   * failedHash / conflicted / error on the payload.
+   */
+  messageRouter.handle(
+    "cherryPickRange",
+    requireGit(ctx, async (gitService, params) => {
+      const hashes = params.hashes as string[] | undefined;
+      if (!hashes || hashes.length === 0) {
+        throw new Error("No commits to cherry-pick");
+      }
+      return withProgress(ctx, async () => {
+        const result = await gitService.cherryPickRange(hashes);
+        messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+        messageRouter.broadcastEvent("commitStateChanged", {});
+        return { success: true, ...result };
+      });
+    }),
+  );
+
   messageRouter.handle(
     "cherryPickAction",
     requireGit(ctx, async (gitService, params) => {
