@@ -149,6 +149,9 @@ export type CommandType =
   | "refreshAllRepos"
   | "pullAllRepos"
   | "pushAllRepos"
+  // 多仓库列表显示顺序（RepoSelector 拖拽）。order 为 path 数组，持久化到
+  // workspaceState `gitAtlas.repoOrder`；未列出的仓库按扫描顺序追加在末尾。
+  | "setRepoOrder"
   | "getL10nBundle"
   | "getGitConfig"
   | "setGitConfig"

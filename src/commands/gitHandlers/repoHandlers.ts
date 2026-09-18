@@ -22,6 +22,20 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
     return { repos: registry.getRepoInfos() };
   });
 
+  messageRouter.handle("setRepoOrder", async (params) => {
+    await registry.whenReady;
+    const order = Array.isArray(params?.order)
+      ? (params.order as unknown[]).filter(
+          (p): p is string => typeof p === "string" && p.length > 0,
+        )
+      : [];
+    if (order.length === 0) {
+      return { success: false, error: "Empty repo order" };
+    }
+    await registry.setRepoOrder(order);
+    return { success: true, repos: registry.getRepoInfos() };
+  });
+
   messageRouter.handle("getCurrentRepo", async () => {
     await registry.whenReady;
     return { repoPath: registry.getCurrentRepoPath() };

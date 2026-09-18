@@ -98,6 +98,7 @@ export type CommandType =
   | "cherryPickRange"
   | "addToGitignore"
   | "openGitignore"
+  | "setRepoOrder"
   | "setBranchUpstream"
   | "unsetBranchUpstream"
   | "showErrorNotification"

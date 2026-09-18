@@ -12,7 +12,17 @@ interface RepoContextMenuProps {
   x: number;
   y: number;
   repo: RepoInfo;
+  /** Full chip list — enables the move actions when length > 1. */
+  repos?: RepoInfo[];
   onClose: () => void;
+  /** Called with the new path order after a move action. */
+  onReorder?: (order: string[]) => void;
+  /**
+   * Chip list layout direction — the menu serves both the horizontal panel
+   * strip and the vertical commit sidebar, so "earlier/later" must read as
+   * Left/Right or Up/Down accordingly. Defaults to "horizontal".
+   */
+  orientation?: "horizontal" | "vertical";
 }
 
 /**
@@ -26,7 +36,10 @@ export function RepoContextMenu({
   x,
   y,
   repo,
+  repos,
   onClose,
+  onReorder,
+  orientation = "horizontal",
 }: RepoContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{
@@ -143,11 +156,52 @@ export function RepoContextMenu({
     }
   };
 
+  const repoList = repos ?? [];
+  const idx = repoList.findIndex((r) => r.path === repo.path);
+  const canMove = repoList.length > 1 && idx >= 0 && !!onReorder;
+
+  // earlier/later = 数组下标向前/向后（方向中性）；显示文案随 orientation
+  // 映射为 Left/Right（横向条）或 Up/Down（纵向堆叠）。
+  const handleMoveEarlier = () => {
+    onClose();
+    if (!canMove || idx <= 0) return;
+    const order = repoList.map((r) => r.path);
+    [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]];
+    onReorder?.(order);
+  };
+
+  const handleMoveLater = () => {
+    onClose();
+    if (!canMove || idx < 0 || idx >= repoList.length - 1) return;
+    const order = repoList.map((r) => r.path);
+    [order[idx + 1], order[idx]] = [order[idx], order[idx + 1]];
+    onReorder?.(order);
+  };
+
+  const handleMoveToStart = () => {
+    onClose();
+    if (!canMove || idx <= 0) return;
+    const order = repoList.map((r) => r.path);
+    order.splice(idx, 1);
+    order.unshift(repo.path);
+    onReorder?.(order);
+  };
+
+  const handleMoveToEnd = () => {
+    onClose();
+    if (!canMove || idx < 0 || idx >= repoList.length - 1) return;
+    const order = repoList.map((r) => r.path);
+    order.splice(idx, 1);
+    order.push(repo.path);
+    onReorder?.(order);
+  };
+
   const items: {
     label: string;
     action: () => void;
     separator?: boolean;
     icon?: React.ReactNode;
+    disabled?: boolean;
   }[] = [
     { label: t("Copy Path"), action: handleCopyPath, icon: <CopyIcon /> },
     { label: t("Copy Repo Name"), action: handleCopyName, icon: <CopyIcon /> },
@@ -169,6 +223,32 @@ export function RepoContextMenu({
       icon: <TerminalIcon />,
     },
   ];
+
+  if (canMove) {
+    items.push(
+      { label: "", action: () => {}, separator: true },
+      {
+        label: orientation === "vertical" ? t("Move Up") : t("Move Left"),
+        action: handleMoveEarlier,
+        disabled: idx <= 0,
+      },
+      {
+        label: orientation === "vertical" ? t("Move Down") : t("Move Right"),
+        action: handleMoveLater,
+        disabled: idx >= repoList.length - 1,
+      },
+      {
+        label: t("Move to Start"),
+        action: handleMoveToStart,
+        disabled: idx <= 0,
+      },
+      {
+        label: t("Move to End"),
+        action: handleMoveToEnd,
+        disabled: idx >= repoList.length - 1,
+      },
+    );
+  }
 
   const menu = (
     <div
@@ -201,10 +281,11 @@ export function RepoContextMenu({
         ) : (
           <div
             key={item.label}
-            onClick={item.action}
+            onClick={item.disabled ? undefined : item.action}
             style={{
               padding: "6px 12px",
-              cursor: "pointer",
+              cursor: item.disabled ? "default" : "pointer",
+              opacity: item.disabled ? 0.45 : 1,
               color: "var(--vscode-menu-foreground, #ccc)",
               fontSize: "13px",
               whiteSpace: "nowrap",
@@ -213,6 +294,7 @@ export function RepoContextMenu({
               gap: 8,
             }}
             onMouseEnter={(e) => {
+              if (item.disabled) return;
               (e.currentTarget as HTMLElement).style.background =
                 "var(--vscode-list-hoverBackground, #2a2d2e)";
               (e.currentTarget as HTMLElement).style.color =

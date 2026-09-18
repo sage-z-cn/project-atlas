@@ -14,6 +14,12 @@ import { scanRepos } from "./repoScanner";
 const CURRENT_REPO_KEY = "gitAtlas.currentRepoPath";
 
 /**
+ * Workspace-state key for the user-defined RepoSelector display order
+ * (array of normalized repo paths). New repos append after saved ones.
+ */
+const REPO_ORDER_KEY = "gitAtlas.repoOrder";
+
+/**
  * Owns one GitService + one GitWatcher per discovered repository and tracks
  * which repo is currently "active" (the one panel / commit / diff editors
  * operate against).
@@ -51,6 +57,12 @@ export class RepoRegistry implements vscode.Disposable {
   private watchers = new Map<string, GitWatcher>();
   private currentRepoPath: string | null = null;
   private repoInfos: RepoInfo[] = [];
+  /**
+   * Persisted repo order 的内存权威副本（懒加载）。setRepoOrder 同步更新、
+   * 异步落盘，因此 rescan 中的 applySavedOrder 永远读到最新顺序，不受
+   * 在途持久化影响。null = 尚未从 workspaceState 加载；[] = 无保存顺序。
+   */
+  private repoOrderCache: string[] | null = null;
 
   private readonly _onGitStateChanged = new vscode.EventEmitter<void>();
   /**
@@ -160,7 +172,7 @@ export class RepoRegistry implements vscode.Disposable {
       }
     }
 
-    this.repoInfos = infos;
+    this.repoInfos = this.applySavedOrder(infos);
 
     // currentRepo validation: fall back if it vanished.
     if (this.currentRepoPath && !newPaths.has(this.currentRepoPath)) {
@@ -260,6 +272,82 @@ export class RepoRegistry implements vscode.Disposable {
   /** Snapshot of RepoInfo describing every known repo (for getRepos handler). */
   getRepoInfos(): RepoInfo[] {
     return this.repoInfos;
+  }
+
+  /**
+   * Reorder the RepoSelector list. `order` is a full or partial list of
+   * normalized repo paths; unknown paths are ignored, known paths missing
+   * from `order` keep their relative scan order at the end. Persisted to
+   * workspaceState; both webviews apply the broadcast `repos` payload
+   * locally instead of refetching everything.
+   */
+  async setRepoOrder(order: string[]): Promise<void> {
+    const ordered = this.reorderInfos(
+      this.repoInfos,
+      Array.isArray(order) ? order : [],
+    );
+
+    this.repoInfos = ordered;
+    const pathList = ordered.map((i) => i.path);
+    // 先同步更新内存权威副本再异步落盘：落盘完成前若 rescan 到达，
+    // applySavedOrder 读 cache 而非 workspaceState，不会用旧序覆盖内存新序。
+    this.repoOrderCache = pathList;
+    await this.context.workspaceState.update(REPO_ORDER_KEY, pathList);
+
+    // RepoInfo 为 plain 可序列化对象，可直接广播。payload 带 repos 即
+    // 纯重排信号（store 本地 apply，免全量刷新）；rescan 路径的广播不带
+    // repos，语义为仓库集合变化需全量刷新。
+    this.messageRouter.broadcastEvent("reposChanged", {
+      currentRepoPath: this.currentRepoPath,
+      repos: ordered,
+    });
+  }
+
+  /**
+   * Stable-sort scan results by the persisted user order. Repos not present
+   * in the saved list keep scan order and append after the known ones.
+   */
+  private applySavedOrder(infos: RepoInfo[]): RepoInfo[] {
+    const saved = this.getSavedOrder();
+    if (saved.length === 0) {
+      return infos;
+    }
+    return this.reorderInfos(infos, saved);
+  }
+
+  /** Lazy-load {@link repoOrderCache} from workspaceState on first read. */
+  private getSavedOrder(): string[] {
+    if (this.repoOrderCache === null) {
+      const saved = this.context.workspaceState.get<string[]>(REPO_ORDER_KEY);
+      this.repoOrderCache = Array.isArray(saved) ? saved : [];
+    }
+    return this.repoOrderCache;
+  }
+
+  /**
+   * 按 orderPaths 稳定重排 infos：出现在 orderPaths 的按其顺序在前，
+   * 未出现的保持原相对顺序追加在后；忽略非法/未知路径与重复项。
+   */
+  private reorderInfos(infos: RepoInfo[], orderPaths: string[]): RepoInfo[] {
+    const byPath = new Map(infos.map((i) => [i.path, i]));
+    const ordered: RepoInfo[] = [];
+    const placed = new Set<string>();
+    for (const raw of orderPaths) {
+      if (typeof raw !== "string" || !raw) continue;
+      const key = normalizePath(raw);
+      const info = byPath.get(key);
+      if (info && !placed.has(info.path)) {
+        ordered.push(info);
+        placed.add(info.path);
+      }
+    }
+    for (const info of infos) {
+      if (!placed.has(info.path)) {
+        ordered.push(info);
+        placed.add(info.path);
+      }
+    }
+    return ordered;
   }
 
   /**

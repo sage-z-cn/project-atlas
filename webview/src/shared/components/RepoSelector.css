@@ -66,6 +66,72 @@
   opacity: 1;
 }
 
+/* ─── Drag-to-reorder ──────────────────────────────────────────────────
+ * Multi-repo chips are draggable. The source chip dims; the insertion
+ * indicator is drawn on the hovered chip's near edge based on pointer
+ * half: drop-before → top (vertical) / left (horizontal); drop-after →
+ * bottom (vertical) / right (horizontal). Using pseudo-elements (not
+ * box-shadow) keeps the line visible at the end of a scrolling stack —
+ * e.g. dragging to the LAST vertical chip's lower half shows the line
+ * BELOW that chip, which is what "drop at end of list" means.
+ */
+.repo-selector .repo-chip {
+  position: relative;
+}
+
+.repo-selector .repo-chip.dragging {
+  opacity: 0.4;
+  /* Only while an actual drag is in progress — hover stays default so
+   * click-to-switch chips don't look permanently "grabbable". */
+  cursor: grabbing;
+}
+
+.repo-selector .repo-chip.drop-before::before,
+.repo-selector .repo-chip.drop-after::after {
+  content: "";
+  position: absolute;
+  background: var(--vscode-focusBorder, #3574f0);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Vertical stack: full-width horizontal rules above / below the chip. */
+.repo-selector.vertical .repo-chip.drop-before::before {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  transform: translateY(-1px);
+}
+
+.repo-selector.vertical .repo-chip.drop-after::after {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  transform: translateY(1px);
+}
+
+/* Horizontal strip: full-height vertical rules left / right of the chip. */
+.repo-selector.horizontal .repo-chip.drop-before::before {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  transform: translateX(-1px);
+}
+
+.repo-selector.horizontal .repo-chip.drop-after::after {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 2px;
+  transform: translateX(1px);
+}
+
+/* Resting cursor is default (chip is primarily a click-to-switch control).
+   The grab/grabbing cursors appear only once a drag has started (.dragging). */
+
 /* No fixed max-width here: a hard cap truncated the name even when the strip
  * had plenty of room left. Scarcity is positional instead — horizontal chips
  * are content-width inside a scrolling strip (nothing ever truncates), and

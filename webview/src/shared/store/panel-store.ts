@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { bridge } from "../bridge";
 import type { SelectionMode } from "../hooks/useModifierClickSelection";
+import { applyRepoOrder } from "../utils/repoOrder";
 import type {
   BranchInfo,
   Commit,
@@ -1335,10 +1336,17 @@ bridge.onEvent((event, data) => {
     // initialized, cloned, or removed). Always refresh the list; only when the
     // ACTIVE repo also changed do we reload the graph — mirroring the
     // repoChanged path so a freshly-initialized repo loads its (empty) log.
-    const { currentRepoPath } = (data ?? {}) as {
+    const { currentRepoPath, repos } = (data ?? {}) as {
       currentRepoPath?: string | null;
+      repos?: RepoInfo[];
     };
     const state = usePanelStore.getState();
+    if (Array.isArray(repos) && currentRepoPath === state.currentRepoPath) {
+      // 纯重排信号：setRepoOrder 广播，当前仓库未变 → 本地按序 apply，
+      // 跳过 fetchRepos / fetchRepoStatuses 全量刷新。
+      usePanelStore.setState({ repos: applyRepoOrder(state.repos, repos) });
+      return;
+    }
     state.fetchRepos();
     if (currentRepoPath && currentRepoPath !== state.currentRepoPath) {
       const nextRepoPath = currentRepoPath;

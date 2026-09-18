@@ -9,6 +9,7 @@ import type {
   UnstashFileParams,
 } from "../bridge/types";
 import { t } from "../i18n";
+import { applyRepoOrder } from "../utils/repoOrder";
 import type { RepoInfo, RepoStatus } from "../types/git";
 
 export type { StashEntry };
@@ -1323,10 +1324,18 @@ bridge.onEvent((event, data) => {
     // ACTIVE repo also changed do we reload per-repo state — mirroring the
     // repoChanged path so a freshly-initialized repo loads its (empty) tree,
     // config, and draft.
-    const { currentRepoPath } = (data ?? {}) as {
+    const { currentRepoPath, repos } = (data ?? {}) as {
       currentRepoPath?: string | null;
+      repos?: RepoInfo[];
     };
     const state = useCommitStore.getState();
+    if (Array.isArray(repos) && currentRepoPath === state.currentRepoPath) {
+      // 纯重排信号：setRepoOrder 广播，当前仓库未变 → 本地按序 apply，
+      // 跳过 fetchRepos / fetchRepoStatuses 全量刷新（含下方 else 路径的
+      // badges 刷新）。
+      useCommitStore.setState({ repos: applyRepoOrder(state.repos, repos) });
+      return;
+    }
     state.fetchRepos();
     if (currentRepoPath && currentRepoPath !== state.currentRepoPath) {
       flushDraftSave(state.currentRepoPath, state.commitMessage);
