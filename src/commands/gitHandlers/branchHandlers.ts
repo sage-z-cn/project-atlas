@@ -67,6 +67,132 @@ export function registerBranchHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
+  /**
+   * Set upstream tracking. Incomplete pairs open a QuickPick on the host:
+   * - only branchName → pick a remote-tracking branch
+   * - only remoteBranch → pick a local branch
+   * - both → apply directly
+   */
+  messageRouter.handle(
+    "setBranchUpstream",
+    requireGit(ctx, async (gitService, params) => {
+      let branchName = params.branchName as string | undefined;
+      let remoteBranch = params.remoteBranch as string | undefined;
+
+      if (!branchName && !remoteBranch) {
+        return {
+          success: false,
+          error: vscode.l10n.t("Branch name is required"),
+        };
+      }
+
+      if (branchName && !remoteBranch) {
+        const groups = await gitService.getRemoteBranches();
+        const all = groups.flatMap((g) =>
+          g.branches.map((b) => `${g.remote}/${b}`),
+        );
+        if (all.length === 0) {
+          void vscode.window.showWarningMessage(
+            vscode.l10n.t("No remote branches available"),
+          );
+          return {
+            success: false,
+            error: vscode.l10n.t("No remote branches available"),
+          };
+        }
+        // Prefer a remote branch whose short name matches the local branch.
+        const preferred = all.find((r) => {
+          const slash = r.indexOf("/");
+          return slash !== -1 && r.substring(slash + 1) === branchName;
+        });
+        const ordered = preferred
+          ? [preferred, ...all.filter((r) => r !== preferred)]
+          : all;
+        const picked = await vscode.window.showQuickPick(ordered, {
+          placeHolder: vscode.l10n.t(
+            "Select upstream for '{0}'",
+            branchName,
+          ),
+        });
+        if (!picked) return { success: false, cancelled: true };
+        remoteBranch = picked;
+      } else if (!branchName && remoteBranch) {
+        const branches = await gitService.getBranches();
+        const locals = branches
+          .filter((b) => !b.isRemote && !b.name.startsWith("("))
+          .map((b) => b.name)
+          .sort((a, b) =>
+            a.localeCompare(b, undefined, { sensitivity: "base" }),
+          );
+        if (locals.length === 0) {
+          void vscode.window.showWarningMessage(
+            vscode.l10n.t("No local branches available"),
+          );
+          return {
+            success: false,
+            error: vscode.l10n.t("No local branches available"),
+          };
+        }
+        const remoteShort = remoteBranch.includes("/")
+          ? remoteBranch.substring(remoteBranch.indexOf("/") + 1)
+          : remoteBranch;
+        const preferredLocal = locals.find((n) => n === remoteShort);
+        const ordered = preferredLocal
+          ? [
+              preferredLocal,
+              ...locals.filter((n) => n !== preferredLocal),
+            ]
+          : locals;
+        const picked = await vscode.window.showQuickPick(ordered, {
+          placeHolder: vscode.l10n.t(
+            "Select local branch to track '{0}'",
+            remoteBranch,
+          ),
+        });
+        if (!picked) return { success: false, cancelled: true };
+        branchName = picked;
+      }
+
+      return withProgress(ctx, async () => {
+        await gitService.setUpstream(branchName!, remoteBranch!);
+        messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+        void vscode.window.showInformationMessage(
+          vscode.l10n.t(
+            "Branch '{0}' now tracks '{1}'",
+            branchName!,
+            remoteBranch!,
+          ),
+        );
+        return {
+          success: true,
+          branchName,
+          upstream: remoteBranch,
+        };
+      });
+    }),
+  );
+
+  messageRouter.handle(
+    "unsetBranchUpstream",
+    requireGit(ctx, async (gitService, params) => {
+      const branchName = params.branchName as string;
+      if (!branchName) {
+        return {
+          success: false,
+          error: vscode.l10n.t("Branch name is required"),
+        };
+      }
+      return withProgress(ctx, async () => {
+        await gitService.unsetUpstream(branchName);
+        messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+        void vscode.window.showInformationMessage(
+          vscode.l10n.t("Upstream unset for '{0}'", branchName),
+        );
+        return { success: true, branchName };
+      });
+    }),
+  );
+
   messageRouter.handle(
     "createBranchFromCommit",
     requireGit(ctx, async (gitService, params) => {

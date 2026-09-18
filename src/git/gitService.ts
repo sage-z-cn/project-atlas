@@ -889,6 +889,29 @@ export class GitService {
     this.invalidateCache();
   }
 
+  /**
+   * Point a local branch at a remote-tracking branch
+   * (`git branch --set-upstream-to=origin/main feature`).
+   * remoteBranch must be the full remote-tracking name (e.g. `origin/main`).
+   */
+  async setUpstream(
+    branchName: string,
+    remoteBranch: string,
+  ): Promise<void> {
+    await this.execGit([
+      "branch",
+      `--set-upstream-to=${remoteBranch}`,
+      branchName,
+    ]);
+    this.invalidateCache();
+  }
+
+  /** Remove tracking config for a local branch (`git branch --unset-upstream`). */
+  async unsetUpstream(branchName: string): Promise<void> {
+    await this.execGit(["branch", "--unset-upstream", branchName]);
+    this.invalidateCache();
+  }
+
   async merge(branchName: string): Promise<void> {
     await this.execGit(["merge", branchName]);
     this.invalidateCache();

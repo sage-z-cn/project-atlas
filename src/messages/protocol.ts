@@ -63,6 +63,11 @@ export type CommandType =
   | "createBranch"
   | "deleteBranch"
   | "renameBranch"
+  // 分支上游：setBranchUpstream 只传 branchName 时扩展侧 QuickPick 远程分支；
+  // 只传 remoteBranch 时 QuickPick 本地分支；两者都传则直接设置。
+  // unsetBranchUpstream 取消本地分支跟踪。
+  | "setBranchUpstream"
+  | "unsetBranchUpstream"
   | "mergeBranch"
   | "rebaseBranch"
   | "checkoutAndRebase"

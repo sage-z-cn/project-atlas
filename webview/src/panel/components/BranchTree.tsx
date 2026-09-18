@@ -1548,6 +1548,61 @@ function BranchContextMenu({
     }
   };
 
+  /** Local branch: pick a remote-tracking branch (or pass one) and set upstream. */
+  const handleSetUpstream = async () => {
+    onClose();
+    try {
+      await bridgeWithProgress("setBranchUpstream", {
+        branchName: branch.name,
+      });
+    } catch (err) {
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleUnsetUpstream = async () => {
+    onClose();
+    if (branch.upstream) {
+      const result = (await bridge.request("showConfirmMessage", {
+        message: t("Unset upstream for '{0}' (currently '{1}')?", branch.name, branch.upstream),
+        confirmLabel: t("Unset Upstream"),
+      })) as { confirmed: boolean };
+      if (!result.confirmed) return;
+    }
+    try {
+      await bridgeWithProgress("unsetBranchUpstream", {
+        branchName: branch.name,
+      });
+    } catch (err) {
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  /** Remote branch: host QuickPick of local branches, then set upstream. */
+  const handleTrackAsUpstream = async () => {
+    onClose();
+    try {
+      await bridgeWithProgress("setBranchUpstream", {
+        remoteBranch: branch.name,
+      });
+    } catch (err) {
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  /** Remote branch with a same-named local branch: set tracking directly. */
+  const handleTrackMatchingLocal = async (localName: string) => {
+    onClose();
+    try {
+      await bridgeWithProgress("setBranchUpstream", {
+        branchName: localName,
+        remoteBranch: branch.name,
+      });
+    } catch (err) {
+      usePanelStore.getState().setPanelError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   const items: {
     label: string;
     action: () => void;
@@ -1591,11 +1646,42 @@ function BranchContextMenu({
 
   if (!branch.isRemote) {
     items.push({ label: "", action: () => {}, separator: true });
+    items.push({
+      label: branch.upstream
+        ? t("Change Upstream...")
+        : t("Set Upstream..."),
+      action: handleSetUpstream,
+    });
+    if (branch.upstream) {
+      items.push({
+        label: t("Unset Upstream"),
+        action: handleUnsetUpstream,
+      });
+    }
+    items.push({ label: "", action: () => {}, separator: true });
     items.push({ label: t("Update"), action: handleUpdate });
     items.push({ label: t("Push..."), action: handlePush });
   }
 
   if (branch.isRemote) {
+    const slashIdx = branch.name.indexOf("/");
+    const shortName =
+      slashIdx > 0 ? branch.name.substring(slashIdx + 1) : branch.name;
+    const matchingLocal = usePanelStore
+      .getState()
+      .branches.find((b) => !b.isRemote && b.name === shortName);
+
+    items.push({ label: "", action: () => {}, separator: true });
+    if (matchingLocal) {
+      items.push({
+        label: t("Track '{0}' to '{1}'", shortName, branch.name),
+        action: () => void handleTrackMatchingLocal(shortName),
+      });
+    }
+    items.push({
+      label: t("Track as Upstream for Local Branch..."),
+      action: handleTrackAsUpstream,
+    });
     items.push({ label: "", action: () => {}, separator: true });
     items.push({ label: t("Copy Remote URL"), action: handleCopyRemoteUrl });
   }
