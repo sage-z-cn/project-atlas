@@ -4,6 +4,17 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.31.0
+**新功能**
+- **编辑器**: 在标题栏新增定位当前文件的入口，并修复命令参数处理
+- **VSCode**: 打开文件时支持在资源管理器中定位该文件
+
+**Bug 修复**
+- **面板**: 固定仓库选择区，仅滚动分支树所在的下半部分
+
+**改进**
+- **Webview**: 将仓库选择器改为侧栏垂直布局
+
 #### 1.30.0
 **新功能**
 - **Repo**: 支持仓库列表拖拽排序并持久化顺序
