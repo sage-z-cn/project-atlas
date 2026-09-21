@@ -31,11 +31,23 @@ export async function activate(context: vscode.ExtensionContext) {
   // refreshAll 现为空操作，仅保留签名以最小化 projectCommands/groupCommands 改动。
   const refreshAll = () => {};
 
-  // Reveal active file in built-in explorer sidebar
+  // Reveal active file in built-in explorer sidebar.
+  // editor/title menus pass the editor resource as the first argument;
+  // explorer view/title and the command palette pass nothing.
   context.subscriptions.push(
-    vscode.commands.registerCommand("project-atlas.revealActiveFile", () => {
-      vscode.commands.executeCommand("revealInExplorer");
-    }),
+    vscode.commands.registerCommand(
+      "project-atlas.revealActiveFile",
+      (resource?: vscode.Uri) => {
+        const uri = resource ?? vscode.window.activeTextEditor?.document.uri;
+        if (uri) {
+          void vscode.commands.executeCommand("revealInExplorer", uri);
+        } else {
+          void vscode.commands.executeCommand(
+            "workbench.files.action.showActiveFileInExplorer",
+          );
+        }
+      },
+    ),
   );
 
   // Project Atlas 装配（Recent + Favorites React 化；project router + 事件广播）

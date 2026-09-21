@@ -728,6 +728,11 @@
           "command": "git-atlas.editSource",
           "when": "isInDiffEditor && resourceScheme == 'git-atlas'",
           "group": "navigation"
+        },
+        {
+          "command": "project-atlas.revealActiveFile",
+          "when": "resourceScheme == file",
+          "group": "navigation@5"
         }
       ],
       "editor/title/context": [
