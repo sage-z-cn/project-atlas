@@ -241,7 +241,7 @@ export function VscodeFileContextMenu({
         <span className="commit-context-menu-icon">
           <OpenFileIcon />
         </span>
-        <span>{t("Open File")}</span>
+        <span>{t("Open File and Reveal in Explorer")}</span>
       </button>
       <button
         type="button"

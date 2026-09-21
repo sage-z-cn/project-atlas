@@ -113,7 +113,7 @@ export function VscodeFileItem({
         <button
           type="button"
           className="vscode-file-action-btn"
-          title={t("Open File")}
+          title={t("Open File and Reveal in Explorer")}
           onClick={(e) => {
             e.stopPropagation();
             bridge.request("openFile", { filePath: file.path });

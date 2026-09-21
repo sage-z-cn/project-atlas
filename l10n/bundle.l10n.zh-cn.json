@@ -414,6 +414,7 @@
   "VSCode": "VSCode",
   "JetBrains": "JetBrains",
   "Open File": "打开文件",
+  "Open File and Reveal in Explorer": "打开文件并在资源管理器中定位",
   "Show File History": "显示文件历史",
   "Open Merge Editor": "打开合并编辑器",
   "Stage Changes": "暂存更改",

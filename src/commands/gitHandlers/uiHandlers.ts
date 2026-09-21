@@ -37,6 +37,14 @@ export function registerUiHandlers(ctx: GitHandlerContext): void {
       // Fallback for files that can't be opened in any editor
       await vscode.env.openExternal(absPath);
     }
+    // Also locate the file in VSCode's Explorer — "Open File" from the
+    // changes list should not only show the editor, but reveal the node.
+    // Best-effort: deleted files / paths outside the workspace may fail.
+    try {
+      await vscode.commands.executeCommand("revealInExplorer", absPath);
+    } catch {
+      // ignore reveal failures
+    }
     return { success: true };
   });
 
