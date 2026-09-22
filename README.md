@@ -41,7 +41,7 @@
 **Project Management**
 > Rename display names, clean up invalid entries, reveal in file explorer, and right-click for quick actions.
 
-**Reveal Active File**
+**Locate Current File**
 > Adds a button to the built-in file explorer's view title bar to locate the currently open file in the tree (can be toggled in settings).
 
 ### Task Atlas
@@ -106,7 +106,7 @@
 | `projectAtlas.openProjectMode` | `ask` / `currentWindow` / `newWindow` | `ask` | Default window behavior when opening a project |
 | `projectAtlas.openMode` | `singleClick` / `doubleClick` / `followIDE` | `followIDE` | How a click on a project item opens it |
 | `projectAtlas.confirmDelete` | `ask` / `never` | `ask` | Whether to confirm before deleting projects/groups |
-| `projectAtlas.showRevealActiveFile` | `boolean` | `true` | Show 'Reveal Active File' button in the built-in file explorer view title |
+| `projectAtlas.showRevealActiveFile` | `boolean` | `true` | Show 'Locate Current File' button in the built-in file explorer view title |
 | `projectAtlas.ai.apiUrl` | `string` | `""` | AI API base URL or full endpoint (OpenAI-compatible) |
 | `projectAtlas.ai.model` | `string` | `""` | AI model name (e.g. gpt-4o-mini, deepseek-chat) |
 | `projectAtlas.ai.language` | `auto` / `en` / `zh` / `follow-locale` | `auto` | Global default language for generated commit messages; overridable per project from the Commit panel (project-level wins) |

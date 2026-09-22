@@ -81,7 +81,7 @@
   "Add TODO...": "新增 TODO...",
   "Created": "创建时间",
   "Completed": "已完成",
-  "Jump to Source": "跳转到源文件",
+
   "Mark as Complete": "标记为完成",
   "Mark as Incomplete": "标记为未完成",
   "Copied": "已复制",
@@ -154,7 +154,7 @@
   "Directory": "目录",
   "Drop Commit": "丢弃提交",
   "Drop commit {0} \"{1}\"?\n\nThis will remove the commit from history but keep its changes as unstaged modifications.\n\nThis operation cannot be undone.": "丢弃提交 {0} \"{1}\"？\n\n这将从历史中移除该提交，但将其更改保留为未暂存的修改。\n\n此操作无法撤销。",
-  "Edit Source": "编辑源文件",
+
   "End Date": "结束日期",
   "Expand All": "全部展开",
   "Fetch": "抓取(Fetch)",
@@ -413,8 +413,7 @@
   "List Style": "列表风格",
   "VSCode": "VSCode",
   "JetBrains": "JetBrains",
-  "Open File": "打开文件",
-  "Open File and Reveal in Explorer": "打开文件并在资源管理器中定位",
+  "Locate Current File": "定位当前文件",
   "Show File History": "显示文件历史",
   "Open Merge Editor": "打开合并编辑器",
   "Stage Changes": "暂存更改",

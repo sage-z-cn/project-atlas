@@ -190,6 +190,12 @@ export function registerTodoHandlers(ctx: TodoHandlerContext): void {
       await vscode.window.showTextDocument(doc, {
         selection: new vscode.Range(pos, pos),
       });
+      // Locate Current File — same open + reveal behavior as git openFile.
+      try {
+        await vscode.commands.executeCommand("revealInExplorer", item.file);
+      } catch {
+        // best-effort
+      }
     }
   });
 }

@@ -46,6 +46,7 @@
   "command.git-atlas.showFileHistory": "Git Atlas: 显示文件历史",
   "command.git-atlas.showFolderHistory": "Git Atlas: 显示文件夹历史",
   "command.git-atlas.editSource": "Git Atlas: 编辑源文件",
+  "command.git-atlas.toggleDiffView": "切换差异视图（并排 / 统一）",
   "command.git-atlas.openGitLog": "打开 Git Log",
   "command.git-atlas.openCommitPanel": "打开提交面板",
 

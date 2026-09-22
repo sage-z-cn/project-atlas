@@ -9,7 +9,7 @@ import {
   openGitignoreFile,
   parentDirPattern,
 } from "../utils/gitignore";
-import OpenFileIcon from "~icons/codicon/go-to-file";
+import LocationIcon from "~icons/codicon/location";
 import DiffIcon from "~icons/codicon/git-compare";
 import AddIcon from "~icons/codicon/add";
 import RemoveIcon from "~icons/codicon/remove";
@@ -232,16 +232,16 @@ export function VscodeFileContextMenu({
 
   return (
     <div className="commit-context-menu vscode-context-menu" ref={menuRef} style={style}>
-      {/* Open File (all groups) */}
+      {/* Locate Current File (all groups) */}
       <button
         type="button"
         className="commit-context-menu-item"
         onClick={handleOpenFile}
       >
         <span className="commit-context-menu-icon">
-          <OpenFileIcon />
+          <LocationIcon />
         </span>
-        <span>{t("Open File and Reveal in Explorer")}</span>
+        <span>{t("Locate Current File")}</span>
       </button>
       <button
         type="button"

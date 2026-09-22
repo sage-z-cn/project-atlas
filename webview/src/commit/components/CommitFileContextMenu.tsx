@@ -8,6 +8,7 @@ import {
   openGitignoreFile,
   parentDirPattern,
 } from "../utils/gitignore";
+import LocationIcon from "~icons/codicon/location";
 
 interface CommitFileContextMenuProps {
   x: number;
@@ -233,14 +234,14 @@ export function CommitFileContextMenu({
         <span className="commit-context-menu-shortcut">⌘D</span>
       </button>
 
-      {/* Jump to Source */}
+      {/* Locate Current File */}
       <button
         type="button"
         className="commit-context-menu-item"
         onClick={handleJumpToSource}
       >
-        <JumpIcon />
-        <span>{t("Jump to Source")}</span>
+        <LocationIcon className="commit-context-menu-icon" />
+        <span>{t("Locate Current File")}</span>
       </button>
 
       {/* Open in System Folder */}
@@ -375,25 +376,6 @@ function DiffIcon() {
         clipRule="evenodd"
         d="M10.1464 1.14645C10.3417 0.951185 10.6583 0.951185 10.8536 1.14645C11.0488 1.34171 11.0488 1.65829 10.8536 1.85355L8.70711 4H15.5C15.7761 4 16 4.22386 16 4.5C16 4.77614 15.7761 5 15.5 5H8.70711L10.8536 7.14645C11.0488 7.34171 11.0488 7.65829 10.8536 7.85355C10.6583 8.04882 10.3417 8.04882 10.1464 7.85355L7.14645 4.85355L6.79289 4.5L7.14645 4.14645L10.1464 1.14645Z"
         fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function JumpIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      className="commit-context-menu-icon"
-    >
-      <path
-        d="M8.5 1.5V11M8.5 1.5L5 5M8.5 1.5L12 5M2 14.5h13"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
       />
     </svg>
   );

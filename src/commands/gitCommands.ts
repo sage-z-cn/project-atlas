@@ -268,5 +268,17 @@ export function registerGitCommands(
     vscode.commands.registerCommand("git-atlas.pushAllRepos", () => {
       ctx.messageRouter.broadcastEvent("showPushAllReposDialog", {});
     }),
+    // Toggle side-by-side ↔ unified (inline) for the built-in Diff Editor.
+    // Covers diffs opened from VSCode SCM Changes and from the extension's
+    // commit-panel Changes list — both land in the same `isInDiffEditor` surface.
+    vscode.commands.registerCommand("git-atlas.toggleDiffView", async () => {
+      const config = vscode.workspace.getConfiguration("diffEditor");
+      const sideBySide = config.get<boolean>("renderSideBySide", true);
+      await config.update(
+        "renderSideBySide",
+        !sideBySide,
+        vscode.ConfigurationTarget.Global,
+      );
+    }),
   );
 }

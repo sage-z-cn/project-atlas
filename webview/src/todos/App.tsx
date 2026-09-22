@@ -10,7 +10,7 @@ import IconTrash from "~icons/codicon/trash";
 import IconCopy from "~icons/codicon/copy";
 import IconEdit from "~icons/codicon/edit";
 import IconCheck from "~icons/codicon/check";
-import IconGoToFile from "~icons/codicon/go-to-file";
+import IconLocation from "~icons/codicon/location";
 import IconLoading from "~icons/codicon/loading";
 import "./todos.css";
 
@@ -727,8 +727,8 @@ function TodoContextMenu({
       ? [
           {
             key: "jump",
-            label: t("Jump to Source"),
-            icon: IconGoToFile,
+            label: t("Locate Current File"),
+            icon: IconLocation,
             onSelect: () => void store.jumpTo(item.id),
           },
           { key: "sep1", separator: true },

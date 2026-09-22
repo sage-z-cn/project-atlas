@@ -211,7 +211,7 @@
       {
         "command": "project-atlas.revealActiveFile",
         "title": "%command.revealActiveFile%",
-        "icon": "$(go-to-file)"
+        "icon": "$(location)"
       },
       {
         "command": "project-atlas.addFavorite",
@@ -340,6 +340,11 @@
         "command": "git-atlas.editSource",
         "title": "%command.git-atlas.editSource%",
         "icon": "$(go-to-file)"
+      },
+      {
+        "command": "git-atlas.toggleDiffView",
+        "title": "%command.git-atlas.toggleDiffView%",
+        "icon": "$(mirror)"
       },
       {
         "command": "git-atlas.setAiApiKey",
@@ -728,6 +733,11 @@
           "command": "git-atlas.editSource",
           "when": "isInDiffEditor && resourceScheme == 'git-atlas'",
           "group": "navigation"
+        },
+        {
+          "command": "git-atlas.toggleDiffView",
+          "when": "isInDiffEditor",
+          "group": "navigation@1"
         },
         {
           "command": "project-atlas.revealActiveFile",

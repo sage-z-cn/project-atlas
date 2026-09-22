@@ -4,6 +4,7 @@ import { bridge, bridgeWithProgress } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
 import { usePanelStore } from "../../shared/store/panel-store";
 import type { DiffFile } from "../../shared/types/git";
+import LocationIcon from "~icons/codicon/location";
 
 // Inline SVG icons for menu items (IntelliJ IDEA style)
 function IconDiff() {
@@ -26,24 +27,6 @@ function IconDiff() {
         clipRule="evenodd"
         d="M10.1464 1.14645C10.3417 0.951185 10.6583 0.951185 10.8536 1.14645C11.0488 1.34171 11.0488 1.65829 10.8536 1.85355L8.70711 4H15.5C15.7761 4 16 4.22386 16 4.5C16 4.77614 15.7761 5 15.5 5H8.70711L10.8536 7.14645C11.0488 7.34171 11.0488 7.65829 10.8536 7.85355C10.6583 8.04882 10.3417 8.04882 10.1464 7.85355L7.14645 4.85355L6.79289 4.5L7.14645 4.14645L10.1464 1.14645Z"
         fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function IconEdit() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M11.5973 7.65471L13.6882 5.56049C14.1053 5.15406 14.1003 4.49602 13.6948 4.08627L12.0267 2.3136L12.0224 2.30932C11.6123 1.90004 10.942 1.89327 10.5331 2.31079L8.3867 4.44406M11.5973 7.65471L8.3867 4.44406M11.5973 7.65471L5.74041 13.5H2.50036L2.5 10.32L8.3867 4.44406"
-        stroke="currentColor"
-        strokeMiterlimit="10"
       />
     </svg>
   );
@@ -309,7 +292,7 @@ export function FileContextMenu({ x, y, file, onClose }: FileContextMenuProps) {
   }[] = [
     { label: t("Show Diff"), action: handleShowDiff, icon: <IconDiff /> },
     { label: "", action: () => {}, separator: true },
-    { label: t("Edit Source"), action: handleEditSource, icon: <IconEdit /> },
+    { label: t("Locate Current File"), action: handleEditSource, icon: <LocationIcon width={16} height={16} /> },
     { label: t("Open Repository Version"), action: handleOpenRepoVersion },
     { label: "", action: () => {}, separator: true },
     {

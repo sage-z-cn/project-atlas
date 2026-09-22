@@ -4,7 +4,7 @@ import { useCommitStore } from "../../shared/store/commit-store";
 import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
 import { getCommitFileIcon } from "../utils/file-icon";
-import GoToFileIcon from "~icons/codicon/go-to-file";
+import LocationIcon from "~icons/codicon/location";
 import AddIcon from "~icons/codicon/add";
 import RemoveIcon from "~icons/codicon/remove";
 import DiscardIcon from "~icons/codicon/discard";
@@ -113,13 +113,13 @@ export function VscodeFileItem({
         <button
           type="button"
           className="vscode-file-action-btn"
-          title={t("Open File and Reveal in Explorer")}
+          title={t("Locate Current File")}
           onClick={(e) => {
             e.stopPropagation();
             bridge.request("openFile", { filePath: file.path });
           }}
         >
-          <GoToFileIcon />
+          <LocationIcon />
         </button>
 
         {/* Open diff (merge only) */}
