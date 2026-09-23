@@ -191,12 +191,19 @@ export function Toolbar({
 
       <div className="commit-toolbar-separator" />
       {/* Stash: 全量入口（vscode 列表风格下弹窗内可选范围，见 StashPromptModal）。 */}
+      {/* jetbrains 风格无范围选择、直接全量贮藏，存在冲突文件时必然
+          needs merge 失败，提前禁用；vscode 风格入口有范围选择弹窗
+          （All 在有冲突时禁用），保持可用。 */}
       <Tooltip text={t("Stash Changes...")}>
         <button
           type="button"
           className="commit-toolbar-btn"
           onClick={() => void promptAndStash(undefined)}
-          disabled={!hasChanges}
+          disabled={
+            !hasChanges ||
+            (commitListStyle === "jetbrains" &&
+              changes.some((f) => f.status === "conflicted"))
+          }
         >
           <StashIcon />
         </button>

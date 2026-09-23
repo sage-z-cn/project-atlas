@@ -317,15 +317,18 @@ export function CommitFileContextMenu({
 
       <div className="commit-context-menu-separator" />
 
-      {/* Stash */}
-      <button
-        type="button"
-        className="commit-context-menu-item"
-        onClick={handleStash}
-      >
-        <StashIcon />
-        <span>{t("Stash Changes...")}</span>
-      </button>
+      {/* Stash：conflicted 文件不渲染该项（与 vscode 风格 VscodeFileContextMenu
+          行为对齐；多选混入冲突路径的场景由 promptAndStash 入口过滤兜底）。 */}
+      {file.status !== "conflicted" && (
+        <button
+          type="button"
+          className="commit-context-menu-item"
+          onClick={handleStash}
+        >
+          <StashIcon />
+          <span>{t("Stash Changes...")}</span>
+        </button>
+      )}
 
       {isUntracked && (
         <button

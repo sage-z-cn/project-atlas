@@ -20,10 +20,13 @@ export type { StashEntry };
  * paths：确认时最终结算的贮藏范围 —— null = 全量（对应 stashChanges 的
  * filePaths=undefined 分支，绝不可传 []）；string[] = 具体文件（右键入口
  * 的快照，或 vscode 风格工具栏弹窗内范围选择过滤出的 paths）。
+ * stagedOnly：弹窗确认时所选范围为「暂存的更改」（后端 --staged 专用
+ * 命令分支）；其余范围恒 false（按路径全量贮藏）。
  */
 export interface StashPromptResult {
   message: string | undefined;
   paths: string[] | null;
+  stagedOnly: boolean;
 }
 
 export interface WorkingTreeFile {
@@ -240,7 +243,11 @@ interface CommitStore {
   showDiff: (
     file: Pick<WorkingTreeFile, "path" | "staged" | "status" | "oldPath">,
   ) => Promise<void>;
-  stashChanges: (message?: string, filePaths?: string[]) => Promise<void>;
+  stashChanges: (
+    message?: string,
+    filePaths?: string[],
+    stagedOnly?: boolean,
+  ) => Promise<void>;
   /**
    * 弹出 webview 内的 stash 消息弹窗并等待用户操作（替代原生
    * showInputBox）。paths 语义：string[] = 选中文件贮藏；null = 全量
@@ -257,10 +264,15 @@ interface CommitStore {
   ) => Promise<StashPromptResult | null>;
   /**
    * 关闭弹窗并 settle 挂起的 openStashPrompt。仅由 StashPromptModal 调用。
-   * result === null = 取消（paths 忽略）；否则 paths 为最终结算的贮藏
-   * 范围（null = 全量），随消息一并写入 StashPromptResult。
+   * result === null = 取消（paths/stagedOnly 忽略）；否则 paths 为最终结算
+   * 的贮藏范围（null = 全量），stagedOnly 表示所选范围为「暂存的更改」，
+   * 随消息一并写入 StashPromptResult。
    */
-  resolveStashPrompt: (result: string | null, paths?: string[] | null) => void;
+  resolveStashPrompt: (
+    result: string | null,
+    paths?: string[] | null,
+    stagedOnly?: boolean,
+  ) => void;
   /** stashRef 必须传 StashEntry.sha（完整 stash 提交 SHA），不是 stash@{n}。 */
   unstashChanges: (stashRef: string, drop?: boolean) => Promise<void>;
   deleteStash: (stashRef: string) => Promise<void>;
@@ -954,7 +966,11 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     }
   },
 
-  async stashChanges(message?: string, filePaths?: string[]) {
+  async stashChanges(
+    message?: string,
+    filePaths?: string[],
+    stagedOnly?: boolean,
+  ) {
     try {
       set({ loading: true });
       await bridge.request("stashChanges", {
@@ -962,6 +978,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         // 不再把本地化默认文案写进 stash message。
         message: message?.trim() || undefined,
         filePaths,
+        stagedOnly,
         repoPath: get().currentRepoPath,
       } satisfies StashChangesParams);
       await get().fetchChanges();
@@ -983,16 +1000,21 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     });
   },
 
-  resolveStashPrompt(result, paths) {
+  resolveStashPrompt(result, paths, stagedOnly) {
     const resolve = stashPromptResolver;
     stashPromptResolver = null;
     set({ stashPrompt: { open: false, paths: [] } });
-    // 取消 = null（paths 忽略）；确认 = 消息（空白归一 undefined，extension
-    // 侧兜底英文 "Stashed changes"）+ 最终结算的 paths（缺省归一 null 全量）。
+    // 取消 = null（paths/stagedOnly 忽略）；确认 = 消息（空白归一
+    // undefined，extension 侧兜底英文 "Stashed changes"）+ 最终结算的
+    // paths（缺省归一 null 全量）+ stagedOnly（缺省归一 false）。
     resolve?.(
       result === null
         ? null
-        : { message: result.trim() || undefined, paths: paths ?? null },
+        : {
+            message: result.trim() || undefined,
+            paths: paths ?? null,
+            stagedOnly: stagedOnly ?? false,
+          },
     );
   },
 
@@ -1019,6 +1041,10 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await get().fetchStashes();
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });
+      // apply/pop 冲突失败时 git 已改写工作区（部分文件可能已恢复），
+      // 必须刷新两个列表，否则 Changes 显示的是失败前的假状态。
+      void get().fetchChanges();
+      void get().fetchStashes();
     } finally {
       set({ stashLoading: false });
     }
@@ -1062,6 +1088,8 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await get().fetchStashes();
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });
+      // 批量删除部分失败时已执行部分不回滚，refetch 让列表对齐真实栈状态。
+      void get().fetchStashes();
     } finally {
       set({ stashLoading: false });
     }

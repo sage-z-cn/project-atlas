@@ -44,7 +44,8 @@ export function registerStashHandlers(ctx: GitHandlerContext): void {
     requireGitOrThrow(ctx, async (gitService, params) => {
       const message = params.message as string | undefined;
       const filePaths = params.filePaths as string[] | undefined;
-      await gitService.stashChanges(message ?? "", filePaths);
+      const stagedOnly = (params.stagedOnly as boolean | undefined) ?? false;
+      await gitService.stashChanges(message ?? "", filePaths, stagedOnly);
       // 与 unstashChanges 对齐：stash 同时改变工作区与 stash 栈，
       // 除 commit 面板外也要让日志/状态视图刷新。
       messageRouter.broadcastEvent("commitStateChanged", {});
@@ -89,6 +90,8 @@ export function registerStashHandlers(ctx: GitHandlerContext): void {
 
   // Batch drop. Webview already confirmed via DeleteStashesModal — no second
   // native prompt here. SHA 寻址稳定，顺序 drop 不受 stash@{n} 重排影响。
+  // 逐条 try/catch 聚合：单条失败不中断批次，结束后统一报错；broadcast
+  // 放在 throw 之前，保证部分删除也触发列表刷新。
   messageRouter.handle(
     "deleteStashes",
     requireGitOrThrow(ctx, async (gitService, params) => {
@@ -96,10 +99,20 @@ export function registerStashHandlers(ctx: GitHandlerContext): void {
       if (!Array.isArray(stashRefs) || stashRefs.length === 0) {
         return { success: false };
       }
+      const failures: string[] = [];
       for (const stashRef of stashRefs) {
-        await gitService.deleteStash(stashRef);
+        try {
+          await gitService.deleteStash(stashRef);
+        } catch {
+          failures.push(stashRef);
+        }
       }
       messageRouter.broadcastEvent("commitStateChanged", {});
+      if (failures.length > 0) {
+        throw new Error(
+          vscode.l10n.t("Failed to delete {0} stash entries.", failures.length),
+        );
+      }
       return { success: true };
     }),
   );

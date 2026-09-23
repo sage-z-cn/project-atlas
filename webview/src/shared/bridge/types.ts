@@ -168,6 +168,8 @@ export type StashChangesParams = {
   /** Undefined/empty → host falls back to English "Stashed changes". */
   message?: string;
   filePaths?: string[];
+  /** true = 仅贮藏已暂存内容（后端专用 --staged 命令分支）。 */
+  stagedOnly?: boolean;
   repoPath: string | null;
 };
 

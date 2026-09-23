@@ -1484,6 +1484,9 @@ export class GitService {
       // dropCommit 流程。
       const refForm = await this.resolveStashRefForm(ref);
       await this.execGit(["stash", "pop", refForm]);
+      // pop 成功后失效状态缓存：autostash pop 只改工作区/index、refs
+      // 未动，index 层失效即可。
+      this.invalidateStatusCache();
     } catch (err: unknown) {
       const detail = err instanceof Error ? err.message : String(err);
       logger.warn(
@@ -2074,23 +2077,42 @@ export class GitService {
             .split("\n")
             .filter(Boolean)
             .map(unquoteGitPath);
-        } catch {
-          try {
-            const filesOutput = await this.execGit([
-              "stash",
-              "show",
-              entry.sha,
-              "--name-only",
-            ]);
-            entry.files = filesOutput
-              .trim()
-              .split("\n")
-              .filter(Boolean)
-              .map(unquoteGitPath);
           } catch {
-            // 单个 stash 的 file list 解析失败，忽略，files 保持为 []
+            try {
+              const filesOutput = await this.execGit([
+                "stash",
+                "show",
+                entry.sha,
+                "--name-only",
+              ]);
+              entry.files = filesOutput
+                .trim()
+                .split("\n")
+                .filter(Boolean)
+                .map(unquoteGitPath);
+              // 旧 git 的 show 不含未跟踪文件：纯 untracked 贮藏 files 会
+              // 为空、导致无法单文件恢复。用第三父提交（^3）兜底补齐；
+              // 贮藏无 ^3 时 ls-tree 抛错，静默忽略。
+              try {
+                const untrackedOutput = await this.execGit([
+                  "ls-tree",
+                  "-r",
+                  "--name-only",
+                  `${entry.sha}^3`,
+                ]);
+                const untracked = untrackedOutput
+                  .trim()
+                  .split("\n")
+                  .filter(Boolean)
+                  .map(unquoteGitPath);
+                entry.files = [...new Set([...entry.files, ...untracked])];
+              } catch {
+                // 无 ^3 父提交（贮藏未包含未跟踪文件），忽略
+              }
+            } catch {
+              // 单个 stash 的 file list 解析失败，忽略，files 保持为 []
+            }
           }
-        }
       }),
     );
 
@@ -2098,16 +2120,51 @@ export class GitService {
     return entries;
   }
 
-  async stashChanges(message: string, filePaths?: string[]): Promise<void> {
+  /**
+   * 贮藏改动。filePaths 为 undefined 时全量贮藏（含未跟踪文件）；指定
+   * 路径列表时按路径贮藏全部改动；stagedOnly 为 true 时仅贮藏指定路径中
+   * 已暂存的部分（需 git 2.35+ 的 --staged，旧版 git 明确报错而非降级）。
+   */
+  async stashChanges(
+    message: string,
+    filePaths?: string[],
+    stagedOnly = false,
+  ): Promise<void> {
     // 空数组防护：显式传入空列表视为误用，直接 no-op 返回。
-    // 全量贮藏必须显式传 undefined（不传 filePaths），避免调用侧
-    // 语义混淆 —— 空列表 ≠ 全量。
     // 全量贮藏必须显式传 undefined（不传 filePaths），避免调用侧
     // 语义混淆 —— 空列表 ≠ 全量。
     if (filePaths && filePaths.length === 0) {
       return;
     }
-    if (filePaths && filePaths.length > 0) {
+    if (stagedOnly && filePaths && filePaths.length > 0) {
+      // 仅贮藏指定路径的已暂存部分：--staged 创建的 stash 只含 index 改动。
+      // 旧 git（<2.35）不识别 --staged（报 unknown option）—— 不降级重试：
+      // 按路径全量贮藏会静默收走未暂存改动、违背「仅暂存」的范围承诺，
+      // 明确报错让用户升级 git 或改选范围。其余失败（needs merge、
+      // index.lock 竞争等）原样冒泡。execGit 固定 LC_ALL=C，错误文案可
+      // 稳定匹配。
+      try {
+        await this.execGit([
+          "stash",
+          "push",
+          "--staged",
+          "-m",
+          message || "Stashed changes",
+          "--",
+          ...filePaths,
+        ]);
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        if (/unknown option/i.test(detail)) {
+          throw new Error(
+            vscode.l10n.t(
+              "Stashing only staged changes requires Git 2.35 or newer. Please upgrade Git or choose a different stash scope.",
+            ),
+          );
+        }
+        throw err;
+      }
+    } else if (filePaths && filePaths.length > 0) {
       // git 2.13+ 原生支持 `git stash push -- <pathspec>`，一步完成对指定文件的
       // stash（同时包含 index 与 working tree 的改动，--include-untracked 也覆盖
       // 未跟踪文件）。相比旧实现（reset HEAD → add targets → stash --staged →
@@ -2148,19 +2205,26 @@ export class GitService {
   }
 
   async unstashChanges(stashRef: string, drop = true): Promise<void> {
-    if (drop) {
-      // pop 只接受 stash@{n} 引用形式（裸 SHA 报 not a stash reference），
-      // 执行瞬间由 SHA 解析出引用形式。条目已不在栈中时解析抛错冒泡。
-      await this.execGit([
-        "stash",
-        "pop",
-        await this.resolveStashRefForm(stashRef),
-      ]);
-    } else {
-      // apply 接受裸 SHA，且 SHA 寻址不受栈序漂移影响，直接使用更稳。
+    try {
+      // apply 用完整 SHA 寻址，不受 stash@{n} 栈重排影响；pop 拆为
+      // apply+drop，把 TOCTOU 窗口收窄到 apply 与 drop 之间且方向安全
+      //（中断最多多保留一条条目，不会弹出错误条目）。apply 冲突时 git
+      // 已改写工作区后抛错、不会 drop —— 与 pop 语义一致。
       await this.execGit(["stash", "apply", stashRef]);
+      if (drop) {
+        // drop 只接受 stash@{n} 引用形式，执行前由 SHA 重新解析
+        //（条目已不在栈中则抛错冒泡）。
+        await this.execGit([
+          "stash",
+          "drop",
+          await this.resolveStashRefForm(stashRef),
+        ]);
+      }
+    } finally {
+      // apply 冲突时 git 已把冲突标记写入工作区但命令以非零退出 —— 必须
+      // 失效缓存，否则状态/贮藏缓存停留在旧数据。
+      this.invalidateCache();
     }
-    this.invalidateCache();
   }
 
   async deleteStash(stashRef: string): Promise<void> {

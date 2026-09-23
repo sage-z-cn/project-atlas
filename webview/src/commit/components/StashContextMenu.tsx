@@ -88,7 +88,7 @@ export function StashContextMenu({
         disabled={stashLoading}
       >
         <UnstashIcon />
-        <span>{t("Unstash...")}</span>
+        <span>{t("Unstash")}</span>
       </button>
 
       <div className="commit-context-menu-separator" />

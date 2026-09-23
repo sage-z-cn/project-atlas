@@ -304,7 +304,9 @@ function StashItem({
           aria-label={entry.message || t("Changes")}
         />
         <span className="stash-item-title">{entry.message || t("Changes")}</span>
+        {/* 元信息一行内小字：branch（贮藏时所在分支，非空时）+ 文件数 + 相对时间。 */}
         <span className="stash-item-info">
+          {entry.branch ? `${entry.branch}, ` : ""}
           {t("{0} file(s)", entry.files.length)},{" "}
           {dateStr}
         </span>
