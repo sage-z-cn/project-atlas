@@ -31,7 +31,7 @@ export function MessageBanner() {
 
 /**
  * 工具栏下方的远程操作反馈 banner：
- * - remoteError：远程操作（如 pull）失败的 git 错误。
+ * - remoteError：远程操作（pull / push）失败的 git 错误。
  * 推送成功反馈已改为仓库 chip 短暂打勾（见 commit-store 的
  * showRepoSuccessFlash），不再走此处。
  */

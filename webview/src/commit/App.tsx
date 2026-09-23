@@ -89,9 +89,7 @@ function RebaseBanner() {
         await bridge.request("rebaseAction", { action });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        bridge
-          .request("showErrorNotification", { message: msg })
-          .catch(() => {});
+        useCommitStore.getState().setCommitError(msg);
       } finally {
         setLoading(false);
         fetchState();
@@ -245,9 +243,7 @@ function CherryPickBanner() {
         await bridge.request("cherryPickAction", { action });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        bridge
-          .request("showErrorNotification", { message: msg })
-          .catch(() => {});
+        useCommitStore.getState().setCommitError(msg);
       } finally {
         setLoading(false);
         fetchState();
@@ -421,7 +417,7 @@ function MergeBanner() {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      bridge.request("showErrorNotification", { message: msg }).catch(() => {});
+      useCommitStore.getState().setCommitError(msg);
     } finally {
       setLoading(false);
       fetchState();
@@ -434,7 +430,7 @@ function MergeBanner() {
       await bridge.request("mergeAction", { action: "abort" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      bridge.request("showErrorNotification", { message: msg }).catch(() => {});
+      useCommitStore.getState().setCommitError(msg);
     } finally {
       setLoading(false);
       fetchState();

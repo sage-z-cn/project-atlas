@@ -43,12 +43,15 @@ export function Toolbar({
 
   // skipPushConfirmation=true 时工具栏「推送」直接推当前分支，不打开确认面板；
   // 被拒则由后端打开 PushPanel 承载 rebase/merge。false 时保持原确认面板流程。
+  // 错误一律走 remoteError 内联展示（RemoteBanner），不弹 VSCode 通知。
   const handlePush = useCallback(async () => {
     if (pushing) return;
     if (!skipPushConfirmation) {
       await bridge.request("openPushPanel");
       return;
     }
+    const { setRemoteError, showRepoSuccessFlash } = useCommitStore.getState();
+    setRemoteError(null);
     setPushing(true);
     try {
       const result = (await bridge.request(
@@ -64,27 +67,23 @@ export function Toolbar({
         data?: { isUpToDate?: boolean; branch?: string; remote?: string };
       };
       if (result?.error) {
-        bridge
-          .request("showErrorNotification", { message: result.error })
-          .catch(() => {});
+        setRemoteError(result.error);
         return;
       }
       if (result?.pushed) {
         // 成功反馈：在对应仓库 chip 的 ahead/behind 位短暂打勾（约 3s），
         // 期间隐藏 ahead/behind；不再走顶部 MessageBanner。
-        useCommitStore.getState().showRepoSuccessFlash();
+        showRepoSuccessFlash();
         return;
       }
       // rejected：后端已打开 PushPanel 展示 rebase/merge，无需再提示。
       if (result?.rejected) return;
       if (result?.pushError) {
-        bridge
-          .request("showErrorNotification", { message: result.pushError })
-          .catch(() => {});
+        setRemoteError(result.pushError);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      bridge.request("showErrorNotification", { message: msg }).catch(() => {});
+      setRemoteError(msg);
     } finally {
       setPushing(false);
     }

@@ -935,9 +935,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         await bridge.request("openConflictsPanel");
       } catch (err) {
         console.error("openConflictsPanel failed:", err);
-        void bridge.request("showErrorNotification", {
-          message: err instanceof Error ? err.message : String(err),
-        });
+        set({ commitError: err instanceof Error ? err.message : String(err) });
       }
       return;
     }
@@ -954,15 +952,11 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       );
       // requireGit returns this as success:true data — must check explicitly.
       if (result?.status === "not_git_repo") {
-        void bridge.request("showErrorNotification", {
-          message: t("No active repository."),
-        });
+        set({ commitError: t("No active repository.") });
       }
     } catch (err) {
       console.error("showDiff failed:", err);
-      void bridge.request("showErrorNotification", {
-        message: err instanceof Error ? err.message : String(err),
-      });
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -1240,9 +1234,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       if (get().commitEpoch !== startEpoch) return;
 
       if (result?.status === "not_git_repo") {
-        bridge.request("showErrorNotification", {
-          message: t("No active repository."),
-        }).catch(() => {});
+        set({ commitError: t("No active repository.") });
         return;
       }
 

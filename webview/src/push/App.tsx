@@ -206,13 +206,9 @@ export function PushApp() {
           msg.includes("failed to push some refs")
         ) {
           setPushRejected({ show: true, branchName });
-          setError(msg);
-        } else {
-          setError(msg);
-          bridge
-            .request("showErrorNotification", { message: msg })
-            .catch(() => {});
         }
+        // 错误一律内联展示，不弹 VSCode 通知。
+        setError(msg);
       }
     },
     [branchName, targetRemote, targetBranch, commits.length, pushTags],
@@ -241,8 +237,8 @@ export function PushApp() {
     } catch (err) {
       setPushing(false);
       const msg = err instanceof Error ? err.message : String(err);
+      // 错误一律内联展示，不弹 VSCode 通知。
       setError(msg);
-      bridge.request("showErrorNotification", { message: msg }).catch(() => {});
     }
   }, [branchName, targetRemote, targetBranch, pushTags]);
 
@@ -269,8 +265,8 @@ export function PushApp() {
     } catch (err) {
       setPushing(false);
       const msg = err instanceof Error ? err.message : String(err);
+      // 错误一律内联展示，不弹 VSCode 通知。
       setError(msg);
-      bridge.request("showErrorNotification", { message: msg }).catch(() => {});
     }
   }, [branchName, targetRemote, targetBranch, pushTags]);
 
@@ -476,9 +472,23 @@ export function PushApp() {
         </div>
       </div>
 
+      {/* 内联错误：长 git 错误（如 502/无法访问 remote）完整可读，可关闭 */}
+      {error && (
+        <div className="push-error-banner" role="alert">
+          <span className="push-error-banner-text">{error}</span>
+          <button
+            type="button"
+            className="push-error-banner-close"
+            aria-label={t("Dismiss")}
+            onClick={() => setError(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="push-footer">
-        {error && <span className="push-error">{error}</span>}
         <span style={{ flex: 1 }} />
         <label
           style={{
