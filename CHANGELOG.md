@@ -4,6 +4,20 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.32.0
+**新功能**
+- **Commit**: 无 remote 时隐藏推送相关按钮而非禁用
+- **Stash**: 支持仅贮藏已暂存的更改，并完善批量删除失败处理
+- **Git**: 新增切换差异视图命令，并将“定位当前文件”命令重命名
+
+**Bug 修复**
+- **Diff**: 修复重命名文件与 stash ref 的差异对比问题
+
+**改进**
+- **Git**: 优化仓库状态徽章拉取与最新 tag 查询的性能
+- **Favorites**: 对齐文件夹与项目行的等高布局
+- **Webview**: 错误反馈统一改为内联展示，移除 VSCode 通知
+
 #### 1.31.0
 **新功能**
 - **编辑器**: 在标题栏新增定位当前文件的入口，并修复命令参数处理
