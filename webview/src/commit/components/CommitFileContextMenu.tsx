@@ -101,7 +101,7 @@ export function CommitFileContextMenu({
   };
 
   const handleShowDiff = useCallback(() => {
-    showDiff(file.path, file.staged);
+    showDiff(file);
     onClose();
   }, [file, showDiff, onClose]);
 
@@ -223,14 +223,14 @@ export function CommitFileContextMenu({
 
   return (
     <div className="commit-context-menu" ref={menuRef} style={style}>
-      {/* Show Diff */}
+      {/* Open Changes */}
       <button
         type="button"
         className="commit-context-menu-item"
         onClick={handleShowDiff}
       >
         <DiffIcon />
-        <span>{t("Show Diff")}</span>
+        <span>{t("Open Changes")}</span>
         <span className="commit-context-menu-shortcut">⌘D</span>
       </button>
 

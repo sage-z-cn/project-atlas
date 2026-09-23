@@ -185,7 +185,9 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
       if (!ctx.workspaceRoot) return NOT_GIT_REPO;
       void gitService; // gitService presence is the guard; no further use
       const filePath = params.filePath as string;
+      const oldPath = (params.oldPath as string | undefined) || filePath;
       const staged = params.staged as boolean | undefined;
+      const status = params.status as string | undefined;
 
       // Multi-repo: resolve the owning repo root for the working-tree file URI.
       const repoRoot =
@@ -208,21 +210,24 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
       const repoQuery = `&repo=${encodeURIComponent(repoRoot)}`;
       const fileName = filePath.split(/[/\\]/).pop() ?? filePath;
       // path 逐段百分号编码，与 GitContentProvider 的 decode 对称。
-      const encodedPath = encodeGitAtlasPath(filePath);
-      const indexUri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${encodedPath}?ref=:0${repoQuery}`,
-      );
-      const headUri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${encodedPath}?ref=HEAD${repoQuery}`,
-      );
+      // 重命名文件左侧必须用 oldPath：`git show HEAD:newPath` 会失败，
+      // 两侧都用新路径会把 rename 塌成「纯新增」。
+      const encodedNewPath = encodeGitAtlasPath(filePath);
+      const encodedOldPath = encodeGitAtlasPath(oldPath);
 
       if (staged) {
-        // HEAD ↔ Staged (index)
+        // HEAD (oldPath) ↔ Staged/index (newPath)
+        const leftUri = vscode.Uri.parse(
+          `${GIT_ATLAS_SCHEME}:/${encodedOldPath}?ref=HEAD${repoQuery}`,
+        );
+        const rightUri = vscode.Uri.parse(
+          `${GIT_ATLAS_SCHEME}:/${encodedNewPath}?ref=:0${repoQuery}`,
+        );
         await vscode.commands.executeCommand(
           "vscode.diff",
-          headUri,
-          indexUri,
-          `${fileName} (HEAD ↔ Staged)`,
+          leftUri,
+          rightUri,
+          vscode.l10n.t("{0} (HEAD ↔ Staged)", fileName),
         );
       } else {
         // Staged (index) ↔ Working Tree
@@ -230,16 +235,25 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
         // make VSCode fail with a "File not found" read error. Fall back to a
         // virtual empty document (?ref=empty) as the right side, mirroring how
         // the commit-history diff path renders deletions.
+        const leftUri = vscode.Uri.parse(
+          `${GIT_ATLAS_SCHEME}:/${encodedNewPath}?ref=:0${repoQuery}`,
+        );
         const rightUri = fs.existsSync(worktreeUri.fsPath)
           ? worktreeUri
           : vscode.Uri.parse(
-              `${GIT_ATLAS_SCHEME}:/${encodedPath}?ref=empty${repoQuery}`,
+              `${GIT_ATLAS_SCHEME}:/${encodedNewPath}?ref=empty${repoQuery}`,
             );
+        const title =
+          status === "untracked"
+            ? vscode.l10n.t("{0} (Working Tree)", fileName)
+            : status === "deleted"
+              ? vscode.l10n.t("{0} (Deleted)", fileName)
+              : vscode.l10n.t("{0} (Staged ↔ Working Tree)", fileName);
         await vscode.commands.executeCommand(
           "vscode.diff",
-          indexUri,
+          leftUri,
           rightUri,
-          `${fileName} (Staged ↔ Working Tree)`,
+          title,
         );
       }
       return { success: true };
@@ -252,8 +266,9 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
       const filePath = params.filePath as string;
       const ref = params.ref as string;
       const repoQuery = `&repo=${encodeURIComponent(gitService.cwd)}`;
+      // ref 可能是 SHA、stash@{n} 或带 ^/~ 的修订，必须编码后再进 query。
       const uri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${encodeGitAtlasPath(filePath)}?ref=${ref}${repoQuery}`,
+        `${GIT_ATLAS_SCHEME}:/${encodeGitAtlasPath(filePath)}?ref=${encodeURIComponent(ref)}${repoQuery}`,
       );
       await vscode.window.showTextDocument(uri, { preview: true });
       return { success: true };

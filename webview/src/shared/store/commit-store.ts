@@ -232,7 +232,14 @@ interface CommitStore {
   commit: () => Promise<boolean>;
   commitAndPush: () => Promise<boolean>;
   rollbackFile: (filePath: string, staged: boolean) => Promise<void>;
-  showDiff: (filePath: string, staged?: boolean) => Promise<void>;
+  /**
+   * Open the working-tree diff for a change-list entry.
+   * Conflicted files are routed to the conflicts panel — a two-side diff is
+   * wrong there (index is unmerged, so `:0` reads empty).
+   */
+  showDiff: (
+    file: Pick<WorkingTreeFile, "path" | "staged" | "status" | "oldPath">,
+  ) => Promise<void>;
   stashChanges: (message?: string, filePaths?: string[]) => Promise<void>;
   /**
    * 弹出 webview 内的 stash 消息弹窗并等待用户操作（替代原生
@@ -899,15 +906,45 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     }
   },
 
-  async showDiff(filePath: string, staged?: boolean) {
+  async showDiff(
+    file: Pick<WorkingTreeFile, "path" | "staged" | "status" | "oldPath">,
+  ) {
+    // Conflicted paths are unmerged in the index (`git show :0:path` fails),
+    // so a HEAD/index ↔ worktree diff collapses to empty vs conflict markers.
+    // Route to the conflicts panel instead — same as the context-menu action.
+    if (file.status === "conflicted") {
+      try {
+        await bridge.request("openConflictsPanel");
+      } catch (err) {
+        console.error("openConflictsPanel failed:", err);
+        void bridge.request("showErrorNotification", {
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
     try {
-      await bridge.request("showDiffForWorkingFile", {
-        filePath,
-        staged,
-        repoPath: get().currentRepoPath,
-      });
+      const result = await bridge.request<{ status?: string }>(
+        "showDiffForWorkingFile",
+        {
+          filePath: file.path,
+          oldPath: file.oldPath,
+          staged: file.staged,
+          status: file.status,
+          repoPath: get().currentRepoPath,
+        },
+      );
+      // requireGit returns this as success:true data — must check explicitly.
+      if (result?.status === "not_git_repo") {
+        void bridge.request("showErrorNotification", {
+          message: t("No active repository."),
+        });
+      }
     } catch (err) {
       console.error("showDiff failed:", err);
+      void bridge.request("showErrorNotification", {
+        message: err instanceof Error ? err.message : String(err),
+      });
     }
   },
 

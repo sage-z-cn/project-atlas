@@ -518,15 +518,20 @@ export class GitService {
   }
 
   async getFileContent(ref: string, filePath: string): Promise<string> {
-    if (!ref) {
+    // "empty" is a URI sentinel for "no content" (deleted / added side), not a
+    // real git ref. A branch named `empty` must not leak into these diffs.
+    if (!ref || ref === "empty") {
       return "";
     }
     try {
       return await this.execGit(["show", `${ref}:${filePath}`]);
     } catch {
       // stash 提交的第三个父提交（^3，仅 -u 贮藏时存在）存放未跟踪文件。
-      // ref 为 stash SHA 时 `<sha>:<path>` 解析不到未跟踪文件，先从 ^3
-      // 读取；仍失败才走原失败路径（返回空串）。
+      // 仅对 commit 形态的 ref（对象名 / stash 引用）回退；index stage
+      // （:0/:1/…）与 HEAD 等符号引用走 ^3 无意义且可能读到错误内容。
+      if (!canHaveStashUntrackedParent(ref)) {
+        return "";
+      }
       try {
         return await this.execGit(["show", `${ref}^3:${filePath}`]);
       } catch {
@@ -536,7 +541,7 @@ export class GitService {
   }
 
   async getFileContentBuffer(ref: string, filePath: string): Promise<Buffer> {
-    if (!ref) {
+    if (!ref || ref === "empty") {
       return Buffer.alloc(0);
     }
     try {
@@ -557,7 +562,10 @@ export class GitService {
       return stdout;
     } catch {
       // 与 getFileContent 对称：二进制未跟踪文件（如图片）也存放在 stash 的
-      // ^3 父提交中，读取失败时先回退到 `${ref}^3:<path>`。
+      // ^3 父提交中。同样仅对 commit 形态 ref 回退。
+      if (!canHaveStashUntrackedParent(ref)) {
+        return Buffer.alloc(0);
+      }
       try {
         const { stdout } = await execFileAsync(
           "git",
@@ -2286,6 +2294,20 @@ function unquoteGitPath(raw: string): string {
   }
   flushBytes();
   return result;
+}
+
+/**
+ * Whether `ref` can address a stash's `^3` untracked-file parent.
+ * Accepts hex object names (7-64 chars, covering SHA-256 repos) and
+ * stash refs (`stash`, `stash@{0}`, …). Index stages (`:0`…), `HEAD`,
+ * and the `empty` sentinel never match; a branch name starting with
+ * "stash" also matches, costing only one failed `git show`.
+ */
+function canHaveStashUntrackedParent(ref: string): boolean {
+  if (ref.startsWith("stash")) {
+    return true;
+  }
+  return /^[0-9a-f]{7,64}$/i.test(ref);
 }
 
 function parseLogOutput(output: string): CommitNode[] {

@@ -12,6 +12,7 @@ vite.config.ts
 **/.vscode-test.*
 
 .docs/**
+docs/**
 .sisyphus/**
 screenshot/**
 AGENTS.md

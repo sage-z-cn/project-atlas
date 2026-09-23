@@ -162,7 +162,7 @@ export function VscodeFileGroup({
                   highlighted={highlightedFiles.has(key)}
                   onContextMenu={(e) => onContextMenu(e, file)}
                   onShowDiff={() =>
-                    useCommitStore.getState().showDiff(file.path, file.staged)
+                    useCommitStore.getState().showDiff(file)
                   }
                   onClick={(e) => {
                     const mode =
@@ -327,7 +327,7 @@ function VscodeDirNodeView({
               highlighted={highlightedFiles.has(key)}
               onContextMenu={(e) => onContextMenu(e, file)}
               onShowDiff={() =>
-                useCommitStore.getState().showDiff(file.path, file.staged)
+                useCommitStore.getState().showDiff(file)
               }
               onClick={(e) => {
                 const mode = e.metaKey || e.ctrlKey ? "toggle" : "single";

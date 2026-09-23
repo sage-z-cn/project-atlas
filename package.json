@@ -571,7 +571,7 @@
         },
         {
           "command": "task-atlas.refreshTasks",
-          "when": "view == task-atlas.tasks",
+          "when": "view == task-atlas.pinned || view == task-atlas.recent || view == task-atlas.tasks",
           "group": "navigation@1"
         },
         {

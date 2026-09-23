@@ -8,7 +8,7 @@ import LocationIcon from "~icons/codicon/location";
 import AddIcon from "~icons/codicon/add";
 import RemoveIcon from "~icons/codicon/remove";
 import DiscardIcon from "~icons/codicon/discard";
-import DiffIcon from "~icons/codicon/git-compare";
+import MergeIcon from "~icons/codicon/git-merge";
 
 export type VscodeGroupType = "merge" | "staged" | "changes";
 
@@ -122,18 +122,20 @@ export function VscodeFileItem({
           <LocationIcon />
         </button>
 
-        {/* Open diff (merge only) */}
+        {/* Open changes (merge → conflicts panel; others → working-tree diff) */}
         {groupType === "merge" && (
           <button
             type="button"
             className="vscode-file-action-btn"
-            title={t("Open Changes")}
+            title={t("Open Merge Editor")}
             onClick={(e) => {
               e.stopPropagation();
-              useCommitStore.getState().showDiff(file.path, file.staged);
+              // showDiff routes conflicted files to the conflicts panel —
+              // a two-side diff is wrong for unmerged index entries.
+              useCommitStore.getState().showDiff(file);
             }}
           >
-            <DiffIcon />
+            <MergeIcon />
           </button>
         )}
 

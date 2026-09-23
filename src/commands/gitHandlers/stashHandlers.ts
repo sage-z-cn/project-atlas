@@ -117,10 +117,10 @@ export function registerStashHandlers(ctx: GitHandlerContext): void {
       const fileName = filePath.split(/[/\\]/).pop() ?? filePath;
       // Show diff between the stash version and the parent (before stash)
       const stashUri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${encodedPath}?ref=${stashRef}${repoQuery}`,
+        `${GIT_ATLAS_SCHEME}:/${encodedPath}?ref=${encodeURIComponent(stashRef)}${repoQuery}`,
       );
       const parentUri = vscode.Uri.parse(
-        `${GIT_ATLAS_SCHEME}:/${encodedPath}?ref=${stashRef}^${repoQuery}`,
+        `${GIT_ATLAS_SCHEME}:/${encodedPath}?ref=${encodeURIComponent(`${stashRef}^`)}${repoQuery}`,
       );
       await vscode.commands.executeCommand(
         "vscode.diff",

@@ -296,7 +296,7 @@ interface FileGroupProps {
   onToggleFile: (key: string) => void;
   onSetFileKeys: (keys: string[], selected: boolean) => void;
   onHighlightFile: (key: string, mode: "single" | "toggle") => void;
-  onShowDiff: (path: string, staged?: boolean) => Promise<void>;
+  onShowDiff: (file: WorkingTreeFile) => Promise<void>;
   onContextMenu: (e: React.MouseEvent, file: WorkingTreeFile) => void;
   onDirContextMenu: (
     e: React.MouseEvent,
@@ -456,7 +456,7 @@ function FileGroup({
                   selected={selectedFiles.has(key)}
                   highlighted={highlightedFiles.has(key)}
                   onToggle={() => onToggleFile(key)}
-                  onShowDiff={() => onShowDiff(file.path, file.staged)}
+                  onShowDiff={() => onShowDiff(file)}
                   onContextMenu={(e) => onContextMenu(e, file)}
                   onClick={(e) => {
                     const mode = e.metaKey || e.ctrlKey ? "toggle" : "single";
@@ -491,7 +491,7 @@ function DirectoryTree({
   onToggleFile: (key: string) => void;
   onSetFileKeys: (keys: string[], selected: boolean) => void;
   onHighlightFile: (key: string, mode: "single" | "toggle") => void;
-  onShowDiff: (path: string, staged?: boolean) => Promise<void>;
+  onShowDiff: (file: WorkingTreeFile) => Promise<void>;
   onContextMenu: (e: React.MouseEvent, file: WorkingTreeFile) => void;
   onDirContextMenu: (
     e: React.MouseEvent,
@@ -545,7 +545,7 @@ function DirNodeView({
   onToggleFile: (key: string) => void;
   onSetFileKeys: (keys: string[], selected: boolean) => void;
   onHighlightFile: (key: string, mode: "single" | "toggle") => void;
-  onShowDiff: (path: string, staged?: boolean) => Promise<void>;
+  onShowDiff: (file: WorkingTreeFile) => Promise<void>;
   onContextMenu: (e: React.MouseEvent, file: WorkingTreeFile) => void;
   onDirContextMenu: (
     e: React.MouseEvent,
@@ -644,7 +644,7 @@ function DirNodeView({
               selected={selectedFiles.has(key)}
               highlighted={highlightedFiles.has(key)}
               onToggle={() => onToggleFile(key)}
-              onShowDiff={() => onShowDiff(file.path, file.staged)}
+              onShowDiff={() => onShowDiff(file)}
               onContextMenu={(e) => onContextMenu(e, file)}
               onClick={(e) => {
                 const mode = e.metaKey || e.ctrlKey ? "toggle" : "single";

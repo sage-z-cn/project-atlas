@@ -135,7 +135,7 @@ export function VscodeFileContextMenu({
   }, [file.path, currentRepoPath, onClose]);
 
   const handleOpenChanges = useCallback(() => {
-    showDiff(file.path, file.staged);
+    showDiff(file);
     onClose();
   }, [file, showDiff, onClose]);
 

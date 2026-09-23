@@ -10,7 +10,13 @@ export const GIT_ATLAS_SCHEME = "git-atlas";
  * Pair with the decode inside GitContentProvider (see decodeGitAtlasPath).
  */
 export function encodeGitAtlasPath(filePath: string): string {
-  return filePath.split("/").map(encodeURIComponent).join("/");
+  // Normalize Windows separators so both "a/b" and "a\\b" encode as path
+  // segments; decodeGitAtlasPath then always yields "/"-joined paths.
+  return filePath
+    .replace(/\\/g, "/")
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/");
 }
 
 /**
