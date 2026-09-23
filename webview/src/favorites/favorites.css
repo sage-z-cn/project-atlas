@@ -12,6 +12,8 @@
 }
 
 .fav-node {
+  /* 项目行第二行（路径 + hover 按钮）的高度；文件夹用同值占位以保持等高 */
+  --fav-row2-height: 18px;
   display: flex;
   align-items: flex-start;
   min-height: 22px;
@@ -64,7 +66,7 @@
   align-items: center;
   justify-content: center;
 }
-.fav-chevron { width: 16px; height: 16px; }
+.fav-chevron { width: 16px; height: 16px; align-self: center; }
 .fav-icon { margin-right: 6px; align-self: center; color: var(--vscode-icon-foreground); }
 
 .fav-content {
@@ -75,12 +77,26 @@
   min-width: 0;
   align-self: flex-start;
 }
+/* 文件夹无路径行：上下各占一半路径行高度——总高与项目行一致，名称与图标垂直居中对齐 */
+.fav-node:not(.is-project) .fav-content {
+  justify-content: center;
+}
+.fav-node:not(.is-project) .fav-content::before,
+.fav-node:not(.is-project) .fav-content::after {
+  content: "";
+  display: block;
+  height: calc(var(--fav-row2-height) / 2);
+  flex-shrink: 0;
+}
 .fav-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
   font-weight: 600;
+}
+.fav-node:not(.is-project) .fav-label {
+  flex: 0 0 auto;
 }
 .fav-path {
   color: var(--vscode-descriptionForeground);
@@ -95,6 +111,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
+  min-height: var(--fav-row2-height);
 }
 
 .fav-hover-actions {
@@ -115,7 +132,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 18px;
+  height: var(--fav-row2-height);
   width: 20px;
 }
 .fav-hover-btn:hover {
