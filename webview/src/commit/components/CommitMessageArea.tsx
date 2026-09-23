@@ -65,10 +65,6 @@ export function CommitMessageArea() {
       ? changes.length > 0
       : selectedFiles.size > 0;
   const canCommit = commitMessage.trim().length > 0 && hasFiles && !loading;
-  // 第一道门槛：无 remote 时禁用"提交并推送"按钮，阻止进入推送流程。
-  // hasRemote 乐观默认 true，未加载完成不禁用（后端执行层门槛兜底）。
-  const canPush = canCommit && hasRemote;
-  const noRemoteHint = !hasRemote ? t("No remote repository configured") : undefined;
 
   // VSCode 风格下若无已暂存文件但工作区有更改，弹窗确认是否全部暂存后提交。
   // 返回 true 表示可以继续提交（已有暂存 / 已确认并暂存 / 非 vscode 风格 / amend）。
@@ -201,6 +197,11 @@ export function CommitMessageArea() {
       document.removeEventListener("mousedown", handleClickOutside, true);
     };
   }, [showHistory]);
+
+  // 无 remote 时收起可能残留的下拉（整组按钮会隐藏，但状态需复位）
+  useEffect(() => {
+    if (!hasRemote) setShowDropdown(false);
+  }, [hasRemote]);
 
   // Close commit-and-push dropdown on outside click
   useEffect(() => {
@@ -429,63 +430,64 @@ export function CommitMessageArea() {
       </div>
 
       <div className="btn-row">
-        <div className="commit-dropdown" ref={dropdownRef}>
-          <button
-            type="button"
-            className="btn btn-secondary commit-split-main"
-            disabled={!canPush}
-            title={noRemoteHint}
-            onClick={handleCommitAndPush}
-          >
-            {t("Commit and Push...")}
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary commit-split-arrow"
-            disabled={!canPush}
-            title={noRemoteHint}
-            onClick={() => setShowDropdown(!showDropdown)}
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+        {/* 无 remote 时整组「提交并推送」隐藏（含下拉），只留「提交」 */}
+        {hasRemote && (
+          <div className="commit-dropdown" ref={dropdownRef}>
+            <button
+              type="button"
+              className="btn btn-secondary commit-split-main"
+              disabled={!canCommit}
+              onClick={handleCommitAndPush}
             >
-              <polyline points="4,6 8,10 12,6" />
-            </svg>
-          </button>
-          {showDropdown && (
-            <div className="commit-dropdown-menu">
-              <button
-                type="button"
-                className="commit-dropdown-item"
-                onClick={handleCommitAndPush}
+              {t("Commit and Push...")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary commit-split-arrow"
+              disabled={!canCommit}
+              onClick={() => setShowDropdown(!showDropdown)}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
               >
-                {t("Commit and Push")}
-              </button>
-              <button
-                type="button"
-                className="commit-dropdown-item"
-                onClick={handleCommitAndPushWithTags}
-              >
-                {t("Commit and Push with Tags")}
-              </button>
-              <div className="commit-dropdown-separator" />
-              <button
-                type="button"
-                className="commit-dropdown-item"
-                onClick={() => {
-                  setShowDropdown(false);
-                }}
-              >
-                {t("Cancel")}
-              </button>
-            </div>
-          )}
-        </div>
+                <polyline points="4,6 8,10 12,6" />
+              </svg>
+            </button>
+            {showDropdown && (
+              <div className="commit-dropdown-menu">
+                <button
+                  type="button"
+                  className="commit-dropdown-item"
+                  onClick={handleCommitAndPush}
+                >
+                  {t("Commit and Push")}
+                </button>
+                <button
+                  type="button"
+                  className="commit-dropdown-item"
+                  onClick={handleCommitAndPushWithTags}
+                >
+                  {t("Commit and Push with Tags")}
+                </button>
+                <div className="commit-dropdown-separator" />
+                <button
+                  type="button"
+                  className="commit-dropdown-item"
+                  onClick={() => {
+                    setShowDropdown(false);
+                  }}
+                >
+                  {t("Cancel")}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <button
           type="button"

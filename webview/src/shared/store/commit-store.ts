@@ -147,9 +147,9 @@ interface CommitStore {
   /** 提交并推送时是否跳过推送确认面板直接推送。 */
   skipPushConfirmation: boolean;
   /**
-   * 当前仓库是否配置了远程（`git remote` 非空）。驱动"提交并推送"按钮的
-   * 禁用状态（第一道门槛）。乐观默认 true：fetchHasRemote 失败时不误禁用，
-   * 交由后端执行层门槛兜底。
+   * 当前仓库是否配置了远程（`git remote` 非空）。无 remote 时隐藏
+   * "提交并推送"按钮组（含下拉）。乐观默认 true：fetchHasRemote 失败
+   * 时不误隐藏，交由后端执行层门槛兜底。
    */
   hasRemote: boolean;
   /** 从 host 拉取当前仓库是否有 remote。 */
@@ -556,7 +556,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       set({ hasRemote: result?.hasRemote ?? true });
     } catch (err) {
       console.error("fetchHasRemote failed:", err);
-      // 保持乐观 true：fetch 失败不误禁用按钮，后端执行层门槛兜底。
+      // 保持乐观 true：fetch 失败不误隐藏按钮，后端执行层门槛兜底。
     }
   },
 
@@ -1471,7 +1471,7 @@ bridge.onEvent((event, data) => {
     );
     // 回填新 repo 的草稿（loadCommitDraft 内部有 seq 竞态保护）。
     useCommitStore.getState().loadCommitDraft();
-    // 刷新 remote 状态（驱动"提交并推送"按钮禁用）。
+    // 刷新 remote 状态（驱动"提交并推送"按钮显示/隐藏）。
     useCommitStore.getState().fetchHasRemote();
     return;
   }
@@ -1527,7 +1527,7 @@ bridge.onEvent((event, data) => {
       useCommitStore.getState().fetchChanges({ silent: true });
       useCommitStore.getState().fetchStashes();
       // 覆盖外部 `git remote add/remove`（修改 .git/config → watcher 广播
-      // gitStateChanged），保持"提交并推送"按钮禁用状态与实际 remote 一致。
+      // gitStateChanged），保持"提交并推送"按钮显示/隐藏与实际 remote 一致。
       useCommitStore.getState().fetchHasRemote();
     }, 400);
     return;

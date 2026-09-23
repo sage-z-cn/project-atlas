@@ -38,6 +38,7 @@ export function Toolbar({
     groupByDirectory,
     changes,
     skipPushConfirmation,
+    hasRemote,
   } = useCommitStore();
 
   // skipPushConfirmation=true 时工具栏「推送」直接推当前分支，不打开确认面板；
@@ -157,39 +158,44 @@ export function Toolbar({
       </Tooltip>
       <div className="commit-toolbar-separator" />
 
-      {/* Remote sync group：进行中图标 opacity 呼吸 + 禁用，防连点。 */}
-      <Tooltip text={pulling ? t("Pulling...") : t("Pull")}>
-        <button
-          type="button"
-          className={`commit-toolbar-btn${pulling ? " is-busy" : ""}`}
-          onClick={() => void handlePull()}
-          disabled={pulling}
-          aria-busy={pulling}
-        >
-          <PullIcon />
-        </button>
-      </Tooltip>
-      <Tooltip
-        text={
-          pushing
-            ? t("Pushing...")
-            : skipPushConfirmation
-              ? t("Push")
-              : t("Push...")
-        }
-      >
-        <button
-          type="button"
-          className={`commit-toolbar-btn${pushing ? " is-busy" : ""}`}
-          onClick={() => void handlePush()}
-          disabled={pushing}
-          aria-busy={pushing}
-        >
-          <PushIcon />
-        </button>
-      </Tooltip>
+      {/* Remote sync group：进行中图标 opacity 呼吸 + 禁用，防连点。
+          无 remote 时整组隐藏（含尾部分隔线），避免双分隔线。 */}
+      {hasRemote && (
+        <>
+          <Tooltip text={pulling ? t("Pulling...") : t("Pull")}>
+            <button
+              type="button"
+              className={`commit-toolbar-btn${pulling ? " is-busy" : ""}`}
+              onClick={() => void handlePull()}
+              disabled={pulling}
+              aria-busy={pulling}
+            >
+              <PullIcon />
+            </button>
+          </Tooltip>
+          <Tooltip
+            text={
+              pushing
+                ? t("Pushing...")
+                : skipPushConfirmation
+                  ? t("Push")
+                  : t("Push...")
+            }
+          >
+            <button
+              type="button"
+              className={`commit-toolbar-btn${pushing ? " is-busy" : ""}`}
+              onClick={() => void handlePush()}
+              disabled={pushing}
+              aria-busy={pushing}
+            >
+              <PushIcon />
+            </button>
+          </Tooltip>
 
-      <div className="commit-toolbar-separator" />
+          <div className="commit-toolbar-separator" />
+        </>
+      )}
       {/* Stash: 全量入口（vscode 列表风格下弹窗内可选范围，见 StashPromptModal）。 */}
       {/* jetbrains 风格无范围选择、直接全量贮藏，存在冲突文件时必然
           needs merge 失败，提前禁用；vscode 风格入口有范围选择弹窗
