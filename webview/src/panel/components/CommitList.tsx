@@ -62,11 +62,13 @@ export function CommitList({
     setContextMenu(null);
   }, []);
 
-  const maxColumn = Math.max(
-    0,
-    ...Object.values(graphLayout).map((l) => l.column),
-  );
-  const graphWidth = (maxColumn + 1) * COLUMN_WIDTH + GRAPH_PADDING * 2;
+  const graphWidth = useMemo(() => {
+    const maxColumn = Math.max(
+      0,
+      ...Object.values(graphLayout).map((l) => l.column),
+    );
+    return (maxColumn + 1) * COLUMN_WIDTH + GRAPH_PADDING * 2;
+  }, [graphLayout]);
 
   // Per-row graph gutter: indent each row's message to just past the widest
   // graph element at that row (its own node or any line spanning it), so the
@@ -121,7 +123,10 @@ export function CommitList({
     estimateSize: () => ROW_HEIGHT,
     overscan: 20,
   });
-  const allVisibleCommitHashes = visibleCommits.map((commit) => commit.hash);
+  const allVisibleCommitHashes = useMemo(
+    () => visibleCommits.map((commit) => commit.hash),
+    [visibleCommits],
+  );
 
   const handleCommitClick = useModifierClickSelection<string>((hash, mode) => {
     void selectCommit(hash, mode, allVisibleCommitHashes);

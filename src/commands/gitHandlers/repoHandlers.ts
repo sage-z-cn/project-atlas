@@ -3,6 +3,7 @@ import type { GitHandlerContext } from "../gitContext";
 import { requireGit, withProgress } from "../gitContext";
 import { initGitRepo } from "../../git/gitService";
 import { normalizePath } from "../../git/repoPaths";
+import type { RepoInfo } from "../../git/repoScanner";
 
 /**
  * Multi-repo management handlers: listing repos, querying the active repo,
@@ -60,89 +61,143 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
   });
 
   // ── Per-repo status badges (RepoSelector ↑/↓/● counts) ───────────────
-  // Fetches the ahead/behind/dirty counts for EVERY known repo in parallel so
-  // the chip strip can render all badges from a single round-trip. Each repo
-  // is independently try/caught so a single broken repo (no commits yet, git
-  // failure, detached HEAD) never aborts the whole batch — it just reports
-  // null ahead/behind + dirty 0 for that one repo.
+  // Fetches the ahead/behind/dirty counts for the requested repos so the chip
+  // strip can render badges. Each repo is independently try/caught so a single
+  // broken repo (no commits yet, git failure, detached HEAD) never aborts the
+  // whole batch — it just reports null ahead/behind + dirty 0 for that repo.
   //
-  // In-flight merge: panel 和 commit 两个 webview 会在同一事件窗口内各自
-  // 请求一次 getRepoStatuses，每次都要对每个 repo 跑 git 子进程。这里把
-  // 并发相同请求合并为一次执行，共享同一个 Promise。批执行期间若又有新
-  // 请求到达（变更后事件触发，最早 ~700ms 后到达），可能加入的是变更前
-  // 启动、仍在跑的旧批次——批后补跑一轮（while requestedDuringFlight），
-  // 所有共享该 Promise 的调用方最终拿到最新一轮结果。刻意不加 TTL——
-  // 正确性依赖 watcher「先 invalidate 后广播」的顺序，TTL 会在广播后
-  // 返回旧值。
-  let inFlight: Promise<unknown> | null = null;
-  let requestedDuringFlight = false;
-  // 原批次执行体：全量拉取每个 repo 的 ahead/behind/dirty/branch。
-  const runBatch = async () => {
+  // Two modes:
+  //   • Full batch (no params) — every known repo. Used by initRepo handshake,
+  //     reposChanged (a new repo needs its first badge), repoPath-less global
+  //     events (pull/push-all, window focus) and the batch dialogs.
+  //   • Incremental (params.repoPaths) — only the named repos. Switching the
+  //     active repo or a watcher tick naming one repo doesn't change any other
+  //     repo's git state, so their badges stay valid: refreshing all N repos
+  //     would spawn ~4 git subprocesses per untouched repo for nothing.
+  //
+  // In-flight merge: panel and commit webviews issue identical requests within
+  // the same event window; identical concurrent requests (same mode + repo
+  // set) share one execution. The full batch additionally coalesces requests
+  // arriving DURING a running batch into one re-run (requestedDuringFlight)
+  // so every sharer ends up with post-change data. Deliberately NO TTL —
+  // correctness relies on the watcher's invalidate-then-broadcast order; a
+  // TTL would return stale values after the broadcast.
+  type RepoStatusEntry = {
+    repoPath: string;
+    ahead: number | null;
+    behind: number | null;
+    dirty: number;
+    branch: string | null;
+    upstream: string | null;
+    hasRemote: boolean;
+  };
+  const buildRepoStatus = async (
+    info: RepoInfo,
+  ): Promise<RepoStatusEntry> => {
+    const svc = registry.getService(info.path);
+    if (!svc) {
+      return {
+        repoPath: info.path,
+        ahead: null,
+        behind: null,
+        dirty: 0,
+        branch: null,
+        upstream: null,
+        hasRemote: false,
+      };
+    }
+    try {
+      const [branches, changes, hasRemote] = await Promise.all([
+        // noCache: ahead/behind 徽章必须实时反映外部进程的提交。git 更
+        // 新 refs 走 lockfile + 原子 rename,FS watcher 可能漏报,若读
+        // 5s TTL 缓存会返回旧计数,故 getBranches 需 noCache 绕过。
+        // getWorkingTreeChanges 自带 1.5s 短 TTL 缓存(statusCache),
+        // 可吸收本批次的重复调用,无需绕过。结果仍写回缓存,其他调用
+        // 方继续受益。
+        svc.getBranches({ noCache: true }),
+        svc.getWorkingTreeChanges(),
+        svc.hasRemote(),
+      ]);
+      const current = (branches ?? []).find((b) => b.isCurrent);
+      // BranchInfo.upstream is optional: when undefined/empty the branch
+      // has no upstream tracking ref, so ahead/behind are meaningless →
+      // report null (the chip hides ↑/↓). ahead/behind being 0 alone is
+      // NOT a reliable "no upstream" signal (they're just 0 when in sync).
+      const hasUpstream = !!current?.upstream;
+      return {
+        repoPath: info.path,
+        ahead: hasUpstream ? current?.ahead ?? 0 : null,
+        behind: hasUpstream ? current?.behind ?? 0 : null,
+        // getWorkingTreeChanges runs `git status --porcelain -uall`, so
+        // this already includes modified + staged + untracked files.
+        dirty: changes.length,
+        branch: current?.name ?? null,
+        // 远程跟踪分支（如 origin/main）。无上游时为 null——但这不
+        // 代表无 remote，也可能是从未推送的新建分支。
+        upstream: hasUpstream ? (current?.upstream ?? null) : null,
+        // 仓库是否配置了 remote（`git remote` 非空）。推送弹窗据此
+        // 禁选无远程的行；无 upstream 的新建分支仍可选。
+        hasRemote,
+      };
+    } catch {
+      return {
+        repoPath: info.path,
+        ahead: null,
+        behind: null,
+        dirty: 0,
+        branch: null,
+        upstream: null,
+        hasRemote: false,
+      };
+    }
+  };
+  const runBatch = async (): Promise<{ statuses: RepoStatusEntry[] }> => {
     await registry.whenReady;
-    const infos = registry.getRepoInfos();
     const statuses = await Promise.all(
-      infos.map(async (info) => {
-        const svc = registry.getService(info.path);
-        if (!svc) {
-          return {
-            repoPath: info.path,
-            ahead: null,
-            behind: null,
-            dirty: 0,
-            branch: null,
-            upstream: null,
-            hasRemote: false,
-          };
-        }
-        try {
-          const [branches, changes, hasRemote] = await Promise.all([
-            // noCache: ahead/behind 徽章必须实时反映外部进程的提交。git 更
-            // 新 refs 走 lockfile + 原子 rename,FS watcher 可能漏报,若读
-            // 5s TTL 缓存会返回旧计数,故 getBranches 需 noCache 绕过。
-            // getWorkingTreeChanges 自带 1.5s 短 TTL 缓存(statusCache),
-            // 可吸收本批次的重复调用,无需绕过。结果仍写回缓存,其他调用
-            // 方继续受益。
-            svc.getBranches({ noCache: true }),
-            svc.getWorkingTreeChanges(),
-            svc.hasRemote(),
-          ]);
-          const current = (branches ?? []).find((b) => b.isCurrent);
-          // BranchInfo.upstream is optional: when undefined/empty the branch
-          // has no upstream tracking ref, so ahead/behind are meaningless →
-          // report null (the chip hides ↑/↓). ahead/behind being 0 alone is
-          // NOT a reliable "no upstream" signal (they're just 0 when in sync).
-          const hasUpstream = !!current?.upstream;
-          return {
-            repoPath: info.path,
-            ahead: hasUpstream ? current?.ahead ?? 0 : null,
-            behind: hasUpstream ? current?.behind ?? 0 : null,
-            // getWorkingTreeChanges runs `git status --porcelain -uall`, so
-            // this already includes modified + staged + untracked files.
-            dirty: changes.length,
-            branch: current?.name ?? null,
-            // 远程跟踪分支（如 origin/main）。无上游时为 null——但这不
-            // 代表无 remote，也可能是从未推送的新建分支。
-            upstream: hasUpstream ? (current?.upstream ?? null) : null,
-            // 仓库是否配置了 remote（`git remote` 非空）。推送弹窗据此
-            // 禁选无远程的行；无 upstream 的新建分支仍可选。
-            hasRemote,
-          };
-        } catch {
-          return {
-            repoPath: info.path,
-            ahead: null,
-            behind: null,
-            dirty: 0,
-            branch: null,
-            upstream: null,
-            hasRemote: false,
-          };
-        }
-      }),
+      registry.getRepoInfos().map(buildRepoStatus),
     );
     return { statuses };
   };
-  messageRouter.handle("getRepoStatuses", () => {
+  // 增量批次：只跑指定 repo（未知路径自然被 filter 掉）。
+  const runBatchFor = async (
+    repoPaths: string[],
+  ): Promise<{ statuses: RepoStatusEntry[] }> => {
+    await registry.whenReady;
+    const wanted = new Set(repoPaths);
+    const statuses = await Promise.all(
+      registry
+        .getRepoInfos()
+        .filter((info) => wanted.has(info.path))
+        .map(buildRepoStatus),
+    );
+    return { statuses };
+  };
+
+  // 全量批次的 in-flight 合并 + 批后补跑。
+  let inFlight: Promise<unknown> | null = null;
+  let requestedDuringFlight = false;
+  // 增量批次的 in-flight 合并（key = 排序去重后的 repoPaths）。panel 与
+  // commit 在 repoChanged 后会同时发相同的增量请求；单 repo 批次很快，
+  // 无需全量那样的批后补跑 —— 迟到的变更会经由 watcher 广播再触发一轮。
+  const incrementalInFlight = new Map<string, Promise<unknown>>();
+
+  messageRouter.handle("getRepoStatuses", (params) => {
+    const repoPaths = Array.isArray(params?.repoPaths)
+      ? (params.repoPaths as unknown[]).filter(
+          (p): p is string => typeof p === "string" && p.length > 0,
+        )
+      : [];
+    if (repoPaths.length > 0) {
+      const unique = [...new Set(repoPaths)].sort();
+      const key = unique.join("\n");
+      const existing = incrementalInFlight.get(key);
+      if (existing) return existing;
+      const promise = runBatchFor(unique).finally(() => {
+        incrementalInFlight.delete(key);
+      });
+      incrementalInFlight.set(key, promise);
+      return promise;
+    }
     if (inFlight) {
       requestedDuringFlight = true;
       return inFlight;

@@ -160,8 +160,8 @@ export class RepoRegistry implements vscode.Disposable {
     for (const info of infos) {
       if (!this.services.has(info.path)) {
         const svc = new GitService(info.path);
-        // 传 svc 而非 svc.cache：watcher 到期时调 svc.invalidateCache()，
-        // 一并失效 gitService 内部的 statusCache（见 gitWatcher 构造注释）。
+        // 传 svc 而非 svc.cache：watcher 到期时按变更分类调用 svc 的分层
+        // 失效方法（见 gitWatcher 构造注释），需要整个 GitService。
         const watcher = new GitWatcher(info.path, this.messageRouter, svc);
         // Bridge per-repo watcher changes into the registry-wide signal.
         // Subscription lifetime follows the watcher: watcher.dispose() disposes
@@ -412,6 +412,10 @@ export class RepoRegistry implements vscode.Disposable {
   async setCurrent(repoPath: string): Promise<void> {
     const normalized = normalizePath(repoPath);
     if (!this.services.has(normalized)) return;
+    // Same-path short-circuit: re-selecting the already-active repo must not
+    // re-persist, re-broadcast repoChanged, or re-trigger both webviews' full
+    // refetch round (graph + changes + badges) — nothing actually changed.
+    if (this.currentRepoPath === normalized) return;
     this.currentRepoPath = normalized;
     await this.context.workspaceState.update(CURRENT_REPO_KEY, normalized);
     this.messageRouter.broadcastEvent("repoChanged", { repoPath: normalized });

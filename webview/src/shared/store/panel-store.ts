@@ -122,7 +122,6 @@ interface PanelStore {
   selectedCommitHash: string | null;
   selectedCommitHashes: string[];
   lastSelectedCommitHash: string | null;
-  hoveredColumn: number | null;
   commitFiles: DiffFile[];
   selectedFilePath: string | null;
   /**
@@ -198,7 +197,7 @@ interface PanelStore {
   /** Ready handshake: getCurrentRepo + getRepos + first fetch. Called once on mount. */
   initRepo: () => Promise<void>;
   /** Fetch ahead/behind/dirty counts for every repo (drives the chip badges). */
-  fetchRepoStatuses: () => Promise<void>;
+  fetchRepoStatuses: (repoPaths?: string[]) => Promise<void>;
 
   /**
    * Pull graph/branches/tags/identity/remotes for the active repo.
@@ -221,7 +220,6 @@ interface PanelStore {
     mode: "single" | "toggle" | "range",
     allVisibleBranches: string[],
   ) => void;
-  setHoveredColumn: (column: number | null) => void;
   toggleColumnVisibility: (column: "author" | "date" | "hash") => void;
   setColumnWidth: (column: "author" | "date" | "hash", width: number) => void;
   persistColumnWidths: () => void;
@@ -394,7 +392,6 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   selectedCommitHash: null,
   selectedCommitHashes: [],
   lastSelectedCommitHash: null,
-  hoveredColumn: null,
   commitFiles: [],
   selectedFilePath: null,
   scrollTargetHash: null,
@@ -528,19 +525,25 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     }
   },
 
-  async fetchRepoStatuses() {
+  async fetchRepoStatuses(repoPaths?: string[]) {
     // ★ Capture seq at issue time. Badges reflect every repo (not just the
     // current one), so the response stays valid across a switch — but we still
     // guard so a stale response can't clobber a fresher one (e.g. an in-flight
     // full-status fetch landing after a newer one already settled).
+    // repoPaths = 增量刷新:只重跑指定 repo 的子进程,返回条目 merge 进现有
+    // map,未提及 repo 的徽章沿用旧值(切换/单 repo 变更不改变它们的状态)。
+    // 省略 = 全量刷新(initRepo / reposChanged / 全局事件 / 批量操作弹窗)。
     const mySeq = get().repoSeq;
     try {
-      const result = (await bridge.request("getRepoStatuses")) as {
+      const result = (await bridge.request(
+        "getRepoStatuses",
+        repoPaths?.length ? { repoPaths } : {},
+      )) as {
         statuses?: RepoStatus[];
       };
       if (mySeq !== get().repoSeq) return;
       if (Array.isArray(result?.statuses)) {
-        const map: Record<string, RepoStatus> = {};
+        const map: Record<string, RepoStatus> = { ...get().repoStatuses };
         for (const s of result.statuses) map[s.repoPath] = s;
         set({ repoStatuses: map });
       }
@@ -1011,10 +1014,6 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     }
   },
 
-  setHoveredColumn(column: number | null) {
-    set({ hoveredColumn: column });
-  },
-
   toggleColumnVisibility(column: "author" | "date" | "hash") {
     set((state) => {
       const next = {
@@ -1411,8 +1410,12 @@ bridge.onEvent((event, data) => {
       filter: { ...state.filter, branch: "", file: "" },
     });
     usePanelStore.getState().fetchInitialData();
-    // Refresh badges for the new active repo (and the rest, in one round-trip).
-    usePanelStore.getState().fetchRepoStatuses();
+    // Refresh badges for the new active repo only — switching doesn't change
+    // any other repo's git state, so their badges stay valid. Full refresh is
+    // reserved for initRepo / reposChanged / repoPath-less global events.
+    usePanelStore.getState().fetchRepoStatuses(
+      nextRepoPath ? [nextRepoPath] : undefined,
+    );
     return;
   }
   if (event === "gitStateChanged") {
@@ -1464,11 +1467,17 @@ bridge.onEvent((event, data) => {
       // Consume and reset — the next window accumulates from scratch.
       pendingPanelGitEventRepoPaths = new Set();
       pendingPanelGitEventIsGlobal = false;
-      // Badges show EVERY repo's status, so refresh them on any repo's
-      // change. This runs before the current-repo filter below so a
-      // background repo's ahead/dirty count updates even while viewing a
-      // different repo.
-      usePanelStore.getState().fetchRepoStatuses();
+      // Badges show EVERY repo's status — but only the repos named in this
+      // window's events actually changed; refreshing just those avoids ~4 git
+      // subprocesses per untouched repo. This runs before the current-repo
+      // filter below so a background repo's ahead/dirty count still updates
+      // while viewing a different repo. Global (repoPath-less) events refresh
+      // everything.
+      if (isGlobal || repoPaths.size === 0) {
+        usePanelStore.getState().fetchRepoStatuses();
+      } else {
+        usePanelStore.getState().fetchRepoStatuses([...repoPaths]);
+      }
       // Multi-repo filter: refresh the LOG when ANY pending event was global
       // or tagged with the current repo — sibling-repo events in the same
       // window must not cancel a current-repo refresh.

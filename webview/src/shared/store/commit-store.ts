@@ -204,7 +204,7 @@ interface CommitStore {
   /** Ready handshake: getCurrentRepo + getRepos + first fetch. Called once on mount. */
   initRepo: () => Promise<void>;
   /** Fetch ahead/behind/dirty counts for every repo (drives the chip badges). */
-  fetchRepoStatuses: () => Promise<void>;
+  fetchRepoStatuses: (repoPaths?: string[]) => Promise<void>;
 
   // Actions
   /**
@@ -505,18 +505,24 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     ]);
   },
 
-  async fetchRepoStatuses() {
+  async fetchRepoStatuses(repoPaths?: string[]) {
     // ★ Capture seq at issue time for the in-flight race guard (same rationale
     // as fetchChanges: a stale full-status response must not clobber a fresher
     // one that already settled).
+    // repoPaths = 增量刷新:只重跑指定 repo 的子进程,返回条目 merge 进现有
+    // map,未提及 repo 的徽章沿用旧值(切换/单 repo 变更不改变它们的状态)。
+    // 省略 = 全量刷新(initRepo / reposChanged / 全局事件 / 批量操作弹窗)。
     const mySeq = get().repoSeq;
     try {
-      const result = (await bridge.request("getRepoStatuses")) as {
+      const result = (await bridge.request(
+        "getRepoStatuses",
+        repoPaths?.length ? { repoPaths } : {},
+      )) as {
         statuses?: RepoStatus[];
       };
       if (mySeq !== get().repoSeq) return;
       if (Array.isArray(result?.statuses)) {
-        const map: Record<string, RepoStatus> = {};
+        const map: Record<string, RepoStatus> = { ...get().repoStatuses };
         for (const s of result.statuses) map[s.repoPath] = s;
         set({ repoStatuses: map });
       }
@@ -1429,8 +1435,12 @@ bridge.onEvent((event, data) => {
     useCommitStore.getState().fetchChanges();
     // Stash 列表也是 per-repo 状态（上面已整体清空），切换后同样要回填。
     useCommitStore.getState().fetchStashes();
-    // Refresh badges for the new active repo (and the rest, in one round-trip).
-    useCommitStore.getState().fetchRepoStatuses();
+    // Refresh badges for the new active repo only — switching doesn't change
+    // any other repo's git state, so their badges stay valid. Full refresh is
+    // reserved for initRepo / reposChanged / repoPath-less global events.
+    useCommitStore.getState().fetchRepoStatuses(
+      repoPath ? [repoPath] : undefined,
+    );
     // 回填新 repo 的草稿（loadCommitDraft 内部有 seq 竞态保护）。
     useCommitStore.getState().loadCommitDraft();
     // 刷新 remote 状态（驱动"提交并推送"按钮禁用）。
@@ -1467,10 +1477,15 @@ bridge.onEvent((event, data) => {
       // 消费后重置，下一窗口重新累积。
       pendingGitEventRepoPaths = new Set();
       pendingGitEventIsGlobal = false;
-      // Badges show EVERY repo's status, so refresh them on any repo's change
-      // (the watcher already debounces 300ms, so a full round-trip is
-      // acceptable).
-      useCommitStore.getState().fetchRepoStatuses();
+      // Badges show EVERY repo's status — but only the repos named in this
+      // window's events actually changed; refreshing just those avoids ~4 git
+      // subprocesses per untouched repo (the watcher already debounces 300ms).
+      // Global (repoPath-less) events refresh everything.
+      if (isGlobal || repoPaths.size === 0) {
+        useCommitStore.getState().fetchRepoStatuses();
+      } else {
+        useCommitStore.getState().fetchRepoStatuses([...repoPaths]);
+      }
       // Multi-repo filter: refresh changes/stashes when ANY pending event was
       // global or tagged with the current repo — sibling-repo events in the
       // same window must not cancel a current-repo refresh.

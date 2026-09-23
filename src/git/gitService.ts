@@ -34,6 +34,46 @@ const FMT_RECORD_SEP = "%x00%x00%x01";
 const REF_FMT_FIELD_SEP = "%00";
 const MAX_BUFFER = 10 * 1024 * 1024; // 10MB
 
+/**
+ * 只读 git 子命令集合:status/diff/log 等读命令会顺带"机会性"刷新 index
+ * 并写入 .git/index,与用户同时在终端跑的 git 抢 index.lock,产生假
+ * "Unable to create index.lock: File exists" 失败。对这些命令自动加
+ * --no-optional-locks,声明本调用不取机会性锁。写命令(commit/push/
+ * add/...)不受影响,保持原样。
+ */
+const READ_ONLY_COMMANDS = new Set([
+  "status",
+  "log",
+  "branch",
+  "tag",
+  "for-each-ref",
+  "remote",
+  "config",
+  "blame",
+  "diff",
+  "show",
+  "rev-parse",
+  "merge-base",
+  "describe",
+  "reflog",
+  "ls-files",
+  "cat-file",
+  "name-rev",
+  "check-ignore",
+  "symbolic-ref",
+  "shortlog",
+]);
+
+function withNoOptionalLocks(args: string[]): string[] {
+  if (args.length === 0) return args;
+  const cmd = args[0];
+  const isReadOnly =
+    READ_ONLY_COMMANDS.has(cmd) ||
+    // stash 的 list/show 是只读;push/pop/apply/drop/branch 是写操作。
+    (cmd === "stash" && (args[1] === "list" || args[1] === "show"));
+  return isReadOnly ? ["--no-optional-locks", ...args] : args;
+}
+
 const LOG_FORMAT = [
   "%H", // hash
   "%h", // shortHash
@@ -47,12 +87,37 @@ const LOG_FORMAT = [
 ].join(FMT_FIELD_SEP);
 
 export class GitService {
-  readonly cache = new GitCache();
+  /**
+   * Ref-derived data cache (log / branches / tags)。TTL 10min 仅是安全网:
+   * 正确性由事件驱动失效保证 —— GitWatcher 区分 refs 类变化(HEAD/
+   * refs/** 变更 → invalidateCache 全清)与 index 类变化(保存/stage →
+   * 仅 invalidateStatusCache),log/branches/tags 对给定 refs 集合是不变
+   * 数据,index 变化不需要也不应该清掉它们。外部进程绕过 watcher 的
+   * 变化(锁文件 + 原子 rename 漏报)由窗口聚焦时的全量失效兜底。
+   */
+  readonly cache = new GitCache(10 * 60 * 1000);
 
   // 短 TTL（1.5s）缓存仅供 getWorkingTreeChanges 合并同一事件窗口内的
   // 多个调用方（状态栏/徽标/getRepoStatuses/fetchChanges）；真实变化由
-  // watcher 到期时的 svc.invalidateCache()（见 gitWatcher.ts）清缓存保证。
+  // watcher 到期时的分类失效（见 gitWatcher.ts）保证。
   private readonly statusCache = new GitCache(1500);
+
+  /**
+   * Stash 列表缓存（含每条的文件列表,整体缓存）。失效语义跟 index 走:
+   * stash 写操作显式全清;外部终端 stash 改写 .git/index → watcher 分类
+   * 失效;TTL 仅为安全网。每次 fetch 是 1 次 stash list + N 次 stash show
+   * (每条一 spawn),不缓存的话 commit 面板每个事件窗口都全量重跑。
+   */
+  private readonly stashCache = new GitCache(10 * 60 * 1000);
+
+  /**
+   * Config-derived quasi-static cache（remote 配置、user identity）。
+   * 这些数据只在 .git/config 变化时才会改变 —— gitWatcher 监听 config
+   * 文件并调用 invalidateConfigCache()。global config（user.name 等可
+   * 配置在全局）没有 watcher,由窗口聚焦时的全量 invalidateCache 兜底。
+   * TTL 10min 同样只是安全网。
+   */
+  private readonly configCache = new GitCache(10 * 60 * 1000);
 
   constructor(readonly cwd: string) {}
 
@@ -60,7 +125,7 @@ export class GitService {
     args: string[],
     maxBuffer = MAX_BUFFER,
   ): Promise<string> {
-    const { stdout } = await execFileAsync("git", args, {
+    const { stdout } = await execFileAsync("git", withNoOptionalLocks(args), {
       cwd: this.cwd,
       maxBuffer,
       env: {
@@ -185,22 +250,6 @@ export class GitService {
   }
 
   /**
-   * ref 是否为 rev 的祖先（含 rev 自身）。用于判断 tag 是否在当前历史线上。
-   * ref 可以是任意 revision：hash、分支名、tag 名（附注 tag 会被 git 自动
-   * 解引用到提交，无需先 rev-list 解引用）。
-   * `git merge-base --is-ancestor` 退出码非 0（非祖先）或 git 报错（坏引用
-   * 等）时 execGit 都会抛错，这里统一 catch 返回 false。
-   */
-  async isAncestor(ref: string, rev: string): Promise<boolean> {
-    try {
-      await this.execGit(["merge-base", "--is-ancestor", ref, rev]);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
    * Resolve the commit hash that last touched `relativePath` at the given
    * 1-based line, via a single-line `git blame --line-porcelain`.
    *
@@ -312,7 +361,8 @@ export class GitService {
       }
     }
 
-    const localFormat = [
+    const format = [
+      "%(refname)", // full ref — distinguishes refs/heads vs refs/remotes
       "%(refname:short)",
       "%(HEAD)",
       "%(upstream:short)",
@@ -322,32 +372,54 @@ export class GitService {
       "%(authoremail)",
     ].join(REF_FMT_FIELD_SEP);
 
-    const localOutput = await this.execGit([
-      "branch",
-      `--format=${localFormat}`,
+    // Single for-each-ref invocation lists local AND remote branches in one
+    // subprocess (previously two spawns: `git branch --format` +
+    // `git branch -r --format`). This sits on the hot badge-refresh path —
+    // getRepoStatuses runs it for every refreshed repo — so the spawn count
+    // matters more than anything else here. Ordering: for-each-ref sorts by
+    // refname, and "refs/heads/..." sorts before "refs/remotes/...", matching
+    // the previous local-first, remote-second concatenation order.
+    const output = await this.execGit([
+      "for-each-ref",
+      "refs/heads",
+      "refs/remotes",
+      `--format=${format}`,
     ]);
-
-    const remoteOutput = await this.execGit([
-      "branch",
-      "-r",
-      `--format=${localFormat}`,
-    ]).catch(() => "");
 
     const branches: BranchInfo[] = [];
 
-    for (const line of localOutput.trim().split("\n")) {
+    for (const line of output.trim().split("\n")) {
       if (!line.trim()) {
         continue;
       }
       const fields = line.split(FIELD_SEP);
-      const name = fields[0]?.trim() ?? "";
-      const isCurrent = fields[1]?.trim() === "*";
-      const upstream = fields[2]?.trim() || undefined;
-      const track = fields[3]?.trim() ?? "";
-      const lastCommitHash = fields[4]?.trim() ?? "";
-      const authorName = fields[5]?.trim();
-      const authorEmail = fields[6]?.trim().replace(/[<>]/g, "");
+      const fullRef = fields[0] ?? "";
+      const name = fields[1]?.trim() ?? "";
 
+      if (fullRef.startsWith("refs/remotes/")) {
+        // Skip HEAD pointers like origin/HEAD. Also skip stray symref
+        // remnants: refs/remotes/origin/HEAD renders as "origin" (no
+        // slash), which would otherwise leak through as a bogus remote
+        // branch. Legitimate remote tracking branches are always
+        // "remote/branch".
+        if (name.endsWith("/HEAD") || !name.includes("/")) {
+          continue;
+        }
+
+        branches.push({
+          name,
+          isRemote: true,
+          isCurrent: false,
+          ahead: 0,
+          behind: 0,
+          lastCommitHash: fields[5]?.trim() ?? "",
+        });
+        continue;
+      }
+
+      const isCurrent = fields[2]?.trim() === "*";
+      const upstream = fields[3]?.trim() || undefined;
+      const track = fields[4]?.trim() ?? "";
       const { ahead, behind } = parseTrack(track);
 
       branches.push({
@@ -357,36 +429,9 @@ export class GitService {
         upstream,
         ahead,
         behind,
-        lastCommitHash,
-        authorName,
-        authorEmail,
-      });
-    }
-
-    for (const line of remoteOutput.trim().split("\n")) {
-      if (!line.trim()) {
-        continue;
-      }
-      const fields = line.split(FIELD_SEP);
-      const name = fields[0]?.trim() ?? "";
-      const lastCommitHash = fields[4]?.trim() ?? "";
-
-      // Skip HEAD pointers like origin/HEAD. Also skip stray symref
-      // remnants: `git branch -r --format="%(refname:short)"` renders
-      // refs/remotes/origin/HEAD as a bare "origin" (no slash), which
-      // would otherwise leak through as a bogus remote branch.
-      // Legitimate remote tracking branches are always "remote/branch".
-      if (name.endsWith("/HEAD") || !name.includes("/")) {
-        continue;
-      }
-
-      branches.push({
-        name,
-        isRemote: true,
-        isCurrent: false,
-        ahead: 0,
-        behind: 0,
-        lastCommitHash,
+        lastCommitHash: fields[5]?.trim() ?? "",
+        authorName: fields[6]?.trim(),
+        authorEmail: fields[7]?.trim().replace(/[<>]/g, ""),
       });
     }
 
@@ -395,13 +440,21 @@ export class GitService {
   }
 
   async getUserIdentity(): Promise<{ name: string; email: string }> {
-    const name = (
-      await this.execGit(["config", "user.name"]).catch(() => "")
-    ).trim();
-    const email = (
-      await this.execGit(["config", "user.email"]).catch(() => "")
-    ).trim();
-    return { name, email };
+    // Config-derived quasi-static data: cached until .git/config changes
+    // (gitWatcher → invalidateConfigCache). Sits on the hot path — every
+    // panel fetchInitialData round requests it.
+    const cached = this.configCache.get<{ name: string; email: string }>(
+      "identity",
+    );
+    if (cached) return cached;
+    // Two independent queries — run concurrently instead of serially.
+    const [name, email] = await Promise.all([
+      this.execGit(["config", "user.name"]).catch(() => ""),
+      this.execGit(["config", "user.email"]).catch(() => ""),
+    ]);
+    const identity = { name: name.trim(), email: email.trim() };
+    this.configCache.set("identity", identity);
+    return identity;
   }
 
   async getRemoteBranches(): Promise<{ remote: string; branches: string[] }[]> {
@@ -495,6 +548,35 @@ export class GitService {
 
     this.cache.set(cacheKey, tags);
     return tags;
+  }
+
+  /**
+   * creatordate 最新且位于 HEAD 历史（tag 指向的提交是 HEAD 的祖先）的
+   * tag 名；无 tag 或 unborn HEAD 时返回 null。
+   *
+   * 单次 for-each-ref --merged=HEAD 完成"全部 tags 的可达性过滤 + 排序 +
+   * 取第一条"，替代此前 collectNewVersionContext 里逐 tag 串行
+   * `merge-base --is-ancestor` 的循环 —— fork/clone 仓库常携带大量上游
+   * tags 且全部不可达，串行 merge-base 在大仓库上每次数百毫秒，N 个 tag
+   * 轻松累计几十秒（击穿 webview 请求超时）。附注 tag 与 --merged 的语义
+   * 由 git 自动解引用到提交，与 merge-base --is-ancestor 一致。
+   */
+  async getLatestMergedTag(): Promise<string | null> {
+    try {
+      const output = await this.execGit([
+        "for-each-ref",
+        "--merged=HEAD",
+        "refs/tags",
+        "--sort=-creatordate",
+        "--count=1",
+        "--format=%(refname:short)",
+      ]);
+      const name = output.trim();
+      return name || null;
+    } catch {
+      // unborn HEAD（仓库还没有任何 commit）等原因导致 HEAD 不可解析。
+      return null;
+    }
   }
 
   async getDiff(ref1: string, ref2: string, file?: string): Promise<string> {
@@ -1560,7 +1642,8 @@ export class GitService {
     // stage/unstage 改写 .git/index，必须同步失效 statusCache：index 的
     // lockfile+rename 写入在部分平台漏报 FS watcher 事件（见 setupGit 聚焦
     // 广播注释），漏报时 1.5s TTL 内会返回旧的 working tree 状态。
-    this.invalidateCache();
+    // 只清 statusCache：refs 没动，log/branches/tags 缓存仍然有效。
+    this.invalidateStatusCache();
   }
 
   /**
@@ -1583,8 +1666,8 @@ export class GitService {
       // unborn 分支：所有暂存文件都是新文件，rm --cached 等价于 reset HEAD 对新文件的效果
       await this.execGit(["rm", "--cached", "--ignore-unmatch", "--", filePath]);
     }
-    // stage/unstage 也必须失效 statusCache（理由同 stageFiles）。
-    this.invalidateCache();
+    // stage/unstage 也只失效 statusCache（理由同 stageFiles，refs 未动）。
+    this.invalidateStatusCache();
   }
 
   async unstageFiles(filePaths: string[]): Promise<void> {
@@ -1596,8 +1679,8 @@ export class GitService {
     } else {
       await this.execGit(["rm", "--cached", "--ignore-unmatch", "--", ...filePaths]);
     }
-    // stage/unstage 也必须失效 statusCache（理由同 stageFiles）。
-    this.invalidateCache();
+    // stage/unstage 也只失效 statusCache（理由同 stageFiles，refs 未动）。
+    this.invalidateStatusCache();
   }
 
   async unstageAll(): Promise<void> {
@@ -1607,14 +1690,14 @@ export class GitService {
       // unborn 分支：清空 index 中所有暂存文件；--ignore-unmatch 避免 index 为空时报错
       await this.execGit(["rm", "-r", "--cached", "--ignore-unmatch", "."]);
     }
-    // stage/unstage 也必须失效 statusCache（理由同 stageFiles）。
-    this.invalidateCache();
+    // stage/unstage 也只失效 statusCache（理由同 stageFiles，refs 未动）。
+    this.invalidateStatusCache();
   }
 
   async stageAll(): Promise<void> {
     await this.execGit(["add", "-A"]);
-    // stage/unstage 也必须失效 statusCache（理由同 stageFiles）。
-    this.invalidateCache();
+    // 理由同 stageFiles。
+    this.invalidateStatusCache();
   }
 
   async commit(message: string, amend = false): Promise<void> {
@@ -1671,9 +1754,18 @@ export class GitService {
    * push attempt that would otherwise surface an ugly `git push` error.
    */
   async hasRemote(): Promise<boolean> {
+    // Config-derived quasi-static data: remotes only change via
+    // .git/config edits (gitWatcher → invalidateConfigCache, plus explicit
+    // invalidation after addRemote/removeRemote/setRemoteUrl/renameRemote).
+    // Cached instead of spawning `git remote` on every badge refresh /
+    // event window / focus tick. Failure results are NOT cached.
+    const cached = this.configCache.get<boolean>("hasRemote");
+    if (cached !== undefined) return cached;
     try {
       const output = await this.execGit(["remote"]);
-      return output.trim().length > 0;
+      const result = output.trim().length > 0;
+      this.configCache.set("hasRemote", result);
+      return result;
     } catch {
       return false;
     }
@@ -1737,6 +1829,12 @@ export class GitService {
    * name, so first-wins dedupe keeps a single { name, url } entry per remote.
    */
   async getRemotes(): Promise<Array<{ name: string; url: string }>> {
+    // Config-derived quasi-static data (see hasRemote) — cached instead of
+    // re-running `git remote -v` on every panel fetchInitialData round.
+    const cached = this.configCache.get<Array<{ name: string; url: string }>>(
+      "remotes",
+    );
+    if (cached) return cached;
     try {
       const output = await this.execGit(["remote", "-v"]);
       const seen = new Set<string>();
@@ -1752,6 +1850,7 @@ export class GitService {
           remotes.push({ name, url });
         }
       }
+      this.configCache.set("remotes", remotes);
       return remotes;
     } catch {
       return [];
@@ -1760,18 +1859,22 @@ export class GitService {
 
   async addRemote(name: string, url: string): Promise<void> {
     await this.execGit(["remote", "add", name, url]);
+    this.invalidateConfigCache();
   }
 
   async removeRemote(name: string): Promise<void> {
     await this.execGit(["remote", "remove", name]);
+    this.invalidateConfigCache();
   }
 
   async setRemoteUrl(name: string, url: string): Promise<void> {
     await this.execGit(["remote", "set-url", name, url]);
+    this.invalidateConfigCache();
   }
 
   async renameRemote(name: string, newName: string): Promise<void> {
     await this.execGit(["remote", "rename", name, newName]);
+    this.invalidateConfigCache();
   }
 
   async getLastCommitMessage(): Promise<string> {
@@ -1910,6 +2013,14 @@ export class GitService {
   }
 
   async getStashes(): Promise<import("./types").StashEntry[]> {
+    // Invalidation: stash push/pop/drop call the full invalidateCache;
+    // external terminal stashes rewrite .git/index, which the watcher maps
+    // to invalidateStatusCache (stashCache follows the index tier);
+    // window-focus fallback clears everything.
+    const cached = this.stashCache.get<import("./types").StashEntry[]>(
+      "stashes",
+    );
+    if (cached) return cached;
     // 不再用外层 try-catch 吞掉所有 git 错误并返回 [] —— 那会让真实 git 故障
     //（例如仓库损坏、git 可执行文件丢失）对调用方完全不可见。让 execGit 的错误
     // 自然冒泡，由 handler/router 路由到 webview。
@@ -1919,7 +2030,10 @@ export class GitService {
       "list",
       "--format=%H%x00%gd%x00%s%x00%aI%x00%D",
     ]);
-    if (!output.trim()) return [];
+    if (!output.trim()) {
+      this.stashCache.set("stashes", []);
+      return [];
+    }
 
     const entries: import("./types").StashEntry[] = [];
     for (const line of output.trim().split("\n")) {
@@ -1980,11 +2094,14 @@ export class GitService {
       }),
     );
 
+    this.stashCache.set("stashes", entries);
     return entries;
   }
 
   async stashChanges(message: string, filePaths?: string[]): Promise<void> {
     // 空数组防护：显式传入空列表视为误用，直接 no-op 返回。
+    // 全量贮藏必须显式传 undefined（不传 filePaths），避免调用侧
+    // 语义混淆 —— 空列表 ≠ 全量。
     // 全量贮藏必须显式传 undefined（不传 filePaths），避免调用侧
     // 语义混淆 —— 空列表 ≠ 全量。
     if (filePaths && filePaths.length === 0) {
@@ -2170,10 +2287,38 @@ export class GitService {
     return patch;
   }
 
+  /**
+   * Full invalidation: refs-level state change (HEAD/branches/tags moved,
+   * external-change fallback, refresh-all). Clears everything, including
+   * config-derived caches.
+   */
   invalidateCache(pattern?: string): void {
     this.cache.invalidate(pattern);
-    // statusCache 只有一个整体键，无需 pattern 精确失效，一并清空。
+    // statusCache/stashCache 只有整体键，无需 pattern 精确失效，一并清空。
     this.statusCache.invalidate();
+    this.stashCache.invalidate();
+    this.configCache.invalidate();
+  }
+
+  /**
+   * Index-level invalidation only: the working tree changed (file save,
+   * stage/unstage, external stash) but no refs moved. Log/branches/tags are
+   * functions of the refs alone and remain valid — dropping them here would
+   * force a full `git log --all` re-run on the next panel refresh for
+   * nothing. Stash entries follow the index tier (stash push rewrites
+   * .git/index).
+   */
+  invalidateStatusCache(): void {
+    this.statusCache.invalidate();
+    this.stashCache.invalidate();
+  }
+
+  /**
+   * Config-level invalidation only: .git/config changed (remotes edited,
+   * identity reconfigured). Ref-derived caches stay valid.
+   */
+  invalidateConfigCache(): void {
+    this.configCache.invalidate();
   }
 }
 

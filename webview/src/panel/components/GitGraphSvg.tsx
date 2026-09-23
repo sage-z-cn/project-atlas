@@ -233,11 +233,13 @@ export function GitGraphSvg({
     null,
   );
 
-  const maxColumn = Math.max(
-    0,
-    ...Object.values(graphLayout).map((l) => l.column),
-  );
-  const svgWidth = (maxColumn + 1) * COLUMN_WIDTH + GRAPH_PADDING * 2;
+  const svgWidth = useMemo(() => {
+    const maxColumn = Math.max(
+      0,
+      ...Object.values(graphLayout).map((l) => l.column),
+    );
+    return (maxColumn + 1) * COLUMN_WIDTH + GRAPH_PADDING * 2;
+  }, [graphLayout]);
 
   // Sequence detection on full commits list
   const { hashToSequenceId, sequencesById } = useMemo(

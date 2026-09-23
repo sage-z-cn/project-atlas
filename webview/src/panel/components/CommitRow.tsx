@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Tooltip } from "../../shared/components/Tooltip";
 import { usePreventSelect } from "../../shared/hooks/usePreventSelect";
 import { usePanelStore } from "../../shared/store/panel-store";
@@ -157,9 +158,8 @@ export interface VisibleColumns {
   hash: boolean;
 }
 
-export function CommitRow({
+export const CommitRow = memo(function CommitRow({
   commit,
-  lane,
   rowMaxColumn,
   columnWidths,
   visibleColumns,
@@ -174,12 +174,11 @@ export function CommitRow({
   onCommitClick: (event: React.MouseEvent, hash: string) => void;
   onContextMenu?: (event: React.MouseEvent, commit: Commit) => void;
 }) {
-  const selectedCommitHashes = usePanelStore((s) => s.selectedCommitHashes);
-  const setHoveredColumn = usePanelStore((s) => s.setHoveredColumn);
+  const isSelected = usePanelStore((s) =>
+    s.selectedCommitHashes.includes(commit.hash),
+  );
   const rowRef = usePreventSelect<HTMLDivElement>();
 
-  const isSelected = selectedCommitHashes.includes(commit.hash);
-  const col = lane?.column ?? 0;
   const refItems = buildRefDisplayItems(commit.refs);
 
   return (
@@ -194,8 +193,6 @@ export function CommitRow({
           onContextMenu(e, commit);
         }
       }}
-      onMouseEnter={() => setHoveredColumn(col)}
-      onMouseLeave={() => setHoveredColumn(null)}
       style={{
         display: "flex",
         alignItems: "center",
@@ -367,4 +364,4 @@ export function CommitRow({
       )}
     </div>
   );
-}
+});

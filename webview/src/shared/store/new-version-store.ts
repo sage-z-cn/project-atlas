@@ -320,9 +320,13 @@ export const useNewVersionStore = create<NewVersionState>((set, get) => ({
     const repoPath = useCommitStore.getState().currentRepoPath;
     set({ loading: true, contextError: null });
     try {
-      const ctx = (await bridge.request("getNewVersionContext", {
-        repoPath,
-      })) as NewVersionContext;
+      const ctx = (await bridge.request(
+        "getNewVersionContext",
+        { repoPath },
+        // 大仓库（巨量提交 / 上千 tags）的首个 context 采集可能超过默认
+        // 10s 超时，切 tab 直接报错；放宽到 30s 兜底。
+        { timeout: 30_000 },
+      )) as NewVersionContext;
       if (mySeq !== fetchSeq) return;
       set({ context: ctx, contextRepoPath: repoPath, dirty: false, loading: false });
       if (resetForm) get().resetForm(ctx);

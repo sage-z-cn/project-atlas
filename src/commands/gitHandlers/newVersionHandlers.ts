@@ -115,19 +115,17 @@ interface NewVersionContextInputs {
 async function collectNewVersionContext(
   gitService: GitService,
 ): Promise<NewVersionContextInputs> {
-  // getTags() 按 --sort=-creatordate 排序（新→旧）。取"最新且在 HEAD
-  // 历史上"的 tag 作为 lastTag——直接取 tags[0] 会在最新 tag 打在已放弃
-  // 的分支上时，把 HEAD 可达而 tag 不可达的大量提交误标为"待纳入新版本"。
-  // 附注 tag 传 tag 名即可：isAncestor 内 git 会自动解引用到提交。
-  // tags 通常个位数，逐个 merge-base 可接受；找到即停。
-  const tags = await gitService.getTags();
-  let lastTag: string | null = null;
-  for (const tag of tags) {
-    if (await gitService.isAncestor(tag.name, "HEAD")) {
-      lastTag = tag.name;
-      break;
-    }
-  }
+  // lastTag = creatordate 最新且位于 HEAD 历史上的 tag。getLatestMergedTag
+  // 用单次 for-each-ref --merged=HEAD 完成全部 tags 的可达性过滤 + 排序 +
+  // 取首条 —— 此前的逐 tag 串行 merge-base 循环在 fork/clone 仓库（自身
+  // 从未打过 tag 但携带大量不可达的上游 tags）上会累计几十秒，击穿
+  // webview 请求超时。直接取 tags[0] 依然不行：最新 tag 打在已放弃分支
+  // 上时，会把 HEAD 可达而 tag 不可达的大量提交误标为"待纳入新版本"
+  // （lastTagDetached 警告正是此场景）。两个查询相互独立，并行执行。
+  const [tags, lastTag] = await Promise.all([
+    gitService.getTags(),
+    gitService.getLatestMergedTag(),
+  ]);
   const lastTagDetached = tags.length > 0 && lastTag === null;
   const detachedTagName = lastTagDetached
     ? (tags[0]?.name ?? undefined)
