@@ -11,6 +11,7 @@ import type {
 import { t } from "../i18n";
 import { applyRepoOrder } from "../utils/repoOrder";
 import type { RepoInfo, RepoStatus } from "../types/git";
+import { dirCollapseKey } from "../../commit/utils/dirTree";
 
 export type { StashEntry };
 
@@ -137,7 +138,11 @@ interface CommitStore {
   expandedGroups: Set<string>;
   groupByDirectory: boolean;
   showUnversioned: boolean;
-  /** Collapsed directory paths in tree view */
+  /**
+   * Collapsed directory keys in tree view. Keys are group-scoped via
+   * dirCollapseKey(group, dirPath) so identical paths in different file
+   * groups (Changes vs Staged) do not share expand/collapse state.
+   */
   collapsedDirs: Set<string>;
 
   // List style (VSCode / JetBrains)
@@ -292,9 +297,11 @@ interface CommitStore {
   ) => Promise<void>;
   setActiveTab: (tab: TabType) => void;
   toggleGroup: (group: string) => void;
-  toggleDir: (dirPath: string) => void;
+  /** `group` is the expandedGroups id; scopes the collapsed key per list. */
+  toggleDir: (group: string, dirPath: string) => void;
   expandAllDirs: () => void;
-  collapseAllDirs: (allDirPaths: string[]) => void;
+  /** `allKeys` must already be group-scoped (`dirCollapseKey`). */
+  collapseAllDirs: (allKeys: string[]) => void;
   toggleGroupByDirectory: () => void;
   toggleShowUnversioned: () => void;
   refresh: () => Promise<void>;
@@ -1129,13 +1136,14 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     set({ expandedGroups: next });
   },
 
-  toggleDir(dirPath: string) {
+  toggleDir(group: string, dirPath: string) {
+    const key = dirCollapseKey(group, dirPath);
     const { collapsedDirs } = get();
     const next = new Set(collapsedDirs);
-    if (next.has(dirPath)) {
-      next.delete(dirPath);
+    if (next.has(key)) {
+      next.delete(key);
     } else {
-      next.add(dirPath);
+      next.add(key);
     }
     set({ collapsedDirs: next });
   },
@@ -1144,8 +1152,8 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     set({ collapsedDirs: new Set() });
   },
 
-  collapseAllDirs(allDirPaths: string[]) {
-    set({ collapsedDirs: new Set(allDirPaths) });
+  collapseAllDirs(allKeys: string[]) {
+    set({ collapsedDirs: new Set(allKeys) });
   },
 
   toggleGroupByDirectory() {

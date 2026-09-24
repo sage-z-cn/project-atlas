@@ -17,6 +17,7 @@ import {
   collectDirFiles,
   collectFileKeys,
   countFiles,
+  dirCollapseKey,
   type DirNode,
 } from "../utils/dirTree";
 import { promptAndStash } from "../utils/stashPrompt";
@@ -164,6 +165,7 @@ export function CommitTab() {
                 label={t("Merge Conflicts")}
                 files={conflictedFiles}
                 count={conflictedFiles.length}
+                groupKey="conflicts"
                 expanded={expandedGroups.has("conflicts")}
                 groupByDirectory={groupByDirectory}
                 onToggle={() => toggleGroup("conflicts")}
@@ -198,6 +200,7 @@ export function CommitTab() {
                 label={t("Changes")}
                 files={changedFiles}
                 count={changedFiles.length}
+                groupKey="changes"
                 expanded={expandedGroups.has("changes")}
                 groupByDirectory={groupByDirectory}
                 onToggle={() => toggleGroup("changes")}
@@ -218,6 +221,7 @@ export function CommitTab() {
                 label={t("Staged")}
                 files={stagedFiles}
                 count={stagedFiles.length}
+                groupKey="staged"
                 expanded={expandedGroups.has("staged")}
                 groupByDirectory={groupByDirectory}
                 onToggle={() => toggleGroup("staged")}
@@ -238,6 +242,7 @@ export function CommitTab() {
                 label={t("Unversioned Files")}
                 files={untrackedFiles}
                 count={untrackedFiles.length}
+                groupKey="unversioned"
                 expanded={expandedGroups.has("unversioned")}
                 groupByDirectory={groupByDirectory}
                 onToggle={() => toggleGroup("unversioned")}
@@ -288,6 +293,7 @@ interface FileGroupProps {
   label: string;
   files: WorkingTreeFile[];
   count: number;
+  groupKey: string;
   expanded: boolean;
   groupByDirectory: boolean;
   onToggle: () => void;
@@ -312,6 +318,7 @@ function FileGroup({
   label,
   files,
   count,
+  groupKey,
   expanded,
   groupByDirectory,
   onToggle,
@@ -354,7 +361,7 @@ function FileGroup({
       for (const child of [...node.children].sort((a, b) =>
         a.name.localeCompare(b.name),
       )) {
-        if (!collapsedDirs.has(child.fullPath)) {
+        if (!collapsedDirs.has(dirCollapseKey(groupKey, child.fullPath))) {
           walk(child);
         }
       }
@@ -364,7 +371,7 @@ function FileGroup({
     }
     walk(tree);
     return keys;
-  }, [expanded, groupByDirectory, files, collapsedDirs]);
+  }, [expanded, groupByDirectory, files, collapsedDirs, groupKey]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -437,6 +444,7 @@ function FileGroup({
           {groupByDirectory ? (
             <DirectoryTree
               files={files}
+              groupKey={groupKey}
               selectedFiles={selectedFiles}
               highlightedFiles={highlightedFiles}
               onToggleFile={onToggleFile}
@@ -476,6 +484,7 @@ function FileGroup({
 
 function DirectoryTree({
   files,
+  groupKey,
   selectedFiles,
   highlightedFiles,
   onToggleFile,
@@ -486,6 +495,7 @@ function DirectoryTree({
   onDirContextMenu,
 }: {
   files: WorkingTreeFile[];
+  groupKey: string;
   selectedFiles: Set<string>;
   highlightedFiles: Set<string>;
   onToggleFile: (key: string) => void;
@@ -508,6 +518,7 @@ function DirectoryTree({
     <DirNodeView
       node={tree}
       depth={0}
+      groupKey={groupKey}
       collapsed={collapsedDirs}
       toggleDir={toggleDir}
       selectedFiles={selectedFiles}
@@ -525,6 +536,7 @@ function DirectoryTree({
 function DirNodeView({
   node,
   depth,
+  groupKey,
   collapsed,
   toggleDir,
   selectedFiles,
@@ -538,8 +550,9 @@ function DirNodeView({
 }: {
   node: DirNode;
   depth: number;
+  groupKey: string;
   collapsed: Set<string>;
-  toggleDir: (path: string) => void;
+  toggleDir: (group: string, path: string) => void;
   selectedFiles: Set<string>;
   highlightedFiles: Set<string>;
   onToggleFile: (key: string) => void;
@@ -561,7 +574,7 @@ function DirNodeView({
       {node.children
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((child) => {
-          const isCollapsed = collapsed.has(child.fullPath);
+          const isCollapsed = collapsed.has(dirCollapseKey(groupKey, child.fullPath));
           const childKeys = collectFileKeys(child);
           const allChecked =
             childKeys.length > 0 &&
@@ -573,7 +586,7 @@ function DirNodeView({
               <div
                 className="commit-dir-row"
                 style={{ paddingLeft: `${12 + depth * 16}px` }}
-                onClick={() => toggleDir(child.fullPath)}
+                onClick={() => toggleDir(groupKey, child.fullPath)}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -619,6 +632,7 @@ function DirNodeView({
                 <DirNodeView
                   node={child}
                   depth={depth + 1}
+                  groupKey={groupKey}
                   collapsed={collapsed}
                   toggleDir={toggleDir}
                   selectedFiles={selectedFiles}

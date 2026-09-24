@@ -94,3 +94,17 @@ export function collectDirPaths(node: DirNode): string[] {
   }
   return paths;
 }
+
+
+/**
+ * Scoped key for one collapsed directory inside a single file group.
+ *
+ * Changes and Staged Changes each render their own tree over overlapping
+ * path names. Scoping the key by group keeps expand/collapse independent.
+ *
+ * group is the expandedGroups id (conflicts | changes | staged | unversioned);
+ * VscodeGroupType merge is normalized to conflicts.
+ */
+export function dirCollapseKey(group: string, dirPath: string): string {
+  return group + "::" + dirPath;
+}

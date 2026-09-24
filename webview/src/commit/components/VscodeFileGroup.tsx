@@ -8,6 +8,7 @@ import {
   buildDirTree,
   collectDirFiles,
   countFiles,
+  dirCollapseKey,
   type DirNode,
 } from "../utils/dirTree";
 import { VscodeFileItem, type VscodeGroupType } from "./VscodeFileItem";
@@ -56,6 +57,8 @@ export function VscodeFileGroup({
 }: VscodeFileGroupProps) {
   const { collapsedDirs, toggleDir, unstageAll, stageAll, rollbackFiles } =
     useCommitStore();
+  // Normalize merge -> conflicts so both list styles share the same scoped key.
+  const groupKey = groupType === "merge" ? "conflicts" : groupType;
 
   const tree = useMemo(
     () => (groupByDirectory ? buildDirTree(files) : null),
@@ -145,6 +148,7 @@ export function VscodeFileGroup({
               node={tree}
               depth={0}
               groupType={groupType}
+              groupKey={groupKey}
               collapsed={collapsedDirs}
               toggleDir={toggleDir}
               highlightedFiles={highlightedFiles}
@@ -185,6 +189,7 @@ function VscodeDirNodeView({
   node,
   depth,
   groupType,
+  groupKey,
   collapsed,
   toggleDir,
   highlightedFiles,
@@ -194,8 +199,9 @@ function VscodeDirNodeView({
   node: DirNode;
   depth: number;
   groupType: VscodeGroupType;
+  groupKey: string;
   collapsed: Set<string>;
-  toggleDir: (path: string) => void;
+  toggleDir: (group: string, path: string) => void;
   highlightedFiles: Set<string>;
   onContextMenu: (
     e: React.MouseEvent,
@@ -216,13 +222,13 @@ function VscodeDirNodeView({
         .slice()
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((child) => {
-          const isCollapsed = collapsed.has(child.fullPath);
+          const isCollapsed = collapsed.has(dirCollapseKey(groupKey, child.fullPath));
           return (
             <div key={child.fullPath}>
               <div
                 className="vscode-dir-row"
                 style={{ paddingLeft: `${12 + depth * 16}px` }}
-                onClick={() => toggleDir(child.fullPath)}
+                onClick={() => toggleDir(groupKey, child.fullPath)}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -304,6 +310,7 @@ function VscodeDirNodeView({
                   node={child}
                   depth={depth + 1}
                   groupType={groupType}
+                  groupKey={groupKey}
                   collapsed={collapsed}
                   toggleDir={toggleDir}
                   highlightedFiles={highlightedFiles}

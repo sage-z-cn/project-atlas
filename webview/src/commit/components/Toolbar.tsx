@@ -12,7 +12,11 @@ import PushIcon from "~icons/codicon/repo-push";
 import StashIcon from "~icons/codicon/archive";
 import RollbackIcon from "~icons/codicon/discard";
 import { useCommitStore } from "../../shared/store/commit-store";
-import { buildDirTree, collectDirPaths } from "../utils/dirTree";
+import {
+  buildDirTree,
+  collectDirPaths,
+  dirCollapseKey,
+} from "../utils/dirTree";
 import { promptAndStash } from "../utils/stashPrompt";
 
 interface ToolbarProps {
@@ -121,10 +125,16 @@ export function Toolbar({
     // vscode 风格 + 按目录分组：对齐 VSCode 资源管理器 Collapse All 语义 ——
     // 顶层分组保持当前展开态不动，收起目录树全部节点（含嵌套中间目录，
     // 每组只剩第一层目录可见且为收起态；根级文件不涉及目录，自然保持显示）。
-    // 目录 key 必须取自 buildDirTree（含 compact）的 fullPath，与
-    // VscodeDirNodeView 消费 collapsedDirs 的 key 同源。
+    // 目录 key 必须取自 buildDirTree（含 compact）的 fullPath，并按分组
+    // 前缀（dirCollapseKey）写入，保证各列表独立折叠。
     if (commitListStyle === "vscode" && groupByDirectory) {
-      collapseAllDirs(collectDirPaths(buildDirTree(changes)));
+      const allPaths = collectDirPaths(buildDirTree(changes));
+      // Mixed-tree paths are a superset of any single group's compacted tree
+      // paths, so reusing them for every group is safe (extra keys are no-ops).
+      const groups = ["conflicts", "changes", "staged", "unversioned"];
+      collapseAllDirs(
+        groups.flatMap((g) => allPaths.map((p) => dirCollapseKey(g, p))),
+      );
       return;
     }
     // jetbrains 风格（或 vscode 风格但未按目录分组）：折叠顶层分组（现状行为）。
