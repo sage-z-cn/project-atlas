@@ -76,27 +76,32 @@ export function Tooltip({
     setActualPosition(actualPosition);
   }, [visible, position]);
 
-  // Adjust if tooltip overflows viewport
+  // Adjust if tooltip overflows viewport.
+  // Single clamped shift — never two competing setCoords calls. When the tooltip
+  // is wider than the viewport, prefer pinning the left edge; alternating
+  // left/right corrections re-trigger this effect and flicker forever.
   useEffect(() => {
     if (!visible || !coords || !tooltipRef.current) return;
 
-    const tooltip = tooltipRef.current;
-    const tooltipRect = tooltip.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
+    const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    const margin = 4;
+    const maxRight = window.innerWidth - margin;
 
-    // Check right overflow
-    if (tooltipRect.right > viewportWidth - 4) {
-      const overflow = tooltipRect.right - viewportWidth + 8;
-      setCoords((prev) =>
-        prev ? { ...prev, left: prev.left - overflow } : prev,
-      );
+    let shift = 0;
+    if (tooltipRect.left < margin) {
+      shift = margin - tooltipRect.left;
+    }
+    if (tooltipRect.right + shift > maxRight) {
+      shift = maxRight - tooltipRect.right;
+    }
+    // Too wide to fit: pin left edge so the correction converges.
+    if (tooltipRect.left + shift < margin) {
+      shift = margin - tooltipRect.left;
     }
 
-    // Check left overflow
-    if (tooltipRect.left < 4) {
-      const overflow = 4 - tooltipRect.left;
+    if (shift !== 0) {
       setCoords((prev) =>
-        prev ? { ...prev, left: prev.left + overflow } : prev,
+        prev ? { ...prev, left: prev.left + shift } : prev,
       );
     }
   }, [visible, coords]);
