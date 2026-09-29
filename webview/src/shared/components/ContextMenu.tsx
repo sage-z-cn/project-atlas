@@ -17,7 +17,11 @@ import { useMenuDismiss } from "../hooks/useMenuDismiss";
 export interface ContextMenuItem {
   key: string;
   label: string;
-  icon?: React.ComponentType<{ width?: number; height?: number }>;
+  icon?: React.ComponentType<{
+    width?: number;
+    height?: number;
+    className?: string;
+  }>;
   onSelect: () => void;
   disabled?: boolean;
 }
@@ -50,18 +54,25 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps): React.J
         "separator" in item ? (
           <div key={item.key} className="context-menu-separator" />
         ) : (
-          <div
+          <button
             key={item.key}
-            className={`context-menu-item${item.disabled ? " disabled" : ""}`}
+            type="button"
+            className="context-menu-item"
+            disabled={item.disabled}
             onClick={() => {
-              if (item.disabled) return;
               item.onSelect();
               onClose();
             }}
           >
-            {item.icon && <item.icon width={14} height={14} />}
+            {item.icon && (
+              <item.icon
+                className="context-menu-icon"
+                width={16}
+                height={16}
+              />
+            )}
             <span>{item.label}</span>
-          </div>
+          </button>
         ),
       )}
     </div>

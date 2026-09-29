@@ -17,7 +17,11 @@ import IconNewFolder from "~icons/codicon/new-folder";
 import IconTrash from "~icons/codicon/trash";
 import "./favorites.css";
 
-type IconComp = (props: { width?: number; height?: number }) => React.JSX.Element;
+type IconComp = (props: {
+  width?: number;
+  height?: number;
+  className?: string;
+}) => React.JSX.Element;
 
 interface ProjectMenuItem {
   action: FavoriteAction;

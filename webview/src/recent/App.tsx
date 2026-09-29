@@ -21,7 +21,11 @@ import "./recent.css";
 interface ActionMeta {
   action: RecentAction;
   label: string;
-  Icon: (props: { width?: number; height?: number }) => React.JSX.Element;
+  Icon: (props: {
+    width?: number;
+    height?: number;
+    className?: string;
+  }) => React.JSX.Element;
   /** multi=true 才允许多选时执行；否则多选时禁用。 */
   multi?: boolean;
   sep?: false;
@@ -42,7 +46,7 @@ const PROJECT_MENU: MenuItem[] = [
   { action: "removeProject", label: "Remove", Icon: IconTrash, multi: true },
 ];
 
-const HOVER_ACTIONS: { action: RecentAction; title: string; Icon: (props: { width?: number; height?: number }) => React.JSX.Element }[] = [
+const HOVER_ACTIONS: { action: RecentAction; title: string; Icon: (props: { width?: number; height?: number; className?: string }) => React.JSX.Element }[] = [
   { action: "openInNewWindow", title: "Open in New Window", Icon: IconLinkExternal },
   { action: "openInCurrentWindow", title: "Open in Current Window", Icon: IconOpenInProduct },
   { action: "addFavorite", title: "Add to Favorites", Icon: IconStarEmpty },
