@@ -4,6 +4,14 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.32.2
+**Bug 修复**
+- **Tooltip**: 修复靠近右边缘时 CJK 文本竖排换行的问题
+- **Tooltip**: 修复 Tooltip 过宽导致的溢出与无限闪烁问题
+
+**改进**
+- **Webview**: 重构右键菜单视觉与可访问性
+
 #### 1.32.0
 **新功能**
 - **Commit**: 无 remote 时隐藏推送相关按钮而非禁用
