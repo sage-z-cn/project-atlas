@@ -10,11 +10,14 @@
   border: 1px solid var(--vscode-editorHoverWidget-border, #454545);
   border-radius: 4px;
   font-size: 12px;
-  /* Cap width so long commit subjects wrap instead of overflowing the webview.
-     Uncapped nowrap tooltips are wider than the viewport and can never settle. */
+  /* width: max-content — fixed-position boxes shrink-to-fit against the space
+     from `left` to the viewport edge, which collapses to ~0 when the trigger is
+     near the right edge and wraps CJK into a vertical column. max-content sizes
+     to the text first; max-width then caps long subjects. */
+  width: max-content;
   max-width: min(480px, calc(100vw - 16px));
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   z-index: 99999;
   pointer-events: none;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
