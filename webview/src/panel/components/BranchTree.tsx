@@ -717,6 +717,7 @@ export function BranchTree({
           collapsed={collapsed.local}
           onToggle={() => toggle("local")}
         >
+          {localTree.length === 0 && <EmptyHint text={t("No local branches")} />}
           {localTree.map((node) => (
             <TreeNodeView
               key={node.fullPath}
@@ -742,6 +743,9 @@ export function BranchTree({
           collapsed={collapsed.remote}
           onToggle={() => toggle("remote")}
         >
+          {remoteTree.length === 0 && (
+            <EmptyHint text={t("No remote branches")} />
+          )}
           {remoteTree.map((node) => (
             <TreeNodeView
               key={node.fullPath}
@@ -769,6 +773,7 @@ export function BranchTree({
             collapsed={collapsed.tags}
             onToggle={() => toggle("tags")}
           >
+            {tagTree.length === 0 && <EmptyHint text={t("No tags")} />}
             {tagTree.map((node) => (
               <TagTreeNodeView
                 key={node.fullPath}
@@ -1107,6 +1112,20 @@ function TagTreeNodeView({
 // ---------------------------------------------------------------------------
 // Shared sub-components
 // ---------------------------------------------------------------------------
+
+/** Muted hint shown inside an expanded, empty group section. */
+function EmptyHint({ text }: { text: string }) {
+  return (
+    <div
+      style={{
+        padding: "4px 8px 4px 20px",
+        color: "var(--description-fg)",
+      }}
+    >
+      {text}
+    </div>
+  );
+}
 
 function GroupSection({
   title,

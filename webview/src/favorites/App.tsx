@@ -313,11 +313,19 @@ function TreeNode({
         </div>
         {showAfterIndicator && <div className="fav-drop-indicator after" />}
       </div>
-      {isGroup && isExpanded && node.children && (
+      {isGroup && isExpanded && node.children && node.children.length > 0 && (
         <div>
           {node.children.map((child) => (
             <TreeNode key={child.id} node={child} depth={depth + 1} setMenu={setMenu} />
           ))}
+        </div>
+      )}
+      {isGroup && isExpanded && (node.children?.length ?? 0) === 0 && (
+        <div
+          className="fav-empty fav-empty-group"
+          style={{ marginLeft: (depth + 1) * 16 }}
+        >
+          {t("Empty folder")}
         </div>
       )}
     </>

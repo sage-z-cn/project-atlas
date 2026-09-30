@@ -23,7 +23,7 @@ npm run watch              # EXTENSION watch ONLY — run npm run watch:webview 
 npm run lint               # eslint src — extension only, does NOT lint webview/
 npm test                   # vscode-test — see "Tests" below; effectively non-functional
 npm run pack               # node scripts/build.js: clean build/ vsix + compile + package (build/<name>-<version>.vsix)
-npm run install-ext        # node scripts/build.js --install: clean + compile + package into build/ + install
+npm run install-ext        # node scripts/build.js --install: clean + compile + package into build/ + install + restart ext host
 npm run publish            # node scripts/build.js --publish --install: clean + compile + package + publish via --packagePath + install
 ```
 

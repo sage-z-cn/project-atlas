@@ -191,6 +191,11 @@ function ProjectSection({
       </div>
       {expanded && (
         <div>
+          {tasks.length === 0 && (
+            <div className="tasks-empty tasks-empty-sub">
+              {t("No tasks in this repository")}
+            </div>
+          )}
           {tasks.map((task) => (
             <TaskRow key={task.id} task={task} indent setMenu={setMenu} />
           ))}

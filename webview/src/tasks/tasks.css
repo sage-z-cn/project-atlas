@@ -147,6 +147,10 @@
   color: var(--vscode-descriptionForeground);
   font-style: italic;
 }
+/* 展开的空子仓库文件夹内嵌提示：缩进到任务行层级，留白收紧 */
+.tasks-empty-sub {
+  padding: 2px 16px 4px 40px;
+}
 .tasks-loading {
   display: flex;
   align-items: center;

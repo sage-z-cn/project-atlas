@@ -157,3 +157,7 @@
   color: var(--vscode-descriptionForeground);
   font-style: italic;
 }
+/* 展开的空分组内嵌提示：左缩进与子项标签对齐，纵向留白收紧 */
+.fav-empty-group {
+  padding: 2px 0 4px 22px;
+}
