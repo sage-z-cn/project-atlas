@@ -45,7 +45,7 @@
 		},
 		{
 			"type": "npm",
-			"script": "install",
+			"script": "install-ext",
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always"

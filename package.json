@@ -1093,7 +1093,7 @@
     "watch:extension": "vite build --watch",
     "watch:webview": "cd webview && npm run watch",
     "pack": "node scripts/build.js",
-    "install": "node scripts/build.js --install",
+    "install-ext": "node scripts/build.js --install",
     "publish": "node scripts/build.js --publish --install",
     "pretest": "npm run compile:extension && npm run lint",
     "lint": "eslint src",

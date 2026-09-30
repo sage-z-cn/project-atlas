@@ -10,7 +10,7 @@ All four subsystems render through the **same** React 19 webview app (`webview/`
 
 ## Agent Working Rules
 
-- **Never ask whether to compile, package, or install.** The user verifies changes themselves. After making edits, report what changed and the build/lint status you already ran — do not offer to run `npm run install`, `npm run pack`, or any install step, and do not ask permission to do so.
+- **Never ask whether to compile, package, or install.** The user verifies changes themselves. After making edits, report what changed and the build/lint status you already ran — do not offer to run `npm run install-ext`, `npm run pack`, or any install step, and do not ask permission to do so.
 - **Never question whether the user correctly verified a change.** If a change "doesn't work", take it at face value and investigate the root cause. Do not ask the user to confirm they reloaded / restarted / reinstalled, or imply the failure might be a verification mistake on their end.
 
 ## Commands
@@ -23,7 +23,7 @@ npm run watch              # EXTENSION watch ONLY — run npm run watch:webview 
 npm run lint               # eslint src — extension only, does NOT lint webview/
 npm test                   # vscode-test — see "Tests" below; effectively non-functional
 npm run pack               # node scripts/build.js: clean build/ vsix + compile + package (build/<name>-<version>.vsix)
-npm run install            # node scripts/build.js --install: clean + compile + package into build/ + install
+npm run install-ext        # node scripts/build.js --install: clean + compile + package into build/ + install
 npm run publish            # node scripts/build.js --publish --install: clean + compile + package + publish via --packagePath + install
 ```
 
