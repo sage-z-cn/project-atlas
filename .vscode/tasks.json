@@ -45,7 +45,7 @@
 		},
 		{
 			"type": "npm",
-			"script": "build-and-install",
+			"script": "install",
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always"

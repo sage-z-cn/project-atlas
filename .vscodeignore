@@ -25,7 +25,7 @@ AGENTS.md
 .playwright-mcp/**
 .ignore
 
-# 构建/开发脚本不打包（build-and-install.js 仅本地安装用）
+# 构建/开发脚本不打包（build.js 仅本地打包/安装用）
 scripts/**
 
 node_modules/**
