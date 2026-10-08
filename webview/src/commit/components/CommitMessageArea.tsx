@@ -376,6 +376,9 @@ export function CommitMessageArea() {
                 fontSize: 11,
                 opacity: 0.7,
                 fontVariantNumeric: "tabular-nums",
+                lineHeight: 1,
+                display: "inline-flex",
+                alignItems: "center",
               }}
             >
               {aiElapsed}

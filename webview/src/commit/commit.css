@@ -1189,6 +1189,22 @@ button.commit-dropdown-item:hover:not(:disabled) {
   border-color: var(--vscode-focusBorder, #3574f0);
 }
 
+/* commit 面板 AI 语言 chip 钉扎：常驻无边框、还原自然高度。全局 button 的
+ * height: 28px 会把这个 9px 文字的 chip 撑高，与旁边计时文字（裸 span、
+ * 11px 默认行高）行盒度量不一致，视觉上错位；去掉边框与固定高度后由
+ * 按钮组的 flex 居中统一对齐。hover 钉住背景：variables.css 全局
+ * button:hover（0,2,1）会压过 wrap 规则的 background: transparent
+ * （0,2,0），主按钮为绿色的主题下 chip 悬停整块变绿，这里只保留
+ * opacity 提亮。changelog 语言 chip 不受影响。 */
+.commit-amend-row .new-version-lang-wrap .new-version-lang-chip {
+  border: none;
+  height: auto;
+}
+
+.commit-amend-row .new-version-lang-wrap .new-version-lang-chip:hover {
+  background: transparent;
+}
+
 .new-version-lang-menu {
   position: absolute;
   top: calc(100% + 4px);
