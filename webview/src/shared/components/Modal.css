@@ -53,3 +53,57 @@
     transform: scale(1);
   }
 }
+
+/* modal 内复选框的自定义外观（从 commit.css 迁出 —— 规则本就作用于 .modal
+ * 后代，属于 modal 通用件；commit 侧 .commit-app input 规则保留原地，
+ * 视觉不变）。 */
+.modal input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--vscode-checkbox-border, #6b6b6b);
+  border-radius: 3px;
+  background: var(--vscode-checkbox-background, transparent);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.modal input[type="checkbox"]:checked {
+  background: var(--vscode-checkbox-selectBackground, #3574f0);
+  border-color: var(--vscode-checkbox-selectBackground, #3574f0);
+}
+
+.modal input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--vscode-checkbox-foreground, #fff);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.modal input[type="checkbox"]:indeterminate {
+  background: var(--vscode-checkbox-selectBackground, #3574f0);
+  border-color: var(--vscode-checkbox-selectBackground, #3574f0);
+}
+
+.modal input[type="checkbox"]:indeterminate::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 6px;
+  width: 8px;
+  height: 2px;
+  background: var(--vscode-checkbox-foreground, #fff);
+  border-radius: 1px;
+}
+
+.modal input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: none;
+}

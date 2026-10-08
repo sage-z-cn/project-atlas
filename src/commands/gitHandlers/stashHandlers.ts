@@ -71,17 +71,21 @@ export function registerStashHandlers(ctx: GitHandlerContext): void {
     "deleteStash",
     requireGitOrThrow(ctx, async (gitService, params) => {
       const stashRef = params.stashRef as string;
-      const deleteBtn = vscode.l10n.t("Delete");
-      // SHA 全长 40 位，弹窗展示用短哈希即可。
-      const choice = await vscode.window.showWarningMessage(
-        vscode.l10n.t(
-          'Delete stashed changes "{0}"? This cannot be undone.',
-          stashRef.slice(0, 8),
-        ),
-        { modal: true },
-        deleteBtn,
-      );
-      if (choice !== deleteBtn) return { success: false };
+      // params.confirmed === true：webview 弹窗已确认，跳过原生确认。
+      if (params.confirmed !== true) {
+        // webview 未带 confirmed 时的原生回退。
+        const deleteBtn = vscode.l10n.t("Delete");
+        // SHA 全长 40 位，弹窗展示用短哈希即可。
+        const choice = await vscode.window.showWarningMessage(
+          vscode.l10n.t(
+            'Delete stashed changes "{0}"? This cannot be undone.',
+            stashRef.slice(0, 8),
+          ),
+          { modal: true },
+          deleteBtn,
+        );
+        if (choice !== deleteBtn) return { success: false };
+      }
       await gitService.deleteStash(stashRef);
       messageRouter.broadcastEvent("commitStateChanged", {});
       return { success: true };
@@ -145,6 +149,15 @@ export function registerStashHandlers(ctx: GitHandlerContext): void {
     }),
   );
 
+  // webview 在弹覆盖确认弹窗前，探测目标文件是否有未提交改动。
+  messageRouter.handle(
+    "hasUncommittedChanges",
+    requireGitOrThrow(ctx, async (gitService, params) => {
+      const filePath = params.filePath as string;
+      return { dirty: await gitService.hasUncommittedFileChanges(filePath) };
+    }),
+  );
+
   messageRouter.handle(
     "unstashFile",
     requireGitOrThrow(ctx, async (gitService, params) => {
@@ -152,18 +165,22 @@ export function registerStashHandlers(ctx: GitHandlerContext): void {
       const filePath = params.filePath as string;
 
       // 覆盖确认：目标文件当前有未提交改动时，checkout 会静默覆盖工作区
-      // 内容，先弹 modal 确认（与 rollbackHandlers 一致），拒绝则中止。
+      // 内容，先做脏检查（confirmed 只跳过弹窗，不跳过检查本身）。
       if (await gitService.hasUncommittedFileChanges(filePath)) {
-        const confirmBtn = vscode.l10n.t("Overwrite");
-        const choice = await vscode.window.showWarningMessage(
-          vscode.l10n.t(
-            'Unstashing will overwrite uncommitted changes to "{0}". Continue?',
-            filePath,
-          ),
-          { modal: true },
-          confirmBtn,
-        );
-        if (choice !== confirmBtn) return { success: false };
+        // params.confirmed === true：webview 已在覆盖确认弹窗中确认。
+        if (params.confirmed !== true) {
+          // webview 未带 confirmed 时的原生回退。
+          const confirmBtn = vscode.l10n.t("Overwrite");
+          const choice = await vscode.window.showWarningMessage(
+            vscode.l10n.t(
+              'Unstashing will overwrite uncommitted changes to "{0}". Continue?',
+              filePath,
+            ),
+            { modal: true },
+            confirmBtn,
+          );
+          if (choice !== confirmBtn) return { success: false };
+        }
       }
 
       // Checkout the single file from the stash into the working tree.

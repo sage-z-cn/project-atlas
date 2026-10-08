@@ -29,16 +29,20 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
     requireGit(ctx, async (gitService, params) => {
       const filePath = params.filePath as string;
       const staged = params.staged === true;
-      const rollbackBtn = vscode.l10n.t("Rollback");
-      const choice = await vscode.window.showWarningMessage(
-        vscode.l10n.t(
-          'Rollback changes to "{0}"? This cannot be undone.',
-          filePath,
-        ),
-        { modal: true },
-        rollbackBtn,
-      );
-      if (choice !== rollbackBtn) return { success: false };
+      // params.confirmed === true：webview 弹窗已确认，跳过原生确认。
+      if (params.confirmed !== true) {
+        // webview 未带 confirmed 时的原生回退。
+        const rollbackBtn = vscode.l10n.t("Rollback");
+        const choice = await vscode.window.showWarningMessage(
+          vscode.l10n.t(
+            'Rollback changes to "{0}"? This cannot be undone.',
+            filePath,
+          ),
+          { modal: true },
+          rollbackBtn,
+        );
+        if (choice !== rollbackBtn) return { success: false };
+      }
       await gitService.rollbackFile(filePath, staged);
       messageRouter.broadcastEvent("commitStateChanged", {});
       return { success: true };
@@ -53,16 +57,20 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
     requireGit(ctx, async (gitService, params) => {
       const items = params.items as { path: string; staged: boolean }[];
       if (!items || items.length === 0) return { success: false };
-      const rollbackBtn = vscode.l10n.t("Rollback");
-      const choice = await vscode.window.showWarningMessage(
-        vscode.l10n.t(
-          "Rollback changes to {0} file(s)? This cannot be undone.",
-          items.length,
-        ),
-        { modal: true },
-        rollbackBtn,
-      );
-      if (choice !== rollbackBtn) return { success: false };
+      // params.confirmed === true：webview 弹窗已确认，跳过原生确认。
+      if (params.confirmed !== true) {
+        // webview 未带 confirmed 时的原生回退。
+        const rollbackBtn = vscode.l10n.t("Rollback");
+        const choice = await vscode.window.showWarningMessage(
+          vscode.l10n.t(
+            "Rollback changes to {0} file(s)? This cannot be undone.",
+            items.length,
+          ),
+          { modal: true },
+          rollbackBtn,
+        );
+        if (choice !== rollbackBtn) return { success: false };
+      }
       for (const item of items) {
         await gitService.rollbackFile(item.path, item.staged);
       }
@@ -94,12 +102,16 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
             fileCount,
           );
 
-    const choice = await vscode.window.showWarningMessage(
-      message,
-      { modal: true },
-      deleteBtn,
-    );
-    if (choice !== deleteBtn) return { success: false };
+    // params.confirmed === true：webview 弹窗已确认，跳过原生确认。
+    if (params.confirmed !== true) {
+      // webview 未带 confirmed 时的原生回退。
+      const choice = await vscode.window.showWarningMessage(
+        message,
+        { modal: true },
+        deleteBtn,
+      );
+      if (choice !== deleteBtn) return { success: false };
+    }
 
     for (const filePath of filePaths) {
       const fullPath = vscode.Uri.joinPath(

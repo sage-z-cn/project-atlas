@@ -212,7 +212,11 @@ export function registerRecentHandlers(ctx: ProjectHandlerContext): void {
     // 入口（命令面板 / 资源管理器右键）无 webview，回退 QuickPick。
     let groupId: string | undefined;
     if (typeof params.groupId === "string") {
-      groupId = params.groupId;
+      // 弹窗打开期间分组可能被删（favorites 视图或多窗口共享数据）：
+      // 校验存在性，失效则落根，避免收藏挂到不存在的分组后从树中不可见。
+      groupId = groupService.getById(params.groupId)
+        ? params.groupId
+        : undefined;
     } else if (params.groupId === null) {
       groupId = undefined;
     } else {

@@ -55,7 +55,7 @@ export function VscodeFileGroup({
   onGroupContextMenu,
   onDirContextMenu,
 }: VscodeFileGroupProps) {
-  const { collapsedDirs, toggleDir, unstageAll, stageAll, rollbackFiles } =
+  const { collapsedDirs, toggleDir, unstageAll, stageAll, requestRollbackFiles } =
     useCommitStore();
   // Normalize merge -> conflicts so both list styles share the same scoped key.
   const groupKey = groupType === "merge" ? "conflicts" : groupType;
@@ -116,8 +116,8 @@ export function VscodeFileGroup({
                 title={t("Discard All Changes...")}
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Backend rollbackFiles handler opens a modal confirmation.
-                  void rollbackFiles(
+                  // webview 内确认弹窗（store 驱动），确认后 confirmed:true。
+                  void requestRollbackFiles(
                     files.map((f) => ({ path: f.path, staged: f.staged })),
                   );
                 }}
@@ -214,7 +214,7 @@ function VscodeDirNodeView({
     fullPath?: string,
   ) => void;
 }) {
-  const { stageFiles, unstageFiles, rollbackFiles } = useCommitStore();
+  const { stageFiles, unstageFiles, requestRollbackFiles } = useCommitStore();
   return (
     <>
       {/* Subdirectories */}
@@ -257,8 +257,8 @@ function VscodeDirNodeView({
                         title={t("Discard All Changes...")}
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Backend rollbackFiles handler opens a modal confirmation.
-                          void rollbackFiles(
+                          // webview 内确认弹窗（store 驱动），确认后 confirmed:true。
+                          void requestRollbackFiles(
                             collectDirFiles(child).map((f) => ({
                               path: f.path,
                               staged: f.staged,

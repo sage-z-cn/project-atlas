@@ -23,7 +23,7 @@ export function StashContextMenu({
   onClose,
 }: StashContextMenuProps) {
   const menuRef = useContextMenuOverlay(onClose);
-  const { unstashChanges, deleteStash, stashLoading } = useCommitStore();
+  const { unstashChanges, requestDeleteStash, stashLoading } = useCommitStore();
 
   const style: React.CSSProperties = {
     position: "fixed",
@@ -44,10 +44,11 @@ export function StashContextMenu({
     onClose();
   }, [entry, unstashChanges, onClose]);
 
+  // 单条删除：webview 内确认弹窗（短哈希消息），确认后 confirmed:true。
   const handleDelete = useCallback(() => {
-    void deleteStash(entry.sha);
+    void requestDeleteStash(entry.sha);
     onClose();
-  }, [entry, deleteStash, onClose]);
+  }, [entry, requestDeleteStash, onClose]);
 
   // 多选命中：只保留批量删除（多条 Restore/Unstash 语义复杂，本期不做）。
   if (batchCount != null && batchCount > 1) {

@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { t } from "../shared/i18n";
 import { useRecentStore } from "../shared/store/recent-store";
 import { ModalOverlay } from "../shared/components/Modal";
+import "../shared/components/Dialog.css";
 import IconClose from "~icons/codicon/close";
 import IconSearch from "~icons/codicon/search";
 import IconFolder from "~icons/codicon/folder";
@@ -139,11 +140,11 @@ function AddFavoriteCard() {
       initialFocusRef={selectedRef}
       cardClass="modal-sm"
     >
-      <div className="fav-dialog-head">
-        <span className="fav-dialog-title">{title}</span>
+      <div className="dialog-head">
+        <span className="dialog-title">{title}</span>
         <button
           type="button"
-          className="fav-dialog-close"
+          className="dialog-close"
           aria-label={t("Cancel")}
           onClick={cancelAddFavorite}
         >
@@ -151,7 +152,7 @@ function AddFavoriteCard() {
         </button>
       </div>
 
-      <div className="fav-dialog-help">{t("Select group for favorite")}</div>
+      <div className="dialog-help">{t("Select group for favorite")}</div>
 
       {showSearch && (
         <div className="fav-dialog-search-box">
@@ -207,18 +208,18 @@ function AddFavoriteCard() {
         )}
       </div>
 
-      <div className="fav-dialog-actions">
-        <span className="fav-dialog-spacer" />
+      <div className="dialog-actions">
+        <span className="dialog-spacer" />
         <button
           type="button"
-          className="fav-dialog-btn fav-dialog-btn-secondary"
+          className="dialog-btn dialog-btn-secondary"
           onClick={cancelAddFavorite}
         >
           {t("Cancel")}
         </button>
         <button
           type="button"
-          className="fav-dialog-btn fav-dialog-btn-primary"
+          className="dialog-btn dialog-btn-primary"
           onClick={confirm}
           disabled={!hasOptions}
         >

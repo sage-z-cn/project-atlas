@@ -27,7 +27,8 @@ export function CommitFileContextMenu({
   const {
     stageFile,
     unstageFile,
-    rollbackFile,
+    requestRollbackFile,
+    requestDeleteFiles,
     showDiff,
     highlightedFiles,
     changes,
@@ -116,9 +117,10 @@ export function CommitFileContextMenu({
   }, [file, unstageFile, onClose]);
 
   const handleRollback = useCallback(() => {
-    rollbackFile(file.path, file.staged);
+    // webview 内确认弹窗，确认后 confirmed:true。
+    requestRollbackFile(file.path, file.staged);
     onClose();
-  }, [file, rollbackFile, onClose]);
+  }, [file, requestRollbackFile, onClose]);
 
   const handleStash = useCallback(async () => {
     onClose();
@@ -138,35 +140,19 @@ export function CommitFileContextMenu({
   }, [file, highlightedFiles, changes, onClose]);
 
   const handleDelete = useCallback(() => {
+    // 多选命中时删除全部高亮文件（去重），否则删单文件；
+    // webview 内确认弹窗（按数量切换消息），确认后 confirmed:true。
     const fileKey = `${file.path}:${file.staged}`;
     if (highlightedFiles.size > 1 && highlightedFiles.has(fileKey)) {
       const paths = changes
         .filter((f) => highlightedFiles.has(`${f.path}:${f.staged}`))
         .map((f) => f.path);
-      import("../../shared/bridge").then(async ({ bridge }) => {
-        try {
-          await bridge.request("deleteFiles", {
-            filePaths: [...new Set(paths)],
-          });
-        } catch (err) {
-          useCommitStore.getState().setCommitError(
-            err instanceof Error ? err.message : String(err),
-          );
-        }
-      });
+      requestDeleteFiles([...new Set(paths)]);
     } else {
-      import("../../shared/bridge").then(async ({ bridge }) => {
-        try {
-          await bridge.request("deleteFiles", { filePaths: [file.path] });
-        } catch (err) {
-          useCommitStore.getState().setCommitError(
-            err instanceof Error ? err.message : String(err),
-          );
-        }
-      });
+      requestDeleteFiles([file.path]);
     }
     onClose();
-  }, [file, highlightedFiles, changes, onClose]);
+  }, [file, highlightedFiles, changes, requestDeleteFiles, onClose]);
 
   const handleJumpToSource = useCallback(() => {
     import("../../shared/bridge").then(({ bridge }) => {

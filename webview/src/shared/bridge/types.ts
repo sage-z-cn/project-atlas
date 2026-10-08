@@ -183,6 +183,8 @@ export type UnstashChangesParams = {
 export type DeleteStashParams = {
   stashRef: string;
   repoPath: string | null;
+  /** webview 内已确认（跳过 host 原生确认框）。 */
+  confirmed?: true;
 };
 
 export type DeleteStashesParams = {
@@ -201,6 +203,8 @@ export type UnstashFileParams = {
   stashRef: string;
   filePath: string;
   repoPath: string | null;
+  /** true = webview 已确认（预检成功且非 dirty）；缺省/false 走 host 原生确认。 */
+  confirmed?: boolean;
 };
 
 export interface Bridge {

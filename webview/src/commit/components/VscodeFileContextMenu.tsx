@@ -37,7 +37,7 @@ export function VscodeFileContextMenu({
   const {
     stageFile,
     unstageFile,
-    rollbackFile,
+    requestRollbackFile,
     showDiff,
     currentRepoPath,
     highlightedFiles,
@@ -178,10 +178,10 @@ export function VscodeFileContextMenu({
   }, [file.path, currentRepoPath, onClose]);
 
   const handleDiscard = useCallback(() => {
-    // Backend rollbackFile handler opens a modal confirmation.
-    rollbackFile(file.path, file.staged);
+    // webview 内确认弹窗（store 驱动），确认后 confirmed:true。
+    requestRollbackFile(file.path, file.staged);
     onClose();
-  }, [file, rollbackFile, onClose]);
+  }, [file, requestRollbackFile, onClose]);
 
   const handleStash = useCallback(async () => {
     onClose();

@@ -148,8 +148,8 @@ export function VscodeFileItem({
             title={t("Discard Changes")}
             onClick={(e) => {
               e.stopPropagation();
-              // Backend handler opens a modal confirmation — no client confirm.
-              useCommitStore.getState().rollbackFile(file.path, file.staged);
+              // webview 内确认弹窗（store 驱动），确认后 confirmed:true。
+              useCommitStore.getState().requestRollbackFile(file.path, file.staged);
             }}
           >
             <DiscardIcon />

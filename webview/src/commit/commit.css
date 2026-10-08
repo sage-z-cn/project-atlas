@@ -15,9 +15,9 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* All checkboxes in commit panel (including modals portaled to body) */
-.commit-app input[type="checkbox"],
-.modal input[type="checkbox"] {
+/* All checkboxes in commit panel (modal-portaled ones are styled by
+ * shared/components/Modal.css via `.modal input[type="checkbox"]`) */
+.commit-app input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
   width: 16px;
@@ -30,14 +30,12 @@
   flex-shrink: 0;
 }
 
-.commit-app input[type="checkbox"]:checked,
-.modal input[type="checkbox"]:checked {
+.commit-app input[type="checkbox"]:checked {
   background: var(--vscode-checkbox-selectBackground, #3574f0);
   border-color: var(--vscode-checkbox-selectBackground, #3574f0);
 }
 
-.commit-app input[type="checkbox"]:checked::after,
-.modal input[type="checkbox"]:checked::after {
+.commit-app input[type="checkbox"]:checked::after {
   content: "";
   position: absolute;
   left: 4px;
@@ -49,14 +47,12 @@
   transform: rotate(45deg);
 }
 
-.commit-app input[type="checkbox"]:indeterminate,
-.modal input[type="checkbox"]:indeterminate {
+.commit-app input[type="checkbox"]:indeterminate {
   background: var(--vscode-checkbox-selectBackground, #3574f0);
   border-color: var(--vscode-checkbox-selectBackground, #3574f0);
 }
 
-.commit-app input[type="checkbox"]:indeterminate::after,
-.modal input[type="checkbox"]:indeterminate::after {
+.commit-app input[type="checkbox"]:indeterminate::after {
   content: "";
   position: absolute;
   left: 3px;
@@ -67,8 +63,7 @@
   border-radius: 1px;
 }
 
-.commit-app input[type="checkbox"]:focus,
-.modal input[type="checkbox"]:focus {
+.commit-app input[type="checkbox"]:focus {
   outline: none;
   box-shadow: none;
 }

@@ -43,6 +43,19 @@ export interface WorkingTreeFile {
   staged: boolean;
 }
 
+/**
+ * git 侧 webview 内确认弹窗的渲染状态（GitConfirmDialog，替代 host 原生
+ * showWarningMessage）。message / confirmLabel 在 request* 动作里以 t() 预
+ * 翻译；run 为确认后的执行闭包（内部调用的执行器已带 confirmed:true）。
+ * 取消 / Escape / 遮罩 = 丢弃整个动作，不发请求。
+ */
+export interface GitConfirmPrompt {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  run: () => void;
+}
+
 type TabType = "commit" | "stash" | "newVersion" | "release";
 
 interface CommitStore {
@@ -131,6 +144,12 @@ interface CommitStore {
    * stashPromptResolver。
    */
   stashPrompt: { open: boolean; paths: string[] | null };
+  /**
+   * git 侧危险动作确认弹窗（rollback / deleteFiles / deleteStash /
+   * unstashFile 覆盖确认）。null = 关闭；由 request* 动作置位，
+   * GitConfirmDialog 消费。
+   */
+  gitConfirm: GitConfirmPrompt | null;
 
   // UI state
   activeTab: TabType;
@@ -294,7 +313,37 @@ interface CommitStore {
     stashRef: string,
     filePath: string,
     repoPath?: string | null,
+    /**
+     * false/缺省 = 不绕过确认（脏检查预检失败时退回 host 原生弹窗
+     * 兜底），默认 true = webview 流程已确认或预检确认非 dirty。
+     */
+    confirmed?: boolean,
   ) => Promise<void>;
+
+  // ── webview 内确认弹窗驱动的危险动作（确认后执行器带 confirmed:true） ──
+  /** 打开 rollbackFile 确认（单文件）。 */
+  requestRollbackFile: (filePath: string, staged: boolean) => void;
+  /** 打开 rollbackFiles 确认（多文件）。空数组 no-op。 */
+  requestRollbackFiles: (items: { path: string; staged: boolean }[]) => void;
+  /** 打开 deleteFiles 确认（单/多文件按数量切换消息）。空数组 no-op。 */
+  requestDeleteFiles: (filePaths: string[]) => void;
+  /** 打开 deleteStash 确认（单条，消息用短哈希）。 */
+  requestDeleteStash: (stashRef: string) => void;
+  /**
+   * 单文件恢复：先查 hasUncommittedChanges，dirty 才弹覆盖确认；
+   * 非 dirty（或检查失败）直接执行（统一 confirmed:true）。
+   */
+  requestUnstashFile: (
+    stashRef: string,
+    filePath: string,
+    repoPath?: string | null,
+  ) => Promise<void>;
+  /** 确认弹窗回调：执行 run 并关弹窗。仅由 GitConfirmDialog 调用。 */
+  confirmGitPrompt: () => void;
+  /** 取消弹窗（Escape / backdrop / 取消按钮）：整个动作中止。 */
+  cancelGitPrompt: () => void;
+  /** 删除工作区文件（确认后调用；与旧直发行为一致，不主动 refetch）。 */
+  deleteFiles: (filePaths: string[]) => Promise<void>;
   setActiveTab: (tab: TabType) => void;
   toggleGroup: (group: string) => void;
   /** `group` is the expandedGroups id; scopes the collapsed key per list. */
@@ -414,6 +463,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   stashLoading: false,
   stashSeq: 0,
   stashPrompt: { open: false, paths: [] },
+  gitConfirm: null,
   activeTab: "commit",
   loading: false,
   expandedGroups: new Set(["changes", "unversioned", "staged"]),
@@ -924,6 +974,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         filePath,
         staged,
         repoPath: get().currentRepoPath,
+        confirmed: true,
       });
       await get().fetchChanges();
     } catch (err) {
@@ -1057,9 +1108,11 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       const result = await bridge.request<{ success: boolean }>("deleteStash", {
         stashRef,
         repoPath: get().currentRepoPath,
+        confirmed: true,
       } satisfies DeleteStashParams);
-      // Host 在确认弹窗被取消时返回 { success: false }（正常 resolve）：
-      // 取消则中止 —— 不乐观移除、不 refetch，避免条目闪回/缺失。
+      // 防御性判断：webview 恒带 confirmed:true，host 取消分支正常情况下
+      // 不可达；若未来调用方未带 confirmed 被取消（success:false），中止而
+      // 不做乐观移除、不 refetch，避免条目闪回/缺失。
       if (result?.success === false) return;
       set({ stashes: get().stashes.filter((s) => s.sha !== stashRef) });
       await get().fetchStashes();
@@ -1100,6 +1153,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     stashRef: string,
     filePath: string,
     repoPath?: string | null,
+    confirmed = true,
   ) {
     try {
       set({ stashLoading: true });
@@ -1107,6 +1161,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         stashRef,
         filePath,
         repoPath: repoPath ?? get().currentRepoPath,
+        confirmed,
       } satisfies UnstashFileParams);
       // 单文件恢复不删除 stash 条目（条目仍存在），refetch 校准文件列表。
       await get().fetchChanges();
@@ -1115,6 +1170,126 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       set({ commitError: err instanceof Error ? err.message : String(err) });
     } finally {
       set({ stashLoading: false });
+    }
+  },
+
+  // ── webview 内确认弹窗驱动的危险动作 ──────────────────────────────
+  // request* 只置弹窗状态；确认（confirmGitPrompt）才执行，取消即中止。
+  requestRollbackFile(filePath, staged) {
+    set({
+      gitConfirm: {
+        title: t("Rollback"),
+        message: t('Rollback changes to "{0}"? This cannot be undone.', filePath),
+        confirmLabel: t("Rollback"),
+        run: () => {
+          void get().rollbackFile(filePath, staged);
+        },
+      },
+    });
+  },
+
+  requestRollbackFiles(items) {
+    if (items.length === 0) return;
+    set({
+      gitConfirm: {
+        title: t("Rollback"),
+        message: t(
+          "Rollback changes to {0} file(s)? This cannot be undone.",
+          items.length,
+        ),
+        confirmLabel: t("Rollback"),
+        run: () => {
+          void get().rollbackFiles(items);
+        },
+      },
+    });
+  },
+
+  requestDeleteFiles(filePaths) {
+    if (filePaths.length === 0) return;
+    set({
+      gitConfirm: {
+        title: t("Delete"),
+        message:
+          filePaths.length === 1
+            ? t('Delete "{0}"? This cannot be undone.', filePaths[0])
+            : t("Delete {0} files? This cannot be undone.", filePaths.length),
+        confirmLabel: t("Delete"),
+        run: () => {
+          void get().deleteFiles(filePaths);
+        },
+      },
+    });
+  },
+
+  requestDeleteStash(stashRef) {
+    set({
+      gitConfirm: {
+        title: t("Delete"),
+        message: t(
+          'Delete stashed changes "{0}"? This cannot be undone.',
+          stashRef.slice(0, 8),
+        ),
+        confirmLabel: t("Delete"),
+        run: () => {
+          void get().deleteStash(stashRef);
+        },
+      },
+    });
+  },
+
+  async requestUnstashFile(stashRef, filePath, repoPath) {
+    let dirty = false;
+    let checkFailed = false;
+    try {
+      const result = (await bridge.request("hasUncommittedChanges", {
+        filePath,
+      })) as { dirty?: boolean };
+      dirty = Boolean(result?.dirty);
+    } catch (err) {
+      // 预检失败不能按"已确认"绕过覆盖确认：不带 confirmed 发送，若文件
+      // 确实有未提交改动，由 host 原生弹窗兜底确认，避免静默覆盖。
+      checkFailed = true;
+      console.error("hasUncommittedChanges failed:", err);
+    }
+    if (!dirty) {
+      await get().unstashFile(stashRef, filePath, repoPath, !checkFailed);
+      return;
+    }
+    // 预检期间用户可能已打开其他确认弹窗（本函数是唯一异步置位路径），
+    // 已有弹窗时中止，避免覆盖成内容与用户预期不符的确认框。
+    if (get().gitConfirm) return;
+    set({
+      gitConfirm: {
+        title: t("Unstash This File"),
+        message: t(
+          'Unstashing will overwrite uncommitted changes to "{0}". Continue?',
+          filePath,
+        ),
+        confirmLabel: t("Confirm"),
+        run: () => {
+          void get().unstashFile(stashRef, filePath, repoPath);
+        },
+      },
+    });
+  },
+
+  confirmGitPrompt() {
+    const prompt = get().gitConfirm;
+    set({ gitConfirm: null });
+    prompt?.run();
+  },
+
+  cancelGitPrompt() {
+    set({ gitConfirm: null });
+  },
+
+  async deleteFiles(filePaths) {
+    if (filePaths.length === 0) return;
+    try {
+      await bridge.request("deleteFiles", { filePaths, confirmed: true });
+    } catch (err) {
+      set({ commitError: err instanceof Error ? err.message : String(err) });
     }
   },
 
@@ -1323,6 +1498,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await bridge.request("rollbackFiles", {
         items,
         repoPath: get().currentRepoPath,
+        confirmed: true,
       });
       await get().fetchChanges();
     } catch (err) {

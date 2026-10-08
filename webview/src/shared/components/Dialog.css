@@ -1,0 +1,171 @@
+/* ── Shared dialog chrome（PromptDialog / ConfirmDialog 的内容区样式，
+ * 渲染在 shared ModalOverlay 的 .modal 卡片内）。中性 .dialog-* 前缀，
+ * 不挂任何 feature 前缀 —— 各视图弹窗共用同一视觉语言。 ── */
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.dialog-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.dialog-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0.7;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.dialog-close:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+}
+
+.dialog-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 说明/消息行：小字号弱化（对齐 commit 弹窗的 help 文案语言），
+ * 路径/名称可能很长，允许任意断行。 */
+.dialog-help {
+  font-size: 11px;
+  opacity: 0.55;
+  line-height: 1.5;
+  user-select: none;
+  overflow-wrap: anywhere;
+}
+
+/* 文本输入框：背景基于 input-background 混入 8% 前景提亮 —— 弹窗容器走
+ * menu-background，部分主题下与 input-background 计算值相同（撞色），
+ * color-mix 保证输入框与弹窗背景永远存在明度差（深浅色主题通用）。
+ * 平时描边走 dropdown 系的极淡边，聚焦才亮 focusBorder。 */
+.dialog-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 26px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-input-foreground);
+  background: color-mix(
+    in srgb,
+    var(--vscode-input-background, #3c3c3c) 92%,
+    var(--vscode-input-foreground, #cccccc)
+  );
+  border: 1px solid var(
+    --vscode-dropdown-border,
+    color-mix(in srgb, var(--vscode-input-foreground) 20%, transparent)
+  );
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.dialog-input:focus {
+  border-color: var(--vscode-focusBorder, #007fd4);
+}
+
+.dialog-input::placeholder {
+  color: var(
+    --vscode-input-placeholderForeground,
+    var(--vscode-descriptionForeground)
+  );
+}
+
+/* "不再询问" 复选行（checkbox 本体样式见 Modal.css 的 .modal 规则）。 */
+.dialog-check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dialog-spacer {
+  flex: 1;
+}
+
+.dialog-btn {
+  height: 28px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--vscode-font-family);
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, filter 0.15s;
+  box-sizing: border-box;
+}
+
+.dialog-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.dialog-btn-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.dialog-btn-primary:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.dialog-btn-secondary {
+  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+}
+
+.dialog-btn-secondary:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground, #45494e);
+}
+
+/* 危险动作（删除/回滚类）：errorForeground 语言，对齐 commit 侧 .btn-danger。 */
+.dialog-btn-danger {
+  background: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+  color: var(--vscode-errorForeground, #f14c4c);
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+}
+
+.dialog-btn-danger:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.dialog-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -82,10 +82,17 @@ export function registerFavoritesHandlers(ctx: ProjectHandlerContext): void {
     const recent = projectService.getById(id);
     const current = fav ?? recent;
     if (!current) return;
-    const newName = await vscode.window.showInputBox({
-      prompt: vscode.l10n.t("Rename project"),
-      value: current.name,
-    });
+    // params.newName：webview 弹窗输入后带参请求，直接应用。
+    let newName: string | undefined;
+    if (typeof params.newName === "string" && params.newName.trim()) {
+      newName = params.newName;
+    } else {
+      // webview 未带参时的原生回退（原生命令入口无 webview）。
+      newName = await vscode.window.showInputBox({
+        prompt: vscode.l10n.t("Rename project"),
+        value: current.name,
+      });
+    }
     if (newName) {
       await projectService.renameProject(id, newName);
       await favoriteService.rename(id, newName);
@@ -94,7 +101,10 @@ export function registerFavoritesHandlers(ctx: ProjectHandlerContext): void {
   messageRouter.handle("removeFavorite", async (params) => {
     const ids = (params.ids as string[] | undefined) ?? [];
     if (ids.length === 0) return;
-    if (ids.length > 1) {
+    // params.confirmed === true：webview 弹窗已确认，跳过两处原生确认。
+    const confirmed = params.confirmed === true;
+    if (ids.length > 1 && !confirmed) {
+      // webview 未带 confirmed 时的原生回退。
       const ok = await confirmDelete(
         vscode.l10n.t("Are you sure you want to remove {0} selected items?", String(ids.length)),
       );
@@ -103,7 +113,8 @@ export function registerFavoritesHandlers(ctx: ProjectHandlerContext): void {
     for (const id of ids) {
       const project = favoriteService.getById(id);
       if (!project) continue;
-      if (ids.length === 1) {
+      if (ids.length === 1 && !confirmed) {
+        // webview 未带 confirmed 时的原生回退。
         const ok = await confirmDelete(
           vscode.l10n.t("Are you sure you want to remove '{0}' from favorites?", project.name),
         );
@@ -116,25 +127,44 @@ export function registerFavoritesHandlers(ctx: ProjectHandlerContext): void {
   // ── 分组动作 ──
   messageRouter.handle("addSubGroup", async (params) => {
     const parentId = params.id as string;
-    const name = await vscode.window.showInputBox({
-      prompt: vscode.l10n.t("Enter sub-group name"),
-    });
+    // params.name：webview 弹窗输入后带参请求，直接应用。
+    let name: string | undefined;
+    if (typeof params.name === "string" && params.name.trim()) {
+      name = params.name;
+    } else {
+      // webview 未带参时的原生回退（原生命令入口无 webview）。
+      name = await vscode.window.showInputBox({
+        prompt: vscode.l10n.t("Enter sub-group name"),
+      });
+    }
     if (name) await groupService.addGroup(name, parentId);
   });
   messageRouter.handle("renameGroup", async (params) => {
     const id = params.id as string;
     const group = groupService.getById(id);
     if (!group) return;
-    const newName = await vscode.window.showInputBox({
-      prompt: vscode.l10n.t("Rename group"),
-      value: group.name,
-    });
+    // params.newName：webview 弹窗输入后带参请求，直接应用。
+    let newName: string | undefined;
+    if (typeof params.newName === "string" && params.newName.trim()) {
+      newName = params.newName;
+    } else {
+      // webview 未带参时的原生回退（原生命令入口无 webview）。
+      newName = await vscode.window.showInputBox({
+        prompt: vscode.l10n.t("Rename group"),
+        value: group.name,
+      });
+    }
     if (newName) await groupService.renameGroup(id, newName);
   });
   messageRouter.handle("deleteGroup", async (params) => {
     const ids = (params.ids as string[] | undefined) ?? [];
     if (ids.length === 0) return;
-    if (ids.length > 1) {
+    // params.confirmed === true：webview 弹窗已确认，跳过批量与单条空组确认。
+    const confirmed = params.confirmed === true;
+    // params.strategy：webview 弹窗已选定非空组删除策略时，跳过原生二选一。
+    const strategy = params.strategy as string | undefined;
+    if (ids.length > 1 && !confirmed) {
+      // webview 未带 confirmed 时的原生回退。
       const ok = await confirmDelete(
         vscode.l10n.t("Are you sure you want to remove {0} selected items?", String(ids.length)),
       );
@@ -149,7 +179,10 @@ export function registerFavoritesHandlers(ctx: ProjectHandlerContext): void {
         if (ids.length > 1) {
           // 批量：已统一确认，自动移除
           await groupService.deleteGroup(id, false);
+        } else if (strategy === "moveToParent" || strategy === "removeAll") {
+          await groupService.deleteGroup(id, strategy === "moveToParent");
         } else {
+          // webview 未带 strategy 时的原生回退（原生命令入口）。
           const act = await vscode.window.showWarningMessage(
             vscode.l10n.t("Group '{0}' contains items. What would you like to do?", group.name),
             { modal: true },
@@ -160,7 +193,8 @@ export function registerFavoritesHandlers(ctx: ProjectHandlerContext): void {
           await groupService.deleteGroup(id, act === vscode.l10n.t("Move to parent"));
         }
       } else {
-        if (ids.length === 1) {
+        if (ids.length === 1 && !confirmed) {
+          // webview 未带 confirmed 时的原生回退。
           const ok = await confirmDelete(
             vscode.l10n.t("Are you sure you want to delete group '{0}'?", group.name),
           );
@@ -169,6 +203,16 @@ export function registerFavoritesHandlers(ctx: ProjectHandlerContext): void {
         await groupService.deleteGroup(id, true);
       }
     }
+  });
+
+  // ── 确认偏好（webview 弹窗读取 / 写入 confirmDelete 配置）──
+  messageRouter.handle("getConfirmPrefs", async () => {
+    const config = vscode.workspace.getConfiguration("projectAtlas");
+    return { confirmDelete: config.get<string>("confirmDelete", "ask") };
+  });
+  messageRouter.handle("setConfirmDeleteNever", async () => {
+    const config = vscode.workspace.getConfiguration("projectAtlas");
+    await config.update("confirmDelete", "never", vscode.ConfigurationTarget.Global);
   });
 }
 

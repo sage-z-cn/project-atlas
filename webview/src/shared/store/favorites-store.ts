@@ -28,6 +28,58 @@ export type FavoriteAction =
   | "renameFavorite"
   | "removeFavorite";
 
+/**
+ * webview 内弹窗状态（输入 / 确认，替代 host 原生 InputBox 与确认框）。
+ * null = 无弹窗；文案在组件层按 kind 派生（store 只存纯数据）。
+ */
+export type FavoritesDialog =
+  | { kind: "renameFavorite"; id: string; initialValue: string }
+  | { kind: "addSubGroup"; id: string }
+  | { kind: "renameGroup"; id: string; initialValue: string }
+  | { kind: "removeFavorites"; ids: string[] }
+  | { kind: "deleteGroups"; ids: string[] }
+  | { kind: "deleteGroupStrategy"; id: string };
+
+/** 深度查找树节点（弹窗初始值 / 消息里的名称用）。 */
+export function findTreeNode(
+  nodes: TreeNodeDto[],
+  id: string,
+): TreeNodeDto | null {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    if (n.children) {
+      const found = findTreeNode(n.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * 读取删除确认偏好：confirmDelete === "never" 时调用方跳过弹窗直接执行。
+ * 拉取失败保守起见返回 true（仍确认）。
+ */
+async function shouldConfirmDelete(): Promise<boolean> {
+  try {
+    const result = (await bridge.request("getConfirmPrefs")) as {
+      confirmDelete?: string;
+    };
+    return result?.confirmDelete !== "never";
+  } catch (err) {
+    console.error("getConfirmPrefs failed:", err);
+    return true;
+  }
+}
+
+/** 持久化「不再询问」（勾选复选框确认时先落配置再执行动作）。 */
+async function persistConfirmDeleteNever(): Promise<void> {
+  try {
+    await bridge.request("setConfirmDeleteNever");
+  } catch (err) {
+    console.error("setConfirmDeleteNever failed:", err);
+  }
+}
+
 interface FavoritesStore {
   tree: TreeNodeDto[];
   clickMode: "singleClick" | "doubleClick";
@@ -58,6 +110,34 @@ interface FavoritesStore {
     target: { id: string; type: string },
     position: string,
   ) => Promise<void>;
+
+  // ── webview 内弹窗（输入 / 确认） ──
+  dialog: FavoritesDialog | null;
+  /** 重命名收藏：初始值取树节点名称。 */
+  promptRenameFavorite: (id: string) => void;
+  promptAddSubGroup: (id: string) => void;
+  /** 重命名分组：初始值取树节点名称。 */
+  promptRenameGroup: (id: string) => void;
+  /** 移除收藏（单/批）：按确认偏好决定弹窗或直接执行。 */
+  requestRemoveFavorites: (ids: string[]) => Promise<void>;
+  /** 删除分组：单条非空 → 二选一弹窗；其余按确认偏好。 */
+  requestDeleteGroups: (ids: string[]) => Promise<void>;
+  /** 输入弹窗确认：按 kind 带 newName / name 发请求。 */
+  resolveFavoritesInput: (name: string) => Promise<void>;
+  /** 确认弹窗确认：dontAsk 时先落 setConfirmDeleteNever。 */
+  confirmFavoritesDialog: (dontAsk: boolean) => Promise<void>;
+  /** 非空组二选一：带 strategy + confirmed 执行。 */
+  chooseDeleteGroupStrategy: (
+    strategy: "moveToParent" | "removeAll",
+  ) => Promise<void>;
+  cancelFavoritesDialog: () => void;
+  /** 移除收藏执行（confirmed 直发 + 清选择）。 */
+  applyRemoveFavorites: (ids: string[]) => Promise<void>;
+  /** 删除分组执行；strategy 仅单条非空组携带。 */
+  applyDeleteGroups: (
+    ids: string[],
+    strategy?: "moveToParent" | "removeAll",
+  ) => Promise<void>;
 }
 
 function collectGroupIds(nodes: TreeNodeDto[], acc: Set<string>): void {
@@ -77,6 +157,7 @@ export const useFavoritesStore = create<FavoritesStore>((set, get) => ({
   focusedId: null,
   lastClickedId: null,
   expanded: new Set(),
+  dialog: null,
 
   init: async () => {
     // 恢复展开状态
@@ -172,13 +253,17 @@ export const useFavoritesStore = create<FavoritesStore>((set, get) => ({
   },
   executeProjectAction: async (action, ids) => {
     if (ids.length === 0) return;
+    // 需要弹窗交互的动作在此分流；其余保持单 id 直发。
+    if (action === "removeFavorite") {
+      await get().requestRemoveFavorites(ids);
+      return;
+    }
+    if (action === "renameFavorite") {
+      get().promptRenameFavorite(ids[0]);
+      return;
+    }
     try {
-      if (action === "removeFavorite") {
-        await bridge.request("removeFavorite", { ids });
-        get().clearSelection();
-      } else {
-        for (const id of ids) await bridge.request(action, { id });
-      }
+      for (const id of ids) await bridge.request(action, { id });
     } catch (err) {
       console.error(`${action} failed:`, err);
     }
@@ -189,6 +274,116 @@ export const useFavoritesStore = create<FavoritesStore>((set, get) => ({
     } catch (err) {
       console.error("dropNode failed:", err);
     }
+  },
+
+  // ── webview 内弹窗动作 ──
+  promptRenameFavorite: (id) => {
+    const node = findTreeNode(get().tree, id);
+    set({ dialog: { kind: "renameFavorite", id, initialValue: node?.name ?? "" } });
+  },
+
+  promptAddSubGroup: (id) => {
+    set({ dialog: { kind: "addSubGroup", id } });
+  },
+
+  promptRenameGroup: (id) => {
+    const node = findTreeNode(get().tree, id);
+    set({ dialog: { kind: "renameGroup", id, initialValue: node?.name ?? "" } });
+  },
+
+  requestRemoveFavorites: async (ids) => {
+    if (ids.length === 0) return;
+    if (await shouldConfirmDelete()) {
+      set({ dialog: { kind: "removeFavorites", ids } });
+      return;
+    }
+    await get().applyRemoveFavorites(ids);
+  },
+
+  requestDeleteGroups: async (ids) => {
+    if (ids.length === 0) return;
+    if (ids.length === 1) {
+      const node = findTreeNode(get().tree, ids[0]);
+      if (node && (node.children?.length ?? 0) > 0) {
+        // 非空组必须二选一（host 需要知道处理策略），不受"不再询问"影响。
+        set({ dialog: { kind: "deleteGroupStrategy", id: ids[0] } });
+        return;
+      }
+    }
+    if (await shouldConfirmDelete()) {
+      set({ dialog: { kind: "deleteGroups", ids } });
+      return;
+    }
+    await get().applyDeleteGroups(ids);
+  },
+
+  resolveFavoritesInput: async (name) => {
+    const dialog = get().dialog;
+    if (
+      !dialog ||
+      dialog.kind === "removeFavorites" ||
+      dialog.kind === "deleteGroups" ||
+      dialog.kind === "deleteGroupStrategy"
+    ) {
+      return;
+    }
+    set({ dialog: null });
+    try {
+      if (dialog.kind === "renameFavorite") {
+        await bridge.request("renameFavorite", { id: dialog.id, newName: name });
+      } else if (dialog.kind === "renameGroup") {
+        await bridge.request("renameGroup", { id: dialog.id, newName: name });
+      } else {
+        await bridge.request("addSubGroup", { id: dialog.id, name });
+      }
+    } catch (err) {
+      console.error(`${dialog.kind} failed:`, err);
+    }
+  },
+
+  confirmFavoritesDialog: async (dontAsk) => {
+    const dialog = get().dialog;
+    if (dialog?.kind === "removeFavorites") {
+      set({ dialog: null });
+      if (dontAsk) await persistConfirmDeleteNever();
+      await get().applyRemoveFavorites(dialog.ids);
+    } else if (dialog?.kind === "deleteGroups") {
+      set({ dialog: null });
+      if (dontAsk) await persistConfirmDeleteNever();
+      await get().applyDeleteGroups(dialog.ids);
+    }
+  },
+
+  chooseDeleteGroupStrategy: async (strategy) => {
+    const dialog = get().dialog;
+    if (dialog?.kind !== "deleteGroupStrategy") return;
+    set({ dialog: null });
+    await get().applyDeleteGroups([dialog.id], strategy);
+  },
+
+  cancelFavoritesDialog: () => set({ dialog: null }),
+
+  /** 移除收藏执行（confirmed 直发 + 清选择）。 */
+  applyRemoveFavorites: async (ids) => {
+    try {
+      await bridge.request("removeFavorite", { ids, confirmed: true });
+    } catch (err) {
+      console.error("removeFavorite failed:", err);
+    }
+    get().clearSelection();
+  },
+
+  /** 删除分组执行；strategy 仅单条非空组携带。 */
+  applyDeleteGroups: async (ids, strategy) => {
+    try {
+      await bridge.request(
+        "deleteGroup",
+        strategy ? { ids, confirmed: true, strategy } : { ids, confirmed: true },
+      );
+    } catch (err) {
+      console.error("deleteGroup failed:", err);
+    }
+    get().clearSelection();
   },
 }));
 

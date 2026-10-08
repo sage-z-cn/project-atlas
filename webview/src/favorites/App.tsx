@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "../shared/i18n";
-import { bridge } from "../shared/bridge";
 import { ContextMenu, type ContextMenuEntry } from "../shared/components/ContextMenu";
 import { ProjectIcon } from "../shared/components/ProjectIcon";
 import { useFavoritesStore, type TreeNodeDto, type FavoriteAction } from "../shared/store/favorites-store";
+import { FavoritesDialogs } from "./FavoritesDialogs";
 import IconChevronDown from "~icons/codicon/chevron-down";
 import IconChevronRight from "~icons/codicon/chevron-right";
 import IconFolder from "~icons/codicon/folder";
@@ -97,18 +97,20 @@ export function FavoritesApp() {
   if (loading && tree.length === 0) {
     return <div className="fav-empty">{t("Loading...")}</div>;
   }
-  if (tree.length === 0) {
-    return <div className="fav-empty">{t("No favorites yet")}</div>;
-  }
 
   return (
     <>
-      <div className="fav-tree" ref={listRef}>
-        {tree.map((node) => (
-          <TreeNode key={node.id} node={node} depth={0} setMenu={setMenu} />
-        ))}
-      </div>
+      {tree.length === 0 ? (
+        <div className="fav-empty">{t("No favorites yet")}</div>
+      ) : (
+        <div className="fav-tree" ref={listRef}>
+          {tree.map((node) => (
+            <TreeNode key={node.id} node={node} depth={0} setMenu={setMenu} />
+          ))}
+        </div>
+      )}
       {menu && <FavoritesContextMenu menu={menu} onClose={() => setMenu(null)} />}
+      <FavoritesDialogs />
     </>
   );
 }
@@ -383,10 +385,11 @@ function FavoritesContextMenu({
     disabled: multiSelect && !mi.multi,
     onSelect: () => {
       if (node.type === "group") {
-        const action = mi.action as "addSubGroup" | "renameGroup" | "deleteGroup";
-        bridge
-          .request(action, action === "addSubGroup" ? { id: node.id } : { ids })
-          .catch((err) => console.error(`${action} failed:`, err));
+        // 输入 / 确认均在 webview 内弹窗完成（store 分流），不再直发 host。
+        const store = useFavoritesStore.getState();
+        if (mi.action === "addSubGroup") store.promptAddSubGroup(node.id);
+        else if (mi.action === "renameGroup") store.promptRenameGroup(node.id);
+        else void store.requestDeleteGroups(ids);
       } else {
         void useFavoritesStore
           .getState()

@@ -18,6 +18,7 @@
   "Remove": "移除",
   "Delete": "删除",
   "Rename project": "重命名项目",
+  "Enter new name:": "输入新名称：",
   "Enter group name": "输入分组名称",
   "Enter shelf name (optional):": "输入搁置名称（可选）：",
   "Enter stash message (optional):": "输入贮藏消息（可选）：",

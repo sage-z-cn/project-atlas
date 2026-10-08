@@ -22,7 +22,7 @@ export function StashFileContextMenu({
   onClose,
 }: StashFileContextMenuProps) {
   const menuRef = useContextMenuOverlay(onClose);
-  const { unstashFile, stashLoading } = useCommitStore();
+  const { requestUnstashFile, stashLoading } = useCommitStore();
   // 菜单打开时快照 repoPath：菜单开启期间 repo 切换的话，请求不能漂移到
   // 新 repo（repoChanged 会清空 stashes，此菜单随数据失效关闭）。
   const [repoPath] = useState(() => useCommitStore.getState().currentRepoPath);
@@ -41,9 +41,10 @@ export function StashFileContextMenu({
 
   const handleUnstashFile = useCallback(() => {
     onClose();
+    // store 先查 hasUncommittedChanges，dirty 才弹覆盖确认；
     // 错误已在 store 的 unstashFile 内 catch 并写入 commitError。
-    void unstashFile(stashRef, filePath, repoPath);
-  }, [stashRef, filePath, repoPath, unstashFile, onClose]);
+    void requestUnstashFile(stashRef, filePath, repoPath);
+  }, [stashRef, filePath, repoPath, requestUnstashFile, onClose]);
 
   const handleJumpToSource = useCallback(() => {
     bridge.request("openFile", { filePath });

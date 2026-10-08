@@ -196,60 +196,11 @@
 }
 
 /* ── 添加到收藏：选组弹窗（AddFavoriteDialog，卡片骨架复用 shared 的
- * .modal / modal-sm；此处只定义弹窗内容区的 .fav-dialog-* 专属样式，
- * 视觉对齐 commit 侧弹窗：头部/帮助文字/动作行/按钮同一语言） ── */
-
-.fav-dialog-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  user-select: none;
-}
-.fav-dialog-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-.fav-dialog-close {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--vscode-foreground);
-  cursor: pointer;
-  border-radius: 3px;
-  opacity: 0.7;
-  transition: opacity 0.15s, background 0.15s;
-}
-.fav-dialog-close:hover {
-  opacity: 1;
-  background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
-}
-.fav-dialog-close svg {
-  width: 14px;
-  height: 14px;
-}
-
-.fav-dialog-help {
-  font-size: 11px;
-  opacity: 0.55;
-  line-height: 1.5;
-  user-select: none;
-}
+ * .modal / modal-sm，头部/帮助/动作行/按钮复用 Dialog.css 的 .dialog-*；
+ * 此处只保留选组列表、搜索框等 recent 专属样式） ── */
 
 /* 搜索框（分组多时才出现）：外框走 dropdown 边框系，聚焦亮 focusBorder，
- * 对齐 commit 侧 stash-prompt 输入控件的视觉惯例。 */
+ * 对齐共享 Dialog.css 输入控件的视觉惯例。 */
 .fav-dialog-search-box {
   display: flex;
   align-items: center;
@@ -386,44 +337,4 @@
   color: var(--vscode-descriptionForeground);
   font-style: italic;
   user-select: none;
-}
-
-.fav-dialog-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.fav-dialog-spacer {
-  flex: 1;
-}
-.fav-dialog-btn {
-  height: 28px;
-  padding: 6px 14px;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: var(--vscode-font-family);
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s;
-  box-sizing: border-box;
-}
-.fav-dialog-btn-primary {
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-}
-.fav-dialog-btn-primary:hover:not(:disabled) {
-  background: var(--vscode-button-hoverBackground);
-}
-.fav-dialog-btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.fav-dialog-btn-secondary {
-  background: var(--vscode-button-secondaryBackground, #3a3d41);
-  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
-}
-.fav-dialog-btn-secondary:hover {
-  background: var(--vscode-button-secondaryHoverBackground, #45494e);
 }

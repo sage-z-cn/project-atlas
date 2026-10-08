@@ -29,7 +29,7 @@ export function VscodeBatchContextMenu({
   onClose,
 }: VscodeBatchContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const { stageFiles, unstageFiles, rollbackFiles } = useCommitStore();
+  const { stageFiles, unstageFiles, requestRollbackFiles } = useCommitStore();
 
   // Position adjustment to keep menu in viewport
   const [position, setPosition] = useState<{ top: number; left: number }>({
@@ -102,10 +102,10 @@ export function VscodeBatchContextMenu({
   }, [files, unstageFiles, onClose]);
 
   const handleDiscardAll = useCallback(() => {
-    // Backend rollbackFiles handler opens a modal confirmation.
-    void rollbackFiles(files.map((f) => ({ path: f.path, staged: f.staged })));
+    // webview 内确认弹窗（store 驱动），确认后 confirmed:true。
+    void requestRollbackFiles(files.map((f) => ({ path: f.path, staged: f.staged })));
     onClose();
-  }, [files, rollbackFiles, onClose]);
+  }, [files, requestRollbackFiles, onClose]);
 
   const handleStash = useCallback(async () => {
     onClose();

@@ -749,29 +749,15 @@ function DirContextMenu({
 
   const handleDelete = useCallback(() => {
     const paths = files.map((f) => f.path);
-    import("../../shared/bridge").then(async ({ bridge }) => {
-      try {
-        await bridge.request("deleteFiles", { filePaths: paths });
-      } catch (err) {
-        useCommitStore.getState().setCommitError(
-          err instanceof Error ? err.message : String(err),
-        );
-      }
-    });
+    // webview 内确认弹窗，确认后 confirmed:true；错误进 commitError。
+    void useCommitStore.getState().requestDeleteFiles(paths);
     onClose();
   }, [files, onClose]);
 
   const handleRollback = useCallback(() => {
     const items = files.map((f) => ({ path: f.path, staged: f.staged }));
-    import("../../shared/bridge").then(async ({ bridge }) => {
-      try {
-        await bridge.request("rollbackFiles", { items });
-      } catch (err) {
-        useCommitStore.getState().setCommitError(
-          err instanceof Error ? err.message : String(err),
-        );
-      }
-    });
+    // webview 内确认弹窗，确认后 confirmed:true。
+    void useCommitStore.getState().requestRollbackFiles(items);
     onClose();
   }, [files, onClose]);
 
