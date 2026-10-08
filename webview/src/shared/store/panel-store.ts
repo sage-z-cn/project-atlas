@@ -1361,7 +1361,6 @@ bridge.onEvent((event, data) => {
         favoriteBranches: nextRepoPath
           ? loadFavoritesForRepo(nextRepoPath)
           : [],
-        loading: true,
         selectedCommitHash: null,
         selectedCommitHashes: [],
         lastSelectedCommitHash: null,
@@ -1374,7 +1373,7 @@ bridge.onEvent((event, data) => {
         hasMore: true,
         panelError: null,
       });
-      usePanelStore.getState().fetchInitialData();
+      usePanelStore.getState().fetchInitialData({ silent: true });
       usePanelStore.getState().fetchRepoStatuses();
     } else {
       // Active repo unchanged — a sibling repo appeared/disappeared. Just
@@ -1395,8 +1394,9 @@ bridge.onEvent((event, data) => {
       // Keep commits/visibleCommits/laneSnapshot/graphLayout until the new
       // repo's data lands. Clearing them here blanks the whole Git Log during
       // the slow getGraphData fetch, causing a visible flash. fetchInitialData
-      // below replaces them atomically (see its set() call).
-      loading: true,
+      // below replaces them atomically (see its set() call). Its silent mode
+      // also keeps loading false so the panel-wide ProgressBar stays off —
+      // the kept content remains visible and interactive during the switch.
       selectedCommitHash: null,
       selectedCommitHashes: [],
       lastSelectedCommitHash: null,
@@ -1415,7 +1415,9 @@ bridge.onEvent((event, data) => {
       // working context. fetchInitialData below applies the reset filter.
       filter: { ...state.filter, branch: "", file: "" },
     });
-    usePanelStore.getState().fetchInitialData();
+    // Silent: keep the old repo's content on screen (no ProgressBar) until
+    // the new repo's data lands atomically.
+    usePanelStore.getState().fetchInitialData({ silent: true });
     // Refresh badges for the new active repo only — switching doesn't change
     // any other repo's git state, so their badges stay valid. Full refresh is
     // reserved for initRepo / reposChanged / repoPath-less global events.
