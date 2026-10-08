@@ -4,6 +4,22 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.33.0
+**新功能**
+- **Webview**: 新增共享 ConfirmDialog/PromptDialog，支持 webview 侧确认弹窗
+- **收藏**: 添加收藏分组选择弹窗，并抽取共享 Modal 组件
+- **Webview**: 为空分组、分支与任务列表添加空状态提示
+
+**Bug 修复**
+- **面板**: 切换仓库时改用静默加载，避免全面板闪烁
+- **Commit**: 修复语言 chip 高度错位问题
+
+**改进**
+- **刷新**: 多仓库刷新改为 per-repo chip loading 与有界并发 fetch，并添加进度指示
+
+**其他**
+- **构建**: 统一打包脚本为 build.js，发布后自动安装，install 脚本更名为 install-ext
+
 #### 1.32.2
 **Bug 修复**
 - **Tooltip**: 修复靠近右边缘时 CJK 文本竖排换行的问题
