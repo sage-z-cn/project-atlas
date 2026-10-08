@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { t } from "../../shared/i18n";
 import { useCommitStore } from "../../shared/store/commit-store";
-import { ModalOverlay } from "./Modal";
+import { ModalOverlay } from "../../shared/components/Modal";
 import CloseIcon from "~icons/codicon/close";
 
 // ── Stash message prompt modal ───────────────────────────────────────────────

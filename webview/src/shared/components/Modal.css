@@ -1,0 +1,55 @@
+/* ── Generic modal overlay (see Modal.tsx; shared by commit / recent /
+ * newVersion / release dialogs) ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: modal-fade 0.12s ease;
+}
+
+.modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--vscode-menu-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-menu-border, var(--border));
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  padding: 12px 14px 14px;
+  animation: modal-pop 0.14s ease;
+}
+
+/* 程序化 focus（键盘陷阱）会画浏览器默认 outline（主题 focusBorder，
+ * 某些主题下呈橙黄色）。去掉卡片自身的焦点环，内部控件焦点不受影响。 */
+.modal:focus {
+  outline: none;
+}
+
+/* Narrow width variant (via ModalOverlay's cardClass) for single-field
+ * modals — e.g. the stash message prompt. Same visual language, slimmer. */
+.modal-sm {
+  width: min(400px, 100%);
+}
+
+@keyframes modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

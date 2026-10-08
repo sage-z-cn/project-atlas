@@ -15,7 +15,7 @@ import type {
   ReleasePublishResult,
   ReleaseTarget,
 } from "../../shared/store/release-store";
-import { ModalOverlay } from "./Modal";
+import { ModalOverlay } from "../../shared/components/Modal";
 import CheckIcon from "~icons/codicon/check";
 import CloseIcon from "~icons/codicon/close";
 import CopyIcon from "~icons/codicon/copy";

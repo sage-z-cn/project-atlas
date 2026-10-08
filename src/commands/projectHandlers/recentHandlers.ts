@@ -200,11 +200,26 @@ export function registerRecentHandlers(ctx: ProjectHandlerContext): void {
     await vscode.env.clipboard.writeText(project.path);
   });
 
+  messageRouter.handle("getSelectableGroups", async () => {
+    return { groups: groupService.getSelectableGroups() };
+  });
+
   messageRouter.handle("addFavorite", async (params) => {
     const project = projectService.getById(params.id as string);
     if (!project) return;
-    const groupId = await groupService.pickGroup();
-    if (groupId === null) return; // user cancelled
+    // groupId 契约：string = webview 弹窗已选定分组；null = 明确选根分组
+    // （JSON 序列化丢 undefined，故根分组显式发 null）；key 不存在 = 原生
+    // 入口（命令面板 / 资源管理器右键）无 webview，回退 QuickPick。
+    let groupId: string | undefined;
+    if (typeof params.groupId === "string") {
+      groupId = params.groupId;
+    } else if (params.groupId === null) {
+      groupId = undefined;
+    } else {
+      const picked = await groupService.pickGroup();
+      if (picked === null) return; // user cancelled
+      groupId = picked;
+    }
     await favoriteService.add({ name: project.name, path: project.path }, groupId);
   });
 

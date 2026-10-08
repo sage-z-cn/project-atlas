@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { t } from "../../shared/i18n";
 import { useNewVersionStore } from "../../shared/store/new-version-store";
-import { ModalOverlay } from "./Modal";
+import { ModalOverlay } from "../../shared/components/Modal";
 import CloseIcon from "~icons/codicon/close";
 import ErrorIcon from "~icons/codicon/error";
 import LoadingIcon from "~icons/codicon/loading";

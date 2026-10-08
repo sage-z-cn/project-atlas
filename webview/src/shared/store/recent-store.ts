@@ -12,6 +12,13 @@ export interface RecentItemDto {
   iconSource: "codicon" | "devicon";
 }
 
+/** host getSelectableGroups 返回的可选分组；path 为 " / " 连接的层级面包屑。 */
+export interface SelectableGroupDto {
+  id: string;
+  name: string;
+  path: string;
+}
+
 /**
  * host router 广播的事件名（与 src/commands/projectHandlers/recentHandlers.ts
  * 的 PROJECT_EVENTS 一致）。
@@ -36,6 +43,13 @@ interface RecentStore {
   selectedIds: Set<string>;
   focusedId: string | null;
   lastClickedId: string | null;
+  /** 「添加到收藏」选组弹窗（无分组时不弹，直接落根）。 */
+  addFavoritePrompt: {
+    open: boolean;
+    /** 待收藏的项目 id（多选时一次弹窗批量应用同一分组）。 */
+    ids: string[];
+    groups: SelectableGroupDto[];
+  };
 
   // ── 生命周期 ──
   init: () => Promise<void>;
@@ -58,6 +72,12 @@ interface RecentStore {
   // ── 动作 ──
   open: (id: string) => Promise<void>;
   executeAction: (action: RecentAction, ids: string[]) => Promise<void>;
+  /** 拉取可选分组：非空 → 打开选组弹窗；空/失败 → 直接落根（旧行为）。 */
+  promptAddFavorite: (ids: string[]) => Promise<void>;
+  /** 弹窗确认：批量把 ids 加入同一分组（null = 根）。 */
+  confirmAddFavorite: (groupId: string | null) => Promise<void>;
+  /** 弹窗取消：整个动作中止。 */
+  cancelAddFavorite: () => void;
 }
 
 export const useRecentStore = create<RecentStore>((set, get) => ({
@@ -67,6 +87,7 @@ export const useRecentStore = create<RecentStore>((set, get) => ({
   selectedIds: new Set(),
   focusedId: null,
   lastClickedId: null,
+  addFavoritePrompt: { open: false, ids: [], groups: [] },
 
   init: async () => {
     await Promise.all([get().refresh(), get().fetchOpenMode()]);
@@ -180,11 +201,14 @@ export const useRecentStore = create<RecentStore>((set, get) => ({
     if (ids.length === 0) return;
     try {
       switch (action) {
+        case "addFavorite":
+          // 目标分组在 webview 内选择（替代 host 端原生 QuickPick）。
+          await get().promptAddFavorite(ids);
+          break;
         case "openInNewWindow":
         case "openInCurrentWindow":
         case "revealInExplorer":
         case "copyPath":
-        case "addFavorite":
         case "renameProject":
           // 这些命令 host 端按单 id 处理；逐个发送（与 legacy contextAction 循环一致）。
           for (const id of ids) {
@@ -205,6 +229,46 @@ export const useRecentStore = create<RecentStore>((set, get) => ({
       console.error(`${action} failed:`, err);
     }
   },
+
+  promptAddFavorite: async (ids) => {
+    if (ids.length === 0) return;
+    let groups: SelectableGroupDto[] = [];
+    try {
+      const result = (await bridge.request("getSelectableGroups")) as {
+        groups?: SelectableGroupDto[];
+      };
+      groups = result?.groups ?? [];
+    } catch (err) {
+      // 拉取失败（含 bridge 超时）按无分组处理：直接落根，动作不至于中断。
+      console.error("getSelectableGroups failed:", err);
+    }
+    if (groups.length === 0) {
+      for (const id of ids) {
+        try {
+          await bridge.request("addFavorite", { id, groupId: null });
+        } catch (err) {
+          console.error("addFavorite failed:", err);
+        }
+      }
+      return;
+    }
+    set({ addFavoritePrompt: { open: true, ids, groups } });
+  },
+
+  confirmAddFavorite: async (groupId) => {
+    const ids = get().addFavoritePrompt.ids;
+    set({ addFavoritePrompt: { open: false, ids: [], groups: [] } });
+    for (const id of ids) {
+      try {
+        await bridge.request("addFavorite", { id, groupId });
+      } catch (err) {
+        console.error("addFavorite failed:", err);
+      }
+    }
+  },
+
+  cancelAddFavorite: () =>
+    set({ addFavoritePrompt: { open: false, ids: [], groups: [] } }),
 }));
 
 // ── 事件订阅（模块级，import 时注册，对齐 commit-store 模式）──

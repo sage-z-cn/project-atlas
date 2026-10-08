@@ -2,7 +2,7 @@ import { t } from "../../shared/i18n";
 import { useCommitStore } from "../../shared/store/commit-store";
 import { useNewVersionStore } from "../../shared/store/new-version-store";
 import { useReleaseStore } from "../../shared/store/release-store";
-import { ModalOverlay } from "./Modal";
+import { ModalOverlay } from "../../shared/components/Modal";
 import ArrowRightIcon from "~icons/codicon/arrow-right";
 import CheckIcon from "~icons/codicon/check";
 import CloseIcon from "~icons/codicon/close";

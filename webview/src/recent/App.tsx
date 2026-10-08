@@ -8,6 +8,7 @@ import {
   type RecentItemDto,
   type RecentAction,
 } from "../shared/store/recent-store";
+import { AddFavoriteDialog } from "./AddFavoriteDialog";
 import IconLinkExternal from "~icons/codicon/link-external";
 import IconOpenInProduct from "~icons/codicon/open-in-product";
 import IconFolder from "~icons/codicon/folder";
@@ -217,6 +218,7 @@ export function RecentApp() {
           }}
         />
       )}
+      <AddFavoriteDialog />
     </>
   );
 }

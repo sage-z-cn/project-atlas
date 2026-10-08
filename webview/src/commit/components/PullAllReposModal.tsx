@@ -3,7 +3,7 @@ import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
 import { useCommitStore } from "../../shared/store/commit-store";
 import type { RepoInfo, RepoStatus } from "../../shared/types/git";
-import { ModalOverlay } from "./Modal";
+import { ModalOverlay } from "../../shared/components/Modal";
 import CloseIcon from "~icons/codicon/close";
 
 // ── Pull-repositories selection modal ────────────────────────────────────────

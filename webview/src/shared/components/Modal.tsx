@@ -1,13 +1,14 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import "./Modal.css";
 
 // ── Shared modal skeleton ────────────────────────────────────────────────────
 // DOM-overlay modal (webviews have no native <dialog> under the CSP):
 // fixed backdrop + centered card, Escape / backdrop-click closes, minimal
 // Tab focus trap, initial focus lands on `initialFocusRef` (or the card).
-// Generic `.modal-*` classes — no feature-specific prefix (newVersion/release
-// both render through this component).
+// Generic `.modal-*` classes — no feature-specific prefix (commit / recent /
+// newVersion / release dialogs all render through this component).
 
 interface ModalOverlayProps {
   onClose: () => void;

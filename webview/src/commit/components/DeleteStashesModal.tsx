@@ -1,6 +1,6 @@
 import { t } from "../../shared/i18n";
 import type { StashEntry } from "../../shared/store/commit-store";
-import { ModalOverlay } from "./Modal";
+import { ModalOverlay } from "../../shared/components/Modal";
 import CloseIcon from "~icons/codicon/close";
 
 /** 列表内最多展示的条目数，超出折叠为「…等 N 项」。 */
