@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
-import { requireGit, withProgress } from "../gitContext";
+import { requireGit, withProgress, withRepoRefreshing } from "../gitContext";
 import { initGitRepo } from "../../git/gitService";
 import { normalizePath } from "../../git/repoPaths";
 import type { RepoInfo } from "../../git/repoScanner";
@@ -278,23 +278,71 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
 /**
  * Core implementation of the multi-repo "refresh all" operation, shared by the
  * `refreshAllRepos` webview handler and the `git-atlas.refreshAllRepos`
- * view/title command. Semantics mirror refreshGitState, applied to every
- * repo in the registry instead of only the active one.
+ * view/title command. rescan 工作区根（识别外部 git init / 新增仓库）后逐仓库
+ * 执行真实 `git fetch`，有界并发（上限 FETCH_CONCURRENCY）：fetch 是纯读
+ * 操作，只更新远端引用，不碰工作区 / index，仓库间无锁冲突，无需像
+ * pullAllReposImpl 那样严格串行；限并发是为防同远端限流与进程数爆炸。
+ * 每个仓库 fetch 期间经 withRepoRefreshing 广播 reposRefreshing 快照，
+ * webview 在该仓库 chip 上显示独立 loading。无 remote 的仓库直接跳过；
+ * 单仓库失败（网络 / 认证 / ...）不中断批次，仅记日志。结束后失效全部
+ * 缓存并广播一次全局 gitStateChanged。
  */
+// 批量 refresh 进行中标志：重复触发（连点工具栏按钮）时直接返回，
+// 避免两批并发 fetch 浪费网络。
+let refreshAllInProgress = false;
+
+// 单批同时进行的 git fetch 上限：fetch 纯读无锁冲突，但仍要防同远端
+// 限流与瞬间起大量 git 进程。
+const FETCH_CONCURRENCY = 4;
+
 export async function refreshAllReposImpl(
   ctx: GitHandlerContext,
 ): Promise<{ success: true }> {
   const { registry, messageRouter } = ctx;
-  await registry.whenReady; // 手写 handler 自行兜底首批请求竞态
-  const roots = (vscode.workspace.workspaceFolders ?? []).map(
-    (f) => f.uri.fsPath,
-  );
-  await registry.rescan(roots); // 识别外部 git init / 新增仓库
-  for (const svc of registry.getAll()) {
-    svc.invalidateCache();
+  if (refreshAllInProgress) {
+    return { success: true as const };
   }
-  messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
-  return { success: true };
+  refreshAllInProgress = true;
+  try {
+    await registry.whenReady; // 手写 handler 自行兜底首批请求竞态
+    const roots = (vscode.workspace.workspaceFolders ?? []).map(
+      (f) => f.uri.fsPath,
+    );
+    await registry.rescan(roots); // 识别外部 git init / 新增仓库
+    // 有界并发 fetch（worker 抢占式领取任务）：同时最多 FETCH_CONCURRENCY
+    // 个仓库在拉取，每个仓库 fetch 期间其 chip 独立旋转 loading。
+    const repos = registry.getAll();
+    let next = 0;
+    const fetchWorker = async (): Promise<void> => {
+      while (next < repos.length) {
+        const svc = repos[next++];
+        try {
+          if (!(await svc.hasRemote())) {
+            continue;
+          }
+          await withRepoRefreshing(ctx, [svc.cwd], () => svc.fetch());
+        } catch (err) {
+          console.error(
+            `[Git Atlas] refreshAllRepos: fetch failed for ${svc.cwd}:`,
+            err,
+          );
+        }
+      }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(FETCH_CONCURRENCY, repos.length) },
+        () => fetchWorker(),
+      ),
+    );
+    for (const svc of registry.getAll()) {
+      svc.invalidateCache();
+    }
+    messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+    return { success: true };
+  } finally {
+    refreshAllInProgress = false;
+  }
 }
 
 /** Per-repo failure entry returned by {@link pullAllReposImpl}. */

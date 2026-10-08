@@ -196,6 +196,10 @@ export type EventType =
   | "rollbackPanelInit"
   | "repoChanged"
   | "reposChanged"
+  // per-repo 刷新中状态（快照语义）：data 为当前正在刷新的全部仓库路径
+  // 集合 { repoPaths }，host 每次集合变化全量广播，webview 整体替换本地
+  // 集合，RepoSelector 据此在各仓库 chip 上渲染独立 loading。
+  | "reposRefreshing"
   | "gitConfigChanged"
   | "aiConfigChanged"
   | "focusCommit"

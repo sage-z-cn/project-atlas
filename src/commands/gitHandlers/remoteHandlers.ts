@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
-import { requireGit, withProgress } from "../gitContext";
+import { requireGit, withProgress, withRepoRefreshing } from "../gitContext";
 import type { GitService } from "../../git/gitService";
 
 /**
@@ -101,12 +101,16 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
   messageRouter.handle(
     "fetchAll",
     requireGit(ctx, async (gitService) => {
-      return withProgress(ctx, async () => {
-        await gitService.fetch();
-        gitService.invalidateCache();
-        messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
-        return { success: true };
-      });
+      // withProgress 维持面板级进度条（panel-store 消费 operationStart/End）；
+      // withRepoRefreshing 额外驱动当前仓库 chip 的旋转 loading。
+      return withProgress(ctx, async () =>
+        withRepoRefreshing(ctx, [gitService.cwd], async () => {
+          await gitService.fetch();
+          gitService.invalidateCache();
+          messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+          return { success: true };
+        }),
+      );
     }),
   );
 

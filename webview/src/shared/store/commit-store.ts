@@ -102,6 +102,11 @@ interface CommitStore {
    */
   repoStatuses: Record<string, RepoStatus>;
   /**
+   * host reposRefreshing 快照（当前刷新中的仓库路径全量集合），
+   * RepoSelector 据此渲染各仓库 chip 的旋转 loading。
+   */
+  refreshingRepos: string[];
+  /**
    * Ready-handshake flag: false until initRepo() resolves getCurrentRepo +
    * getRepos, true thereafter. Distinguishes "still loading" from "loaded and
    * genuinely repoless" so the empty-state card doesn't flash during startup.
@@ -452,6 +457,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   pendingCommitOpId: null,
   submittedCommitMessage: null,
   repoStatuses: {},
+  refreshingRepos: [],
   repoInitialized: false,
 
   changes: [],
@@ -1563,6 +1569,15 @@ bridge.onEvent((event, data) => {
   }
   if (event === "aiConfigChanged") {
     useCommitStore.getState().fetchAiConfig();
+    return;
+  }
+  // per-repo 刷新快照：整体替换本地集合（快照语义），即时处理，
+  // 不进 400ms git 事件合并窗口。
+  if (event === "reposRefreshing") {
+    const { repoPaths } = (data ?? {}) as { repoPaths?: string[] };
+    useCommitStore.setState({
+      refreshingRepos: Array.isArray(repoPaths) ? repoPaths : [],
+    });
     return;
   }
   if (event === "reposChanged") {

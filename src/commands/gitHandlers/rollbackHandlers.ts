@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as vscode from "vscode";
-import { NOT_GIT_REPO, requireGit } from "../gitContext";
+import { NOT_GIT_REPO, requireGit, withRepoRefreshing } from "../gitContext";
 import type { GitHandlerContext } from "../gitContext";
 import {
   encodeGitAtlasPath,
@@ -293,11 +293,16 @@ export function registerRollbackHandlers(ctx: GitHandlerContext): void {
     const roots = (vscode.workspace.workspaceFolders ?? []).map(
       (f) => f.uri.fsPath,
     );
-    await ctx.registry.rescan(roots); // 识别外部 git init / 新增仓库
-    if (ctx.gitService) {
-      ctx.gitService.invalidateCache();
-    }
-    messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
-    return { success: true };
+    // rescan 覆盖整个工作区但只有当前仓库缓存被失效，故仅当前仓库旋转
+    // loading；无活动仓库时传空数组，不显示任何 loading。
+    const refreshingPaths = ctx.gitService ? [ctx.gitService.cwd] : [];
+    return withRepoRefreshing(ctx, refreshingPaths, async () => {
+      await ctx.registry.rescan(roots); // 识别外部 git init / 新增仓库
+      if (ctx.gitService) {
+        ctx.gitService.invalidateCache();
+      }
+      messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
+      return { success: true };
+    });
   });
 }

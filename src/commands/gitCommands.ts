@@ -257,14 +257,10 @@ export function registerGitCommands(
     // ── Multi-repo view/title toolbar buttons (commitPanel) ──────────────
     // 复用 repoHandlers 中 webview 命令的核心实现，多仓库才显示（when 子句
     // 用 gitAtlas.multiRepo context，由 RepoRegistry.rescan 维护）。
-    // 原生 view/title 图标无法旋转（VSCode 无此 API），改用 withProgress
-    // 挂到 commitPanel 视图：刷新期间标题栏显示流动进度条，结束后自动消失。
-    // 不发 increment，保持不定进度动画（rescan 耗时不可预估）。
+    // 进度反馈由 refreshAllReposImpl 内广播的 reposRefreshing 事件驱动，
+    // webview 在 RepoSelector 各仓库 chip 上显示旋转 loading。
     vscode.commands.registerCommand("git-atlas.refreshAllRepos", () =>
-      vscode.window.withProgress(
-        { location: { viewId: "git-atlas.commitPanel" } },
-        () => refreshAllReposImpl(ctx),
-      ),
+      refreshAllReposImpl(ctx),
     ),
     // 打开 commit 面板的「拉取/推送仓库」勾选弹窗。命令本身不执行网络
     // 操作，确认后由 webview 调用 pullAllRepos / pushAllRepos handler。

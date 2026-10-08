@@ -50,19 +50,14 @@ export function BranchSidebar({
     onManageRemotes?.();
   }, [onManageRemotes]);
 
-  // ── Refresh (mirror of the commit panel toolbar refresh, plus the
-  // host-side refreshGitState rescan) ───────────────────────────────
-  // Refresh: local panel data refetch + remote fetch + host-side rescan.
-  // Note this fires ~3 panel refreshes in total: the local refresh() here,
-  // plus one per gitStateChanged broadcast — fetchAll broadcasts one when
-  // the remote fetch updates refs, and refreshGitState (rescan + cache
-  // invalidation + broadcast) sends another. Same pattern as the commit
-  // panel's refresh; the redundant fetches are idempotent reads.
+  // ── Refresh ────────────────────────────────────────────────────────
+  // 本地数据即时 refetch + host 一次 refreshAllRepos（工作区 rescan +
+  // 逐仓库串行 git fetch，各仓库 chip 独立显示 loading，结束后单次
+  // gitStateChanged 广播刷新面板）。
   const handleRefresh = useCallback(async () => {
     void usePanelStore.getState().refresh();
-    bridge.request("fetchAll");
     try {
-      await bridge.request("refreshGitState");
+      await bridge.request("refreshAllRepos");
     } catch (err) {
       usePanelStore
         .getState()

@@ -269,3 +269,16 @@
 .repo-selector.readonly.horizontal .repo-chip:hover {
   background: var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.15));
 }
+
+/* ─── Per-repo refreshing spinner ───────────────────────────────
+ * host reposRefreshing 快照命中时在 chip 最右渲染旋转 loading。 */
+.repo-selector .repo-chip .repo-refreshing {
+  flex-shrink: 0;
+  animation: repo-spin 0.9s linear infinite;
+}
+
+@keyframes repo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

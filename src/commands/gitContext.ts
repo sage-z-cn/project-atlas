@@ -79,6 +79,52 @@ export function withProgress<T>(
   });
 }
 
+/** per-repo 刷新状态：repoPath -> 进行中的刷新操作计数。 */
+const refreshingRepoCounts = new Map<string, number>();
+
+/** 广播当前刷新中仓库的全量快照（reposRefreshing 事件，快照语义）。 */
+function broadcastRefreshingRepos(ctx: GitHandlerContext): void {
+  ctx.messageRouter.broadcastEvent("reposRefreshing", {
+    repoPaths: [...refreshingRepoCounts.keys()],
+  });
+}
+
+/**
+ * 包装单仓库（或一批仓库）的刷新操作：进入时按引用计数标记 repoPaths
+ * 为刷新中（并发操作互不清除对方的 loading），前后各广播一次快照，
+ * 再执行 fn。
+ */
+export function withRepoRefreshing<T>(
+  ctx: GitHandlerContext,
+  repoPaths: string[],
+  fn: () => Promise<T>,
+): Promise<T> {
+  for (const repoPath of repoPaths) {
+    if (!repoPath) {
+      continue;
+    }
+    refreshingRepoCounts.set(
+      repoPath,
+      (refreshingRepoCounts.get(repoPath) ?? 0) + 1,
+    );
+  }
+  broadcastRefreshingRepos(ctx);
+  return fn().finally(() => {
+    for (const repoPath of repoPaths) {
+      if (!repoPath) {
+        continue;
+      }
+      const count = (refreshingRepoCounts.get(repoPath) ?? 0) - 1;
+      if (count <= 0) {
+        refreshingRepoCounts.delete(repoPath);
+      } else {
+        refreshingRepoCounts.set(repoPath, count);
+      }
+    }
+    broadcastRefreshingRepos(ctx);
+  });
+}
+
 /**
  * Higher-order helper that guards a handler against the "no active repo" case.
  *

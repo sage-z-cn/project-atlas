@@ -8,6 +8,7 @@ import { t } from "../i18n";
 import RepoIcon from "~icons/codicon/repo";
 import RepoSelectedIcon from "~icons/codicon/repo-selected";
 import BranchIcon from "~icons/codicon/git-branch";
+import LoadingIcon from "~icons/codicon/loading";
 import { RepoContextMenu } from "./RepoContextMenu";
 import "./RepoSelector.css";
 
@@ -77,6 +78,7 @@ function PanelRepoSelector() {
       currentRepoPath={usePanelStore((s) => s.currentRepoPath)}
       switchRepo={usePanelStore((s) => s.switchRepo)}
       repoStatuses={usePanelStore((s) => s.repoStatuses)}
+      refreshingRepos={usePanelStore((s) => s.refreshingRepos)}
       orientation="vertical"
     />
   );
@@ -90,6 +92,7 @@ function CommitRepoSelector() {
       currentRepoPath={useCommitStore((s) => s.currentRepoPath)}
       switchRepo={useCommitStore((s) => s.switchRepo)}
       repoStatuses={useCommitStore((s) => s.repoStatuses)}
+      refreshingRepos={useCommitStore((s) => s.refreshingRepos)}
       successFlash={useCommitStore((s) => s.successFlash)}
       orientation="vertical"
     />
@@ -103,6 +106,8 @@ interface BodyProps {
   switchRepo: (path: string) => Promise<void>;
   /** Per-repo ahead/behind/dirty counts keyed by repo path (for chip badges). */
   repoStatuses: Record<string, RepoStatus>;
+  /** host 快照中正在刷新的仓库，chip 最右渲染旋转 loading。 */
+  refreshingRepos: string[];
   /**
    * 推送成功后短暂打勾。命中当前仓库 chip（单仓库 strip 则是唯一 chip），
    * 用 ✓ 替换 ahead/behind（dirty 仍显示），约 3s 后恢复。仅 commit 面板启用。
@@ -118,6 +123,7 @@ function RepoSelectorBody({
   currentRepoPath,
   switchRepo,
   repoStatuses,
+  refreshingRepos,
   successFlash,
   orientation,
 }: BodyProps) {
@@ -206,6 +212,9 @@ function RepoSelectorBody({
             status={repoStatuses[repo.path]}
             flashSuccess={!!successFlash}
           />
+          {refreshingRepos.includes(repo.path) && (
+            <LoadingIcon className="repo-refreshing" width={12} height={12} />
+          )}
         </div>
         {menuEl}
       </div>
@@ -291,6 +300,9 @@ function RepoSelectorBody({
               status={repoStatuses[repo.path]}
               flashSuccess={!!successFlash && repo.path === currentRepoPath}
             />
+            {refreshingRepos.includes(repo.path) && (
+              <LoadingIcon className="repo-refreshing" width={12} height={12} />
+            )}
           </button>
         );
       })}

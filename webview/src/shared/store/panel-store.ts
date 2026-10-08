@@ -102,6 +102,11 @@ interface PanelStore {
    */
   repoStatuses: Record<string, RepoStatus>;
   /**
+   * host reposRefreshing 快照（当前刷新中的仓库路径全量集合），
+   * RepoSelector 据此渲染各仓库 chip 的旋转 loading。
+   */
+  refreshingRepos: string[];
+  /**
    * Ready-handshake flag: false until initRepo() resolves getCurrentRepo +
    * getRepos, true thereafter. Distinguishes "still loading" from "loaded and
    * genuinely repoless" so the empty-state card doesn't flash during startup.
@@ -378,6 +383,7 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   repos: [],
   repoSeq: 0,
   repoStatuses: {},
+  refreshingRepos: [],
   repoInitialized: false,
 
   commits: [],
@@ -1514,6 +1520,15 @@ bridge.onEvent((event, data) => {
     // The seq bump also invalidates any in-flight fetchRepoStatuses from the
     // concurrent repoChanged; re-issue so chip badges stay fresh.
     usePanelStore.getState().fetchRepoStatuses();
+  }
+  // per-repo 刷新快照：整体替换本地集合（快照语义），即时处理，
+  // 不进 400ms git 事件合并窗口。
+  if (event === "reposRefreshing") {
+    const { repoPaths } = (data ?? {}) as { repoPaths?: string[] };
+    usePanelStore.setState({
+      refreshingRepos: Array.isArray(repoPaths) ? repoPaths : [],
+    });
+    return;
   }
   if (event === "gitConfigChanged") {
     void usePanelStore.getState().fetchDetailPanelPosition();
