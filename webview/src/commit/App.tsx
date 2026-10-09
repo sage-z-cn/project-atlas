@@ -12,6 +12,8 @@ import { NewVersionTab } from "./components/NewVersionTab";
 import { ReleaseTab } from "./components/ReleaseTab";
 import { StashPromptModal } from "./components/StashPromptModal";
 import { GitConfirmDialog } from "./components/GitConfirmDialog";
+import { StageConfirmDialog } from "./components/StageConfirmDialog";
+import { PushRejectedDialog } from "../shared/components/PushRejectedDialog";
 import { PushAllReposModal } from "./components/PushAllReposModal";
 import { PullAllReposModal } from "./components/PullAllReposModal";
 import { MessageBanner } from "./components/MessageBanner";
@@ -542,6 +544,26 @@ function MergeBanner() {
   );
 }
 
+/** skipPushConfirmation 流程下 push 被拒的 Rebase/Merge 选择弹窗，由
+ *  commit-store 的 pushRejected 状态驱动，任意 tab 均可弹出。 */
+function PushRejectedModal() {
+  const pushRejected = useCommitStore((s) => s.pushRejected);
+  const pushResolveBusy = useCommitStore((s) => s.pushResolveBusy);
+  const resolvePushRejected = useCommitStore((s) => s.resolvePushRejected);
+  const setPushRejected = useCommitStore((s) => s.setPushRejected);
+  if (!pushRejected) return null;
+  return (
+    <PushRejectedDialog
+      branchName={pushRejected.branchName}
+      busy={pushResolveBusy}
+      error={pushRejected.pushError ?? null}
+      onRebase={() => void resolvePushRejected("rebase")}
+      onMerge={() => void resolvePushRejected("merge")}
+      onCancel={() => setPushRejected(null)}
+    />
+  );
+}
+
 export function CommitApp() {
   const { activeTab, setActiveTab, loading } = useCommitStore();
   const repos = useCommitStore((s) => s.repos);
@@ -668,6 +690,10 @@ export function CommitApp() {
       {/* git 危险动作确认弹窗（rollback / 删除文件 / 删 stash / 覆盖恢复）：
           由 gitConfirm 状态驱动，任意 tab 均可弹出。 */}
       <GitConfirmDialog />
+      {/* 无已暂存更改的暂存确认弹窗：任意 tab 均可弹出。 */}
+      <StageConfirmDialog />
+      {/* push 被拒弹窗：跳过推送确认的推送被拒时弹出 Rebase/Merge 选择。 */}
+      <PushRejectedModal />
       {/* 多仓库拉取/推送勾选弹窗：由 view/title 命令广播对应事件打开。 */}
       <PullAllReposModal />
       <PushAllReposModal />

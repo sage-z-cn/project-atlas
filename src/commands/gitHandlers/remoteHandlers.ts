@@ -151,11 +151,10 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
       if (!branch) return { error: vscode.l10n.t("No current branch") };
       const remote = await gitService.getDefaultRemote(branch);
       const withTags = params.withTags as boolean | undefined;
-      // 当 skipPushConfirmation 流程下 push 被拒时，前端会附带 initialPushError
-      // 调用本接口；PushPanel 启动后据此直接进入 rebase/merge 对话框。
-      const initialPushError = params.initialPushError as string | undefined;
       // skipPushConfirmation：工具栏「推送」直接执行，不打开确认面板。
-      // 与 commitAndPush 一致：被拒时仍打开面板承载 rebase/merge 入口。
+      // 与 commitAndPush 一致：被拒时不再打开 PushPanel，改为在返回值中
+      // 标记 rejected 并附带分支名，前端在 commit 面板内弹出 Rebase/Merge
+      // 对话框完成拉取整合与重试推送。
       const skipConfirmation = params.skipConfirmation as boolean | undefined;
 
       if (skipConfirmation) {
@@ -188,20 +187,18 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
               /non-fast-forward|\[rejected\]|failed to push some refs/i.test(
                 pushError,
               );
-            if (rejected) {
-              ctx.pushPanel.open(branch, remote, false, pushError);
-            }
             return {
               success: true,
               pushed: false,
               rejected,
               pushError,
+              branch,
             };
           }
         });
       }
 
-      ctx.pushPanel.open(branch, remote, withTags ?? false, initialPushError);
+      ctx.pushPanel.open(branch, remote, withTags ?? false);
       return { success: true };
     }),
   );

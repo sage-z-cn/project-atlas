@@ -1,0 +1,109 @@
+/* Push Rejected Dialog（push 面板与 commit 面板共用）。
+   按钮样式自包含，不依赖 push.css 的 .push-btn* —— commit 面板未引入
+   push.css；基类与变体逐一复刻 .push-btn / .push-btn-secondary /
+   .push-btn-rebase / .push-btn-merge，视觉保持一致。 */
+.push-rejected-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.push-rejected-dialog {
+  background: var(--app-bg, #fff);
+  border: 1px solid var(--border, #ddd);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  padding: 24px 28px;
+  max-width: 440px;
+  width: 90%;
+}
+
+.push-rejected-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.push-rejected-icon {
+  font-size: 28px;
+}
+
+.push-rejected-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--app-fg, #333);
+}
+
+.push-rejected-message {
+  font-size: 13px;
+  color: var(--app-fg, #555);
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+}
+
+.push-rejected-error {
+  font-size: 12px;
+  color: var(--vscode-errorForeground, #f66);
+  white-space: pre-wrap;
+  margin: 0 0 12px;
+}
+
+.push-rejected-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.push-rejected-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.push-rejected-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.push-rejected-btn-cancel {
+  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  color: var(--vscode-button-secondaryForeground, var(--app-fg, #ccc));
+  border: none;
+}
+
+.push-rejected-btn-cancel:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground, #45494e);
+}
+
+.push-rejected-btn-rebase {
+  background: var(--vscode-button-background, #2563eb);
+  color: var(--vscode-button-foreground, #fff);
+  font-weight: 600;
+}
+
+.push-rejected-btn-rebase:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground, #1d4ed8);
+}
+
+.push-rejected-btn-merge {
+  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  color: var(--vscode-button-secondaryForeground, var(--app-fg, #ccc));
+  border: 1px solid var(--border, #555);
+  font-weight: 600;
+}
+
+.push-rejected-btn-merge:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground, #45494e);
+}

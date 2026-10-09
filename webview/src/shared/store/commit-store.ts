@@ -155,6 +155,18 @@ interface CommitStore {
    * GitConfirmDialog 消费。
    */
   gitConfirm: GitConfirmPrompt | null;
+  /**
+   * 「无已暂存更改时暂存全部并提交」的确认弹窗状态（替代 host 原生
+   * showConfirmMessage），null = 关闭；由 requestStageConfirm 置位，
+   * StageConfirmDialog 消费。文案在置位时以 t() 预翻译。
+   */
+  stageConfirm: { title: string; message: string; confirmLabel: string } | null;
+  /** 打开暂存确认弹窗并等待用户选择；false = 取消（含 Escape / 遮罩）。 */
+  requestStageConfirm: () => Promise<boolean>;
+  /** 关闭弹窗并按确认结算挂起的 requestStageConfirm。仅由 StageConfirmDialog 调用。 */
+  confirmStagePrompt: () => void;
+  /** 关闭弹窗并按取消结算挂起的 requestStageConfirm。仅由 StageConfirmDialog 调用。 */
+  cancelStagePrompt: () => void;
 
   // UI state
   activeTab: TabType;
@@ -189,6 +201,15 @@ interface CommitStore {
   /** 远程操作（如 pull）失败的内联错误信息（显示在工具栏下方 banner），null 时隐藏。 */
   remoteError: string | null;
   setRemoteError: (error: string | null) => void;
+  /** skipPushConfirmation 流程下 push 被拒：commit 面板内弹 Rebase/Merge 对话框的状态，null 时隐藏。
+   *  repoPath 记录被拒时的仓库，重试请求显式携带，避免对话框打开期间
+   *  当前仓库被切换后打到错误仓库。 */
+  pushRejected: { repoPath?: string; branchName: string; pushError?: string } | null;
+  setPushRejected: (s: { repoPath?: string; branchName: string; pushError?: string } | null) => void;
+  /** 对话框内 rebase/merge 执行中标记，用于禁用按钮与切换文案。 */
+  pushResolveBusy: "rebase" | "merge" | null;
+  /** 对话框内选择 rebase/merge 后：拉取整合远端变更并重试推送。 */
+  resolvePushRejected: (mode: "rebase" | "merge") => Promise<void>;
   /**
    * 推送成功后短暂打勾：true 时当前仓库 chip 用 ✓ 替换 ahead/behind
    * （约 3s）。用布尔而非 path，避免 currentRepoPath / repo.path 字符串
@@ -262,7 +283,8 @@ interface CommitStore {
   stageFiles: (filePaths: string[]) => Promise<void>;
   unstageFiles: (filePaths: string[]) => Promise<void>;
   commit: () => Promise<boolean>;
-  commitAndPush: () => Promise<boolean>;
+  /** force=true 时提交后强制推送（「提交并强制推送」下拉入口）。 */
+  commitAndPush: (force?: boolean) => Promise<boolean>;
   rollbackFile: (filePath: string, staged: boolean) => Promise<void>;
   /**
    * Open the working-tree diff for a change-list entry.
@@ -398,6 +420,13 @@ let stashPromptResolver: ((result: StashPromptResult | null) => void) | null =
   null;
 
 /**
+ * 挂起的暂存确认弹窗 resolver（模块级而非 store 字段：函数引用不适合
+ * 作为可订阅/可快照的状态，同 stashPromptResolver）。requestStageConfirm
+ * 写入，confirm/cancelStagePrompt 消费并清空；boolean = 用户选择。
+ */
+let stageConfirmResolver: ((confirmed: boolean) => void) | null = null;
+
+/**
  * 仓库 chip 打勾的单调 token：每次 showRepoSuccessFlash 递增，旧定时器
  * 回调发现 token 已变（被更新的打勾接管）即放弃关闭，防旧定时器误关新打勾。
  */
@@ -470,6 +499,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   stashSeq: 0,
   stashPrompt: { open: false, paths: [] },
   gitConfirm: null,
+  stageConfirm: null,
   activeTab: "commit",
   loading: false,
   expandedGroups: new Set(["changes", "unversioned", "staged"]),
@@ -487,6 +517,58 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   setCommitError: (error) => set({ commitError: error }),
   remoteError: null,
   setRemoteError: (error) => set({ remoteError: error }),
+  pushRejected: null,
+  setPushRejected: (s) => set({ pushRejected: s }),
+  pushResolveBusy: null,
+  async resolvePushRejected(mode) {
+    const rejected = get().pushRejected;
+    if (!rejected || get().pushResolveBusy) return;
+    set({ pushResolveBusy: mode });
+    try {
+      // 网络 + 可能的变基/合并，放宽超时
+      await bridge.request(
+        mode === "rebase" ? "pullRebase" : "pullMerge",
+        { branchName: rejected.branchName, repoPath: rejected.repoPath },
+        { timeout: 60_000 },
+      );
+      // 复用 openPushPanel 的 skipConfirmation 分支直接重推当前分支（与工具栏推送一致）
+      const result = (await bridge.request(
+        "openPushPanel",
+        { skipConfirmation: true, repoPath: rejected.repoPath },
+        { timeout: 60_000 },
+      )) as {
+        error?: string;
+        pushed?: boolean;
+        rejected?: boolean;
+        pushError?: string;
+        branch?: string;
+      } | null;
+      if (result?.pushed) {
+        set({ pushRejected: null });
+        get().showRepoSuccessFlash();
+        return;
+      }
+      if (result?.rejected) {
+        // 远端又有新提交：保持对话框打开并刷新错误；先判空再写，
+        // 避免仓库切换清理后被旧请求重新打开（repoPath 保持原值）。
+        if (get().pushRejected) {
+          set({ pushRejected: { repoPath: rejected.repoPath, branchName: result.branch ?? rejected.branchName, pushError: result.pushError } });
+        }
+        return;
+      }
+      const msg = result?.error || result?.pushError || t("Push failed");
+      // 同上：对话框可能已被 repoChanged 清理，判空后再更新。
+      if (get().pushRejected) {
+        set({ pushRejected: { ...rejected, pushError: msg } });
+      }
+    } catch (err) {
+      // rebase/merge 失败（如冲突）：关闭对话框，交给 RebaseBanner/
+      // MergeBanner 与内联 commitError 承载。
+      set({ pushRejected: null, commitError: err instanceof Error ? err.message : String(err) });
+    } finally {
+      set({ pushResolveBusy: null });
+    }
+  },
   successFlash: false,
   showRepoSuccessFlash: (ms = 3000) => {
     const myToken = ++successFlashSeq;
@@ -899,7 +981,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     }
   },
 
-  async commitAndPush() {
+  async commitAndPush(force = false) {
     // 同 commit()：单槽位互斥，防并发调用覆盖 pendingCommitOpId。
     if (get().pendingCommitOpId !== null) return false;
     const { commitMessage, amend, changes, selectedFiles } = get();
@@ -926,6 +1008,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
           filePaths: filesToStage,
           repoPath: get().currentRepoPath,
           clientOpId,
+          force,
         },
         // push 是网络操作，默认 10s 超时不够；放宽到 60s。
         { timeout: 60_000 },
@@ -933,6 +1016,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         pushed?: boolean;
         pushError?: string;
         rejected?: boolean;
+        branch?: string;
       };
       // The commit itself succeeded (the request resolved), so clear the
       // message and draft regardless of whether the push went through.
@@ -943,10 +1027,15 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
         // 与工具栏推送一致：当前仓库 chip 短暂打勾，不再走 MessageBanner。
         get().showRepoSuccessFlash();
       } else if (result?.rejected) {
-        // 远程有新提交需要 rebase/merge：转交给 PushPanel 承载处理入口。
-        // 不再内联显示错误，避免与 PushPanel 的 rebase/merge 对话框重复。
-        await bridge.request("openPushPanel", {
-          initialPushError: result.pushError,
+        // 远程有新提交需要 rebase/merge：在 commit 面板内弹出
+        // Rebase/Merge 对话框（PushRejectedModal），不再转交 PushPanel。
+        // repoPath 随状态固化，重试请求显式携带，避免后续仓库切换打错目标。
+        set({
+          pushRejected: {
+            repoPath: get().currentRepoPath ?? undefined,
+            branchName: result.branch ?? "",
+            pushError: result.pushError,
+          },
         });
       } else {
         const msg = result?.pushError || t("Push failed");
@@ -1288,6 +1377,36 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
 
   cancelGitPrompt() {
     set({ gitConfirm: null });
+  },
+
+  requestStageConfirm() {
+    // 已有弹窗挂起时按取消结算（防覆盖，同 requestUnstashFile 语义）；
+    // 正常流程不会发生 —— ensureStagedForVscode await 完才会再次触发。
+    if (get().stageConfirm) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      stageConfirmResolver = resolve;
+      set({
+        stageConfirm: {
+          title: t("No Staged Changes"),
+          message: t("There are no staged changes. Stage all changes and commit?"),
+          confirmLabel: t("Stage All and Commit"),
+        },
+      });
+    });
+  },
+
+  confirmStagePrompt() {
+    const resolve = stageConfirmResolver;
+    stageConfirmResolver = null;
+    set({ stageConfirm: null });
+    resolve?.(true);
+  },
+
+  cancelStagePrompt() {
+    const resolve = stageConfirmResolver;
+    stageConfirmResolver = null;
+    set({ stageConfirm: null });
+    resolve?.(false);
   },
 
   async deleteFiles(filePaths) {
@@ -1649,6 +1768,9 @@ bridge.onEvent((event, data) => {
       submittedCommitMessage: null,
       commitError: null,
       remoteError: null,
+      // 推送被拒弹窗也是 per-repo 状态，切仓时一并清理；in-flight 的
+      // resolvePushRejected 更新路径会先判空，不会被旧请求重新打开。
+      pushRejected: null,
       successFlash: false,
     });
     useCommitStore.getState().fetchChanges();

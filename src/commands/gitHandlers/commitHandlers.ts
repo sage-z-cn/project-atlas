@@ -109,6 +109,9 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
       const amend = params.amend as boolean | undefined;
       const filePaths = params.filePaths as string[] | undefined;
       const clientOpId = params.clientOpId as string | undefined;
+      // 「提交并强制推送」下拉入口显式携带；amend 重写历史同样需要强推，
+      // 故缺省回落 amend。
+      const force = params.force as boolean | undefined;
 
       // 第二道门槛：无 remote 时友好拦截，避免 `git push` 抛出 ugly 错误。
       // 放在 stage/commit 之前确保零副作用；message 经 l10n 翻译后由前端
@@ -145,14 +148,15 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
         // Push is run separately so a rejected push does not roll back the
         // commit success; the push error is surfaced via `pushError`.
         try {
-          await gitService.push(branch, amend ?? false);
+          await gitService.push(branch, force ?? (amend ?? false));
           return { success: true, pushed: true };
         } catch (pushErr) {
           const pushError =
             pushErr instanceof Error ? pushErr.message : String(pushErr);
           // 识别 "non-fast-forward / rejected" 类错误。skipPushConfirmation
-          // 流程下没有 PushPanel 承载 rebase/merge 入口，故把该信号标记出
-          // 来交给前端，前端据此打开 PushPanel 直接展示 rebase/merge 对话框。
+          // 流程下没有 PushPanel 承载 rebase/merge 入口，故把该信号与分支名
+          // 标记出来交给前端，前端据此在 commit 面板内弹出 Rebase/Merge
+          // 对话框完成拉取整合与重试推送，不再转交 PushPanel。
           // 关键词集合参考 push/App.tsx 的 pushRejected 判定：前端使用
           // case-sensitive includes，本处加 /i 更宽容；git 实际输出为小写，
           // 行为等价。
@@ -160,7 +164,7 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
             /non-fast-forward|\[rejected\]|failed to push some refs/i.test(
               pushError,
             );
-          return { success: true, pushed: false, pushError, rejected };
+          return { success: true, pushed: false, pushError, rejected, branch };
         }
       });
     }),

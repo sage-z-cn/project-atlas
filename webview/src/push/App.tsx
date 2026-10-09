@@ -5,6 +5,7 @@ import CodiconListTree from "~icons/codicon/list-tree";
 import { bridge } from "../shared/bridge";
 import { CommitInfo } from "../shared/components/CommitInfo";
 import { FileTree } from "../shared/components/FileTree";
+import { PushRejectedDialog } from "../shared/components/PushRejectedDialog";
 import { t } from "../shared/i18n";
 import type { Commit, DiffFile } from "../shared/types/git";
 import { RemoteBranchSelector } from "./components/RemoteBranchSelector";
@@ -17,79 +18,21 @@ interface PushRejectedState {
   branchName: string;
 }
 
-function PushRejectedDialog({
-  branchName,
-  onRebase,
-  onMerge,
-  onCancel,
-}: {
-  branchName: string;
-  onRebase: () => void;
-  onMerge: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="push-rejected-overlay">
-      <div className="push-rejected-dialog">
-        <div className="push-rejected-header">
-          <span className="push-rejected-icon">!</span>
-          <span className="push-rejected-title">{t("Push Rejected")}</span>
-        </div>
-        <p className="push-rejected-message">
-          {t(
-            "Push of the current branch '{0}' was rejected. Remote changes need to be merged before pushing.",
-            branchName,
-          )}
-        </p>
-        <div className="push-rejected-actions">
-          <button
-            type="button"
-            className="push-btn push-btn-secondary"
-            onClick={onCancel}
-          >
-            {t("Cancel")}
-          </button>
-          <button
-            type="button"
-            className="push-btn push-btn-rebase"
-            onClick={onRebase}
-          >
-            {t("Rebase")}
-          </button>
-          <button
-            type="button"
-            className="push-btn push-btn-merge"
-            onClick={onMerge}
-          >
-            {t("Merge")}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function PushApp() {
   const root = document.getElementById("root");
   const branchName = root?.dataset.branch ?? "";
   const remoteName = root?.dataset.remote ?? "origin";
-  // skipPushConfirmation 流程下 commitAndPush 被拒后，后端会把 push 错误
-  // 通过 root dataset（新建 panel 路径）或 pushPanelInit 事件（已存在
-  // panel 路径）传进来。两者都让 PushPanel 直接进入 rejected 状态，
-  // 展示 rebase/merge 入口，无需用户再点一次 Push。
-  const initialPushError = root?.dataset.initialPushError;
 
   const [commits, setCommits] = useState<Commit[]>([]);
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
   const [files, setFiles] = useState<DiffFile[]>([]);
   const [pushing, setPushing] = useState(false);
-  const [error, setError] = useState<string | null>(initialPushError ?? null);
+  const [error, setError] = useState<string | null>(null);
   const [showPushMenu, setShowPushMenu] = useState(false);
-  const [pushRejected, setPushRejected] = useState<PushRejectedState>(
-    initialPushError
-      ? { show: true, branchName }
-      : { show: false, branchName: "" },
-  );
+  const [pushRejected, setPushRejected] = useState<PushRejectedState>({
+    show: false,
+    branchName: "",
+  });
 
   // Editable remote branch target state
   const [targetRemote, setTargetRemote] = useState(remoteName);
@@ -135,23 +78,15 @@ export function PushApp() {
       if (event !== "pushPanelInit") return;
       const d = data as {
         withTags?: boolean;
-        initialPushError?: string;
         branchName?: string;
       } | null;
       if (d && typeof d.withTags === "boolean") {
         setPushTags(d.withTags);
       }
-      // 已有 panel 被复用时（如提交面板再次触发 commitAndPush 被拒），
-      // dataset 不会重新读取，必须经此事件同步 rejected 状态。
-      // 同时重拉 ahead commits：上一次 commitAndPush 已在本地多产生 commit，
-      // 否则旧 commits 列表与 selectedHash 会落后于实际仓库状态。
+      // 已有 panel 被复用时 dataset 不会重新读取，withTags 等状态必须经
+      // 此事件同步。同时重拉 ahead commits：面板关闭期间仓库可能已有
+      // 新提交，否则旧 commits 列表与 selectedHash 会落后于实际仓库状态。
       void reloadAheadCommits();
-      if (d && typeof d.initialPushError === "string" && d.initialPushError) {
-        // 优先用事件里的 branchName（用户可能已切分支），缺失才回退闭包。
-        const effectiveBranch = d.branchName || branchName;
-        setPushRejected({ show: true, branchName: effectiveBranch });
-        setError(d.initialPushError);
-      }
     });
     return () => off();
   }, [branchName, reloadAheadCommits]);

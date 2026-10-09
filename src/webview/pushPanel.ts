@@ -18,7 +18,6 @@ export class PushPanel {
     branchName: string,
     remoteName = "origin",
     withTags = false,
-    initialPushError?: string,
   ): void {
     if (this.panel) {
       this.panel.reveal();
@@ -26,7 +25,7 @@ export class PushPanel {
       this.panel.webview.postMessage({
         type: "event",
         event: "pushPanelInit",
-        data: { branchName, remoteName, withTags, initialPushError },
+        data: { branchName, remoteName, withTags },
       });
       return;
     }
@@ -42,16 +41,13 @@ export class PushPanel {
       },
     );
 
-    // 新建 panel 时 webview 尚未加载，事件监听器还没注册，故 initialPushError
-    // 必须通过 root dataset 透传，App 启动时读取并直接进入 rejected 状态。
+    // 新建 panel 时 webview 尚未加载，事件监听器还没注册，初始数据必须
+    // 通过 root dataset 透传，App 启动时读取。
     const extra: Record<string, string> = {
       branch: branchName,
       remote: remoteName,
       withTags: String(withTags),
     };
-    if (initialPushError) {
-      extra.initialPushError = initialPushError;
-    }
 
     this.panel.webview.html = getReactWebviewHtml(
       this.panel.webview,

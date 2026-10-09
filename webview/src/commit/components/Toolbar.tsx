@@ -46,8 +46,9 @@ export function Toolbar({
   } = useCommitStore();
 
   // skipPushConfirmation=true 时工具栏「推送」直接推当前分支，不打开确认面板；
-  // 被拒则由后端打开 PushPanel 承载 rebase/merge。false 时保持原确认面板流程。
-  // 错误一律走 remoteError 内联展示（RemoteBanner），不弹 VSCode 通知。
+  // 被拒则在 commit 面板内弹出 Rebase/Merge 对话框（pushRejected 状态）。
+  // false 时保持原确认面板流程。错误一律走 remoteError 内联展示
+  // （RemoteBanner），不弹 VSCode 通知。
   const handlePush = useCallback(async () => {
     if (pushing) return;
     if (!skipPushConfirmation) {
@@ -68,6 +69,7 @@ export function Toolbar({
         pushed?: boolean;
         rejected?: boolean;
         pushError?: string;
+        branch?: string;
         data?: { isUpToDate?: boolean; branch?: string; remote?: string };
       };
       if (result?.error) {
@@ -80,8 +82,19 @@ export function Toolbar({
         showRepoSuccessFlash();
         return;
       }
-      // rejected：后端已打开 PushPanel 展示 rebase/merge，无需再提示。
-      if (result?.rejected) return;
+      // rejected：后端不再打开 PushPanel，改为在 commit 面板内弹出
+      // Rebase/Merge 对话框承载后续的拉取整合与重试推送。repoPath 随状态
+      // 固化，避免对话框打开期间当前仓库被切换后重试打到错误仓库。
+      if (result?.rejected) {
+        useCommitStore.setState({
+          pushRejected: {
+            repoPath: useCommitStore.getState().currentRepoPath ?? undefined,
+            branchName: result.branch ?? "",
+            pushError: result.pushError,
+          },
+        });
+        return;
+      }
       if (result?.pushError) {
         setRemoteError(result.pushError);
       }

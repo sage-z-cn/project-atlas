@@ -4,6 +4,15 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### Unreleased
+**Bug 修复**
+- **Commit**: 推送被拒对话框的重试链路显式携带仓库路径，多仓库下避免对错误仓库执行变基/合并
+
+**改进**
+- **Commit**: 推送跳过确认时若被拒，改为在提交面板内弹出变基/合并对话框，不再打开推送面板页签
+- **Commit**: 「提交并推送」下拉菜单新增「提交并强制推送」入口
+- **Commit**: 无已暂存更改时的暂存确认改为 webview 弹窗，不再弹原生通知
+
 #### 1.33.0
 **新功能**
 - **Webview**: 新增共享 ConfirmDialog/PromptDialog，支持 webview 侧确认弹窗

@@ -66,17 +66,16 @@ export function CommitMessageArea() {
       : selectedFiles.size > 0;
   const canCommit = commitMessage.trim().length > 0 && hasFiles && !loading;
 
-  // VSCode 风格下若无已暂存文件但工作区有更改，弹窗确认是否全部暂存后提交。
-  // 返回 true 表示可以继续提交（已有暂存 / 已确认并暂存 / 非 vscode 风格 / amend）。
+  // VSCode 风格下若无已暂存文件但工作区有更改，弹 webview 确认弹窗
+  // （StageConfirmDialog，替代 host 原生 showConfirmMessage）询问是否
+  // 全部暂存后提交。返回 true 表示可以继续提交（已有暂存 / 已确认并
+  // 暂存 / 非 vscode 风格 / amend）。
   const ensureStagedForVscode = useCallback(async (): Promise<boolean> => {
     if (commitListStyle !== "vscode" || amend) return true;
     if (changes.some((f) => f.staged)) return true;
     if (changes.length === 0) return false;
-    const result = (await bridge.request("showConfirmMessage", {
-      message: t("There are no staged changes. Stage all changes and commit?"),
-      confirmLabel: t("Stage All and Commit"),
-    })) as { confirmed?: boolean };
-    if (!result?.confirmed) return false;
+    const confirmed = await useCommitStore.getState().requestStageConfirm();
+    if (!confirmed) return false;
     await stageAll();
     return true;
   }, [commitListStyle, amend, changes, stageAll]);
@@ -108,6 +107,15 @@ export function CommitMessageArea() {
     if (!(await commit())) return;
     await bridge.request("openPushPanel", { withTags: true });
   }, [canCommit, commit, ensureStagedForVscode]);
+
+  const handleCommitAndForcePush = useCallback(async () => {
+    if (!canCommit) return;
+    setShowDropdown(false);
+    if (!(await ensureStagedForVscode())) return;
+    // 用户在下拉中显式选择强制推送，意图已明确：直接 commit + force push，
+    // 不走 skipPushConfirmation 分流，也不弹二次确认。
+    await commitAndPush(true);
+  }, [canCommit, commitAndPush, ensureStagedForVscode]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -476,6 +484,13 @@ export function CommitMessageArea() {
                   onClick={handleCommitAndPushWithTags}
                 >
                   {t("Commit and Push with Tags")}
+                </button>
+                <button
+                  type="button"
+                  className="commit-dropdown-item"
+                  onClick={handleCommitAndForcePush}
+                >
+                  {t("Commit and Force Push")}
                 </button>
                 <div className="commit-dropdown-separator" />
                 <button
