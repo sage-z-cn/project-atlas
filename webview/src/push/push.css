@@ -209,14 +209,23 @@
   background: var(--vscode-button-hoverBackground, #1d4ed8);
 }
 
+/* 2026 深色主题下 secondaryBackground 近透明，混入前景色保证可见，并补边框强化轮廓 */
 .push-btn-secondary {
-  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  background: color-mix(
+    in srgb,
+    var(--vscode-button-secondaryBackground, #3a3d41),
+    var(--vscode-foreground, #cccccc) 12%
+  );
   color: var(--vscode-button-secondaryForeground, var(--app-fg, #ccc));
-  border: none;
+  border: 1px solid var(--vscode-button-secondaryBorder, rgba(128, 128, 128, 0.4));
 }
 
 .push-btn-secondary:hover:not(:disabled) {
-  background: var(--vscode-button-secondaryHoverBackground, #45494e);
+  background: color-mix(
+    in srgb,
+    var(--vscode-button-secondaryHoverBackground, #45494e),
+    var(--vscode-foreground, #cccccc) 18%
+  );
 }
 
 .push-split-btn {

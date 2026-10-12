@@ -46,7 +46,12 @@
   overflow: hidden;
 }
 .todos-seg-btn {
-  background: var(--vscode-button-secondaryBackground);
+  /* 2026 深色主题下 secondaryBackground 近透明，混入前景色保证与背景区分 */
+  background: color-mix(
+    in srgb,
+    var(--vscode-button-secondaryBackground, #3a3d41),
+    var(--vscode-foreground, #cccccc) 12%
+  );
   color: var(--vscode-button-secondaryForeground);
   border: none;
   cursor: pointer;

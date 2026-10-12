@@ -552,13 +552,24 @@
   cursor: not-allowed;
 }
 
+/* 2026 深色主题的 secondaryBackground 解析为近透明的 list.hoverBackground（#FFFFFF14），
+   直接使用会与面板背景融为一体；与前景色做 color-mix 保证任何主题下都有最低可见度。 */
 .btn-secondary {
-  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  background: color-mix(
+    in srgb,
+    var(--vscode-button-secondaryBackground, #3a3d41),
+    var(--vscode-foreground, #cccccc) 12%
+  );
   color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-button-secondaryBorder, rgba(128, 128, 128, 0.4));
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--vscode-button-secondaryHoverBackground, #45494e);
+  background: color-mix(
+    in srgb,
+    var(--vscode-button-secondaryHoverBackground, #45494e),
+    var(--vscode-foreground, #cccccc) 18%
+  );
 }
 
 .btn-secondary:disabled {
@@ -799,12 +810,14 @@
 .commit-split-main {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
+  /* 与 .commit-split-arrow 拼接，去掉右边框避免出现双线 */
+  border-right: none;
 }
 
 .commit-split-arrow {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: 1px solid var(--vscode-button-secondaryBorder, rgba(128, 128, 128, 0.4));
   padding: 4px 6px;
   font-size: 10px;
   min-width: 0;
@@ -1879,7 +1892,12 @@ button.commit-dropdown-item:hover:not(:disabled) {
  * ON 悬停仍是 ON（同 branch-sidebar-btn.active 的处理惯例）。 */
 .stash-prompt-seg-btn.active,
 .stash-prompt-seg-btn.active:hover:not(:disabled) {
-  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  /* 2026 深色主题下 secondaryBackground 近透明，选中态混入更多前景色与未选中区分 */
+  background: color-mix(
+    in srgb,
+    var(--vscode-button-secondaryBackground, #3a3d41),
+    var(--vscode-foreground, #cccccc) 20%
+  );
   color: var(--vscode-button-secondaryForeground, var(--app-fg));
   font-weight: 600;
 }
