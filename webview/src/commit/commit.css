@@ -159,14 +159,24 @@
 }
 
 /* 网络操作进行中（拉取/推送）：图标 opacity 呼吸，提示「仍在执行」。
-   不用缩放——16px 图标上容易显抖；节奏偏慢，接近呼吸而非闪烁。 */
+   不用缩放——16px 图标上容易显抖；节奏偏慢，接近呼吸而非闪烁。
+   着色走 progressBar 语义色（VSCode「操作进行中」的原生色，与本面板
+   底部进度条同源）：图标经 currentColor 染色，背景做 15% 淡 tint
+   （与 .commit-progress-bar 容器的 15% 蓝底同浓度惯例），深浅色主题
+   自动适配；tint 为常量底、不参与呼吸动画，避免整钮闪烁过噪。 */
 .commit-toolbar-btn.is-busy {
   opacity: 0.7;
   cursor: default;
+  background: color-mix(
+    in srgb,
+    var(--vscode-progressBar-background, var(--vscode-focusBorder, #3794ff)) 15%,
+    transparent
+  );
 }
 
 .commit-toolbar-btn.is-busy svg {
   animation: toolbar-busy-pulse 1.2s ease-in-out infinite;
+  color: var(--vscode-progressBar-background, var(--vscode-focusBorder, #3794ff));
 }
 
 @keyframes toolbar-busy-pulse {
