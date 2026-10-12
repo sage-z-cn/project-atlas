@@ -4,6 +4,13 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.35.0
+**新功能**
+- **NewVersion**: 新增 changelog 生成语言配置项 newVersionLanguage
+
+**改进**
+- **Webview**: 抽取语言 chip 幽灵样式为共享类，并修复危险按钮悬停背景
+
 #### 1.34.0
 **新功能**
 - **Webview**: 分支侧栏新增「新建标签」按钮及创建标签弹窗
