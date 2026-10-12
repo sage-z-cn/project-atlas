@@ -172,6 +172,7 @@ export type CommandType =
   | "pushNewVersion"
   | "initNewVersionChangelog"
   | "updateNewVersionPrompt"
+  | "setNewVersionLanguage"
   | "locateCommit"
   // 远程发布（Release）— GitHub/Gitee 远程 Release 发布（commit 面板第四个 tab）
   | "getRemoteReleaseTargets"

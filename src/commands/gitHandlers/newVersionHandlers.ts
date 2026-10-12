@@ -154,6 +154,38 @@ function getRawNewVersionPrompt(): string {
     .get<string>("newVersionPrompt", "");
 }
 
+/**
+ * changelog 生成语言配置的三元组（写法同 aiHandlers.getAiConfig 的
+ * language 字段）：effective 为 Workspace > User 合并值，workspaceOverride
+ * 非空表示项目级覆盖，globalDefault 为 User 级值（缺省 "auto"）。
+ */
+function getNewVersionLanguageConfig() {
+  const cfg = vscode.workspace.getConfiguration("projectAtlas.ai");
+  const inspected = cfg.inspect<string>("newVersionLanguage");
+  return {
+    effective: cfg.get<string>("newVersionLanguage", "auto"),
+    workspaceOverride: inspected?.workspaceValue ?? null,
+    globalDefault: inspected?.globalValue ?? "auto",
+  };
+}
+
+/**
+ * 将 projectAtlas.ai.newVersionLanguage 的配置值归一为 service 需要的
+ * "zh" | "en"：zh/en 直通；follow-locale 跟随 VS Code 界面语言；
+ * auto（及未知值）沿用现有 changelog 文件内容的检测结果。
+ */
+function resolveNewVersionLanguage(
+  rawLanguage: string,
+  detected: "zh" | "en",
+): "zh" | "en" {
+  if (rawLanguage === "zh") return "zh";
+  if (rawLanguage === "en") return "en";
+  if (rawLanguage === "follow-locale") {
+    return vscode.env.language.startsWith("zh") ? "zh" : "en";
+  }
+  return detected;
+}
+
 export function registerNewVersionHandlers(ctx: GitHandlerContext): void {
   const { messageRouter } = ctx;
 
@@ -180,6 +212,7 @@ export function registerNewVersionHandlers(ctx: GitHandlerContext): void {
         suggestedBump: suggestBump(commits.map((c) => c.subject)),
         effectivePrompt: getEffectiveNewVersionPrompt(rawPrompt),
         promptCustomized: rawPrompt.trim().length > 0,
+        language: getNewVersionLanguageConfig(),
         aiConfigured: !!(
           settings.apiUrl &&
           settings.model &&
@@ -201,12 +234,6 @@ export function registerNewVersionHandlers(ctx: GitHandlerContext): void {
       const includeCommitHashes = params.includeCommitHashes as
         | string[]
         | undefined;
-
-      // Webview 可手动指定 changelog 语言（chip 覆盖）；未传时用文件内容检测值。
-      const languageOverride = params.language as "zh" | "en" | undefined;
-      if (languageOverride !== undefined && !["zh", "en"].includes(languageOverride)) {
-        throw new Error(vscode.l10n.t("Invalid language. Use \"zh\" or \"en\"."));
-      }
 
       const cfg = await readAiSettings(ctx.context);
       if (!cfg.apiUrl || !cfg.model || !cfg.apiKey) {
@@ -234,7 +261,12 @@ export function registerNewVersionHandlers(ctx: GitHandlerContext): void {
             fileChanges: includeFiles,
             changelogExcerpt,
           },
-          languageOverride ?? changelogLanguage,
+          // 语言由配置归一：zh/en 直通 / follow-locale 跟随界面语言 /
+          // auto 用现有 changelog 文件内容的检测值。
+          resolveNewVersionLanguage(
+            getNewVersionLanguageConfig().effective,
+            changelogLanguage,
+          ),
           getEffectiveNewVersionPrompt(getRawNewVersionPrompt()),
           controller.signal,
         );
@@ -556,6 +588,34 @@ export function registerNewVersionHandlers(ctx: GitHandlerContext): void {
       };
     }),
   );
+
+  // 写项目级（Workspace）changelog 生成语言；language=null 清除覆盖，回落全局默认
+  messageRouter.handle("setNewVersionLanguage", async (params) => {
+    const language = params?.language as
+      | "auto"
+      | "en"
+      | "zh"
+      | "follow-locale"
+      | null
+      | undefined;
+    if (
+      language !== null &&
+      language !== undefined &&
+      !["auto", "en", "zh", "follow-locale"].includes(language)
+    ) {
+      throw new Error("Invalid language. Use auto/en/zh/follow-locale or null.");
+    }
+    const cfg = vscode.workspace.getConfiguration("projectAtlas.ai");
+    await cfg.update(
+      "newVersionLanguage",
+      language ?? undefined,
+      vscode.ConfigurationTarget.Workspace,
+    );
+    // 同步广播（setupGit 的配置监听也会广播同一事件，这里保证时序确定）
+    messageRouter.broadcastEvent("aiConfigChanged", {});
+    // update 之后重读三元组随响应返回，发起方本地 patch 立即刷新 chip
+    return { success: true, language: getNewVersionLanguageConfig() };
+  });
 
   // 在 Git Log 面板定位某个 commit（委托给既有命令，不走 git 服务）
   messageRouter.handle("locateCommit", async (params) => {

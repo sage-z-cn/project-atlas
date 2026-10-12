@@ -1080,6 +1080,25 @@
           "editPresentation": "multilineText",
           "description": "%config.projectAtlas.ai.newVersionPrompt%",
           "order": 17
+        },
+        "projectAtlas.ai.newVersionLanguage": {
+          "type": "string",
+          "default": "auto",
+          "scope": "window",
+          "enum": [
+            "auto",
+            "en",
+            "zh",
+            "follow-locale"
+          ],
+          "enumDescriptions": [
+            "%config.projectAtlas.ai.newVersionLanguage.auto%",
+            "%config.projectAtlas.ai.newVersionLanguage.en%",
+            "%config.projectAtlas.ai.newVersionLanguage.zh%",
+            "%config.projectAtlas.ai.newVersionLanguage.follow-locale%"
+          ],
+          "description": "%config.projectAtlas.ai.newVersionLanguage%",
+          "order": 18
         }
       }
     }

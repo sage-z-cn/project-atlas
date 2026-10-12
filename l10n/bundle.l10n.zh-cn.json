@@ -540,7 +540,6 @@
   "Version": "版本",
   "Recommended": "推荐",
   "No version base found": "未找到版本号基准（package.json 或带版本号的标签）",
-  "Invalid language. Use \"zh\" or \"en\".": "语言无效，请使用 \"zh\" 或 \"en\"。",
   "Invalid version format": "版本号格式无效",
   "Version is not higher than the current version": "版本号不高于当前版本",
   "Commit Message": "提交信息",

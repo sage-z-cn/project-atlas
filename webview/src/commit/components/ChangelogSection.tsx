@@ -4,7 +4,7 @@ import { t } from "../../shared/i18n";
 import { useAutoResizeTextarea } from "../../shared/hooks/useAutoResizeTextarea";
 import { useCommitStore } from "../../shared/store/commit-store";
 import { useNewVersionStore } from "../../shared/store/new-version-store";
-import type { NewVersionContext } from "../../shared/store/new-version-store";
+import type { NewVersionContext, NewVersionLanguageValue } from "../../shared/store/new-version-store";
 import { ChangelogInitForm } from "./ChangelogInitForm";
 import { PromptEditor } from "./PromptEditor";
 import CloseIcon from "~icons/codicon/close";
@@ -22,8 +22,7 @@ export function ChangelogSection({ context }: { context: NewVersionContext }) {
   const setGenError = useNewVersionStore((s) => s.setGenError);
   const changelogDraft = useNewVersionStore((s) => s.changelogDraft);
   const setChangelogDraft = useNewVersionStore((s) => s.setChangelogDraft);
-  const langOverride = useNewVersionStore((s) => s.changelogLanguageOverride);
-  const setLangOverride = useNewVersionStore((s) => s.setChangelogLanguageOverride);
+  const setNewVersionLanguage = useNewVersionStore((s) => s.setNewVersionLanguage);
   const aiConfigured = useCommitStore((s) => s.aiConfigured);
   // 动态高度：JS 量 scrollHeight 设定 height，CSS min/max-height 负责上下限
   // （最少 5 行、最多 20 行，超限后内部滚动）。
@@ -33,8 +32,6 @@ export function ChangelogSection({ context }: { context: NewVersionContext }) {
     return <ChangelogInitForm defaultLanguage={context.changelogLanguage} />;
   }
 
-  const effectiveLang = langOverride ?? context.changelogLanguage;
-
   return (
     <>
       <div className="new-version-changelog-head">
@@ -42,8 +39,10 @@ export function ChangelogSection({ context }: { context: NewVersionContext }) {
           {context.changelogFile}
         </span>
         <LanguageChip
-          value={effectiveLang}
-          onSelect={(lang) => setLangOverride(lang)}
+          value={context.language.effective}
+          hasOverride={context.language.workspaceOverride != null}
+          globalDefault={context.language.globalDefault}
+          onSelect={(lang) => void setNewVersionLanguage(lang)}
         />
         <div className="new-version-changelog-actions">
           <PromptEditor />
@@ -109,15 +108,39 @@ export function ChangelogSection({ context }: { context: NewVersionContext }) {
 // ── Language chip + popover ──────────────────────────────────────────────────
 
 /**
- * Interactive language chip: click → small popover with 中文 / English.
- * The highlighted value is the override when set, else the detected one.
+ * Short label shown on the chip (copied from CommitMessageArea's aiLangShort,
+ * renamed without the ai prefix).
+ */
+function langShort(lang: NewVersionLanguageValue): string {
+  if (lang === "zh") return "zh";
+  if (lang === "en") return "en";
+  if (lang === "follow-locale") return "locale";
+  return "auto";
+}
+
+/** Full menu label (copied from CommitMessageArea's aiLangLabel). */
+function langLabel(lang: NewVersionLanguageValue): string {
+  if (lang === "zh") return t("Chinese");
+  if (lang === "en") return t("English");
+  if (lang === "follow-locale") return t("Follow VS Code");
+  return t("Auto detect");
+}
+
+/**
+ * Changelog language chip (same interaction as the commit-message AI language
+ * chip). Writes a Workspace override; "use global" clears it so the User
+ * setting applies again.
  */
 function LanguageChip({
   value,
+  hasOverride,
+  globalDefault,
   onSelect,
 }: {
-  value: "zh" | "en";
-  onSelect: (lang: "zh" | "en") => void;
+  value: NewVersionLanguageValue;
+  hasOverride: boolean;
+  globalDefault: NewVersionLanguageValue;
+  onSelect: (lang: NewVersionLanguageValue | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement>(null);
@@ -142,37 +165,58 @@ function LanguageChip({
   }, [open]);
 
   const label = t("Changelog language");
+  const title = hasOverride
+    ? `${label}: ${langLabel(value)} (${t("Workspace")})`
+    : `${label}: ${langLabel(value)} (${t("Global default")})`;
+
+  const options: NewVersionLanguageValue[] = ["auto", "en", "zh", "follow-locale"];
 
   return (
     <span className="new-version-lang-wrap" ref={wrapRef}>
       <button
         type="button"
         className="new-version-lang-chip new-version-lang-chip-ghost interactive"
-        title={label}
-        aria-label={label}
+        title={title}
+        aria-label={title}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        {value}
+        {langShort(value)}
       </button>
       {open && (
         <span className="new-version-lang-menu" role="menu">
-          {(["zh", "en"] as const).map((lang) => (
+          {options.map((lang) => (
             <button
               key={lang}
               type="button"
               role="menuitemradio"
-              aria-checked={value === lang}
-              className={`new-version-lang-option${value === lang ? " active" : ""}`}
+              aria-checked={value === lang && (hasOverride || lang === globalDefault)}
+              className={`new-version-lang-option${value === lang && hasOverride ? " active" : ""}`}
               onClick={() => {
                 onSelect(lang);
                 setOpen(false);
               }}
             >
-              {lang === "zh" ? t("Chinese") : t("English")}
+              {langLabel(lang)}
             </button>
           ))}
+          {hasOverride && (
+            <>
+              <div className="commit-dropdown-separator" />
+              <button
+                type="button"
+                role="menuitem"
+                className="new-version-lang-option"
+                onClick={() => {
+                  onSelect(null);
+                  setOpen(false);
+                }}
+              >
+                {t("Use global default ({0})", langLabel(globalDefault))}
+              </button>
+            </>
+          )}
         </span>
       )}
     </span>

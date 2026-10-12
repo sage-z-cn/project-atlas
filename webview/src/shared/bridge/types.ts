@@ -143,6 +143,7 @@ export type CommandType =
   | "pushNewVersion"
   | "initNewVersionChangelog"
   | "updateNewVersionPrompt"
+  | "setNewVersionLanguage"
   | "locateCommit"
   | "getRemoteReleaseTargets"
   | "createRelease"

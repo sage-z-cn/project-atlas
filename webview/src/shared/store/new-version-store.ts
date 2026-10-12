@@ -13,6 +13,20 @@ export interface NewVersionCommit {
   date: string;
 }
 
+/** projectAtlas.ai.newVersionLanguage 配置的四个取值。 */
+export type NewVersionLanguageValue = "auto" | "en" | "zh" | "follow-locale";
+
+/**
+ * changelog 生成语言配置三元组（host getNewVersionContext 返回）：
+ * effective 为合并值，workspaceOverride 非空表示项目级覆盖，
+ * globalDefault 为 User 级默认。
+ */
+export interface NewVersionLanguageConfig {
+  effective: NewVersionLanguageValue;
+  workspaceOverride: NewVersionLanguageValue | null;
+  globalDefault: NewVersionLanguageValue;
+}
+
 export interface NewVersionContext {
   currentVersion: string | null;
   lastTag: string | null;
@@ -23,6 +37,8 @@ export interface NewVersionContext {
   commits: NewVersionCommit[];
   changelogFile: string | null;
   changelogLanguage: "zh" | "en";
+  /** changelog 生成语言配置三元组（语言 chip 的数据源）。 */
+  language: NewVersionLanguageConfig;
   suggestedBump: "patch" | "minor" | "major";
   effectivePrompt: string;
   promptCustomized: boolean;
@@ -184,8 +200,6 @@ function defaultForm() {
     commitMessageTouched: false,
     updatePackageJson: false,
     changelogDraft: "",
-    /** User-picked changelog language; null = use the detected one. */
-    changelogLanguageOverride: null as "zh" | "en" | null,
     /** Hashes of the commits checked into the changelog prompt. */
     selectedCommitHashes: [] as string[],
     /**
@@ -220,8 +234,6 @@ interface NewVersionState {
   commitMessageTouched: boolean;
   updatePackageJson: boolean;
   changelogDraft: string;
-  /** User-picked changelog language; null = use the detected one. */
-  changelogLanguageOverride: "zh" | "en" | null;
   /** Hashes of the commits checked into the changelog prompt. */
   selectedCommitHashes: string[];
   /**
@@ -271,8 +283,11 @@ interface NewVersionState {
   toggleCommitSelected: (hash: string) => void;
   /** 顶栏全选：false=清空，true=context.commits 全选。 */
   setAllCommitsSelected: (selected: boolean) => void;
-  /** Override the detected changelog language (null = back to detected). */
-  setChangelogLanguageOverride: (lang: "zh" | "en" | null) => void;
+  /**
+   * 写项目级（Workspace）changelog 生成语言；null = 清除覆盖，回落全局
+   * 默认。三元组随 context 刷新（aiConfigChanged → fetchContext）。
+   */
+  setNewVersionLanguage: (language: NewVersionLanguageValue | null) => Promise<void>;
   setPromptOpen: (open: boolean) => void;
   setPromptDraft: (v: string) => void;
   setPromptError: (e: string | null) => void;
@@ -499,8 +514,22 @@ export const useNewVersionStore = create<NewVersionState>((set, get) => ({
     });
   },
 
-  setChangelogLanguageOverride(lang) {
-    set({ changelogLanguageOverride: lang });
+  async setNewVersionLanguage(language) {
+    try {
+      const result = (await bridge.request("setNewVersionLanguage", {
+        language,
+      })) as { language?: NewVersionLanguageConfig };
+      // 响应携带新三元组 → 本地 patch context 让当前视图的 chip 立即生效；
+      // aiConfigChanged 广播链路保留，供其他 webview / 离屏 tab 全量刷新。
+      const lang = result?.language;
+      if (lang) {
+        set((st) => ({
+          context: st.context ? { ...st.context, language: lang } : st.context,
+        }));
+      }
+    } catch (err) {
+      console.error("setNewVersionLanguage failed:", err);
+    }
   },
 
   setPromptOpen(open) {
@@ -590,10 +619,7 @@ export const useNewVersionStore = create<NewVersionState>((set, get) => ({
           // full-length %H output of getLogRange on both sides of the
           // protocol; the host re-collects and filters by this list.
           includeCommitHashes: s.selectedCommitHashes,
-          // Manual language pick wins; omitted → host uses the detected one.
-          ...(s.changelogLanguageOverride
-            ? { language: s.changelogLanguageOverride }
-            : {}),
+          // 语言归一在扩展端完成（projectAtlas.ai.newVersionLanguage 配置）。
         },
         { timeout: (useCommitStore.getState().aiTimeout + 10) * 1000 },
       )) as { changelog?: string };
@@ -756,11 +782,11 @@ bridge.onEvent((event, data) => {
   }
 
   if (event === "aiConfigChanged") {
-    // aiConfigured lives in the context; refetch when the tab is on screen
-    // (commit-store refreshes its own aiConfigured independently).
-    if (st.context && useCommitStore.getState().activeTab === "newVersion") {
-      void useNewVersionStore.getState().fetchContext(false);
-    }
+    // aiConfigured 与 language 三元组都在 context 里；对齐 git 事件的
+    // dirty 模式走 markDirty（在途请求置 pendingRefetch、tab 在屏立即
+    // fetchContext(false)、不在屏仅置 dirty 由 ensureLoaded 补拉），
+    // 避免 context 为空 / tab 不在屏时事件被直接丢弃。
+    st.markDirty();
     return;
   }
 
