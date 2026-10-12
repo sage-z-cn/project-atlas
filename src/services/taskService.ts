@@ -626,14 +626,61 @@ export class TaskService {
 
   // --- Package Manager Detection ---
 
+  /** Lock file names used to infer the package manager of a directory. */
+  private static readonly LOCK_FILES: ReadonlyArray<{ manager: PackageManager; files: readonly string[] }> = [
+    { manager: "npm", files: ["package-lock.json"] },
+    { manager: "pnpm", files: ["pnpm-lock.yaml"] },
+    { manager: "yarn", files: ["yarn.lock"] },
+    { manager: "bun", files: ["bun.lockb", "bun.lock"] },
+  ];
+
   /**
-   * Detect package manager based on lock files in the given directory.
+   * Detect the package manager for a directory.
+   * Priority: the explicit "packageManager" field in package.json (corepack
+   * standard), then the most recently modified lock file, then npm. Comparing
+   * lock file mtimes handles workspaces mid-migration where several lock
+   * files coexist — a leftover lock file stays older than the one in active use.
    */
-  private detectPackageManager(cwd: string): PackageManager {
-    if (fs.existsSync(path.join(cwd, "pnpm-lock.yaml"))) { return "pnpm"; }
-    if (fs.existsSync(path.join(cwd, "yarn.lock"))) { return "yarn"; }
-    if (fs.existsSync(path.join(cwd, "bun.lockb")) || fs.existsSync(path.join(cwd, "bun.lock"))) { return "bun"; }
-    return "npm";
+  private detectPackageManager(cwd: string, pkg?: { packageManager?: unknown }): PackageManager {
+    const declared = this.readPackageManagerField(pkg, cwd);
+    if (declared) { return declared; }
+
+    let best: { manager: PackageManager; mtimeMs: number } | undefined;
+    for (const { manager, files } of TaskService.LOCK_FILES) {
+      for (const file of files) {
+        let mtimeMs: number;
+        try {
+          mtimeMs = fs.statSync(path.join(cwd, file)).mtimeMs;
+        } catch {
+          continue;
+        }
+        if (!best || mtimeMs > best.mtimeMs) {
+          best = { manager, mtimeMs };
+        }
+      }
+    }
+    return best?.manager ?? "npm";
+  }
+
+  /**
+   * Read the corepack "packageManager" field ("pnpm@9.1.0" style).
+   * Accepts an already-parsed package.json to avoid a re-read.
+   */
+  private readPackageManagerField(
+    pkg: { packageManager?: unknown } | undefined,
+    cwd: string,
+  ): PackageManager | undefined {
+    let value = pkg?.packageManager;
+    if (value === undefined) {
+      try {
+        value = JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf-8"))?.packageManager;
+      } catch {
+        return undefined;
+      }
+    }
+    if (typeof value !== "string" || value.length === 0) { return undefined; }
+    const name = value.split("@")[0] as PackageManager;
+    return TaskService.LOCK_FILES.some((entry) => entry.manager === name) ? name : undefined;
   }
 
   // --- Recent Runs ---
@@ -783,7 +830,7 @@ export class TaskService {
 
       const cwd = path.dirname(fsPath);
       const relativeDir = toForwardSlash(path.relative(workspaceRoot, cwd));
-      const packageManager = this.detectPackageManager(cwd);
+      const packageManager = this.detectPackageManager(cwd, pkg);
 
       return Object.keys(scripts)
         .filter((name) => !exclude.has(name))
@@ -958,6 +1005,11 @@ export class TaskService {
       let command: string;
       let runLabel = name;
       if (taskDef.type === "npm") {
+        // npm tasks should run from the project directory containing package.json
+        // If taskDef.path is set, cwd is relative to the workspace folder
+        if (taskDef.path) {
+          cwd = path.join(cwd, taskDef.path);
+        }
         // Detect from the project dir — vscode-sourced tasks hardcode "npm" in
         // parseVscodeTasks, so the scan-time map is unreliable here.
         const pm = this.detectPackageManager(cwd);
@@ -967,11 +1019,6 @@ export class TaskService {
           : pm === "yarn" ? `yarn ${scriptName}`
           : `bun run ${scriptName}`;
         runLabel = `${pm}: ${scriptName}`;
-        // npm tasks should run from the project directory containing package.json
-        // If taskDef.path is set, cwd is relative to the workspace folder
-        if (taskDef.path) {
-          cwd = path.join(cwd, taskDef.path);
-        }
       } else if (taskDef.type === "shell" || taskDef.type === "process") {
         command = taskDef.command || "";
         if (taskDef.args && Array.isArray(taskDef.args)) {
