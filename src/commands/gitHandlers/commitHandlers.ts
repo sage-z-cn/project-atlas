@@ -147,6 +147,9 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
         }
         // Push is run separately so a rejected push does not roll back the
         // commit success; the push error is surfaced via `pushError`.
+        // 推送真正开始：通知工具栏推送按钮进入推送中状态。无 branch 的提前
+        // return 在此之前，不会被误包。
+        messageRouter.broadcastEvent("pushStateChanged", { pushing: true });
         try {
           await gitService.push(branch, force ?? (amend ?? false));
           return { success: true, pushed: true };
@@ -165,6 +168,9 @@ export function registerCommitHandlers(ctx: GitHandlerContext): void {
               pushError,
             );
           return { success: true, pushed: false, pushError, rejected, branch };
+        } finally {
+          // 紧贴 push 调用结束（成功/被拒/异常）复位推送中状态。
+          messageRouter.broadcastEvent("pushStateChanged", { pushing: false });
         }
       });
     }),

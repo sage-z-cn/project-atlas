@@ -196,6 +196,11 @@ export type EventType =
    * 会先于 response 刷新列表）。外部 commit / amendCommit 不发此事件。
    */
   | "commitLanded"
+  /**
+   * push 真正开始与结束时成对广播，data 为 `{ pushing: boolean }`，
+   * 供 commit 面板工具栏推送按钮展示推送中状态（复用 is-busy 呼吸动画）。
+   */
+  | "pushStateChanged"
   | "rollbackPanelInit"
   | "repoChanged"
   | "reposChanged"

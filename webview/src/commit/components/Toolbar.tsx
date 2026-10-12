@@ -44,6 +44,10 @@ export function Toolbar({
     skipPushConfirmation,
     hasRemote,
   } = useCommitStore();
+  // host 侧推送真实执行中（「提交并推送」等入口也会置位），与本地点击反馈
+  // 取或：任一为真即展示推送中状态。
+  const storePushing = useCommitStore((s) => s.pushing);
+  const pushBusy = pushing || storePushing;
 
   // skipPushConfirmation=true 时工具栏「推送」直接推当前分支，不打开确认面板；
   // 被拒则在 commit 面板内弹出 Rebase/Merge 对话框（pushRejected 状态）。
@@ -197,7 +201,7 @@ export function Toolbar({
           </Tooltip>
           <Tooltip
             text={
-              pushing
+              pushBusy
                 ? t("Pushing...")
                 : skipPushConfirmation
                   ? t("Push")
@@ -206,10 +210,10 @@ export function Toolbar({
           >
             <button
               type="button"
-              className={`commit-toolbar-btn${pushing ? " is-busy" : ""}`}
+              className={`commit-toolbar-btn${pushBusy ? " is-busy" : ""}`}
               onClick={() => void handlePush()}
-              disabled={pushing}
-              aria-busy={pushing}
+              disabled={pushBusy}
+              aria-busy={pushBusy}
             >
               <PushIcon />
             </button>

@@ -123,13 +123,21 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
       const targetBranch = (params.targetBranch as string) || branchName;
       const withTags = params.withTags as boolean | undefined;
       return withProgress(ctx, async () => {
-        const output = await gitService.push(
-          branchName,
-          force ?? false,
-          remote,
-          targetBranch,
-          withTags ?? false,
-        );
+        // 推送真正开始：通知 commit 面板工具栏推送按钮进入推送中状态。
+        messageRouter.broadcastEvent("pushStateChanged", { pushing: true });
+        let output: string | undefined;
+        try {
+          output = await gitService.push(
+            branchName,
+            force ?? false,
+            remote,
+            targetBranch,
+            withTags ?? false,
+          );
+        } finally {
+          // 紧贴 push 调用结束（成功/异常）复位推送中状态。
+          messageRouter.broadcastEvent("pushStateChanged", { pushing: false });
+        }
         messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
         messageRouter.broadcastEvent("commitStateChanged", {});
         // Return push output so webview can show result toast before closing
@@ -168,8 +176,18 @@ export function registerRemoteHandlers(ctx: GitHandlerContext): void {
           };
         }
         return withProgress(ctx, async () => {
+          // 推送真正开始：通知 commit 面板工具栏推送按钮进入推送中状态。
+          messageRouter.broadcastEvent("pushStateChanged", { pushing: true });
           try {
-            const output = await gitService.push(branch, false);
+            let output: string | undefined;
+            try {
+              output = await gitService.push(branch, false);
+            } finally {
+              // 紧贴 push 调用结束（成功/被拒/异常）复位推送中状态。
+              messageRouter.broadcastEvent("pushStateChanged", {
+                pushing: false,
+              });
+            }
             messageRouter.broadcastEvent("gitStateChanged", { scope: "all" });
             messageRouter.broadcastEvent("commitStateChanged", {});
             const isUpToDate =

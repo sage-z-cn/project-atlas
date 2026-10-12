@@ -208,6 +208,11 @@ interface CommitStore {
   setPushRejected: (s: { repoPath?: string; branchName: string; pushError?: string } | null) => void;
   /** 对话框内 rebase/merge 执行中标记，用于禁用按钮与切换文案。 */
   pushResolveBusy: "rebase" | "merge" | null;
+  /**
+   * host 侧 push 真实执行中（pushStateChanged 事件驱动，涵盖「提交并推送」
+   * 等所有推送入口），工具栏推送按钮据此展示推送中状态。
+   */
+  pushing: boolean;
   /** 对话框内选择 rebase/merge 后：拉取整合远端变更并重试推送。 */
   resolvePushRejected: (mode: "rebase" | "merge") => Promise<void>;
   /**
@@ -520,6 +525,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   pushRejected: null,
   setPushRejected: (s) => set({ pushRejected: s }),
   pushResolveBusy: null,
+  pushing: false,
   async resolvePushRejected(mode) {
     const rejected = get().pushRejected;
     if (!rejected || get().pushResolveBusy) return;
@@ -1796,6 +1802,13 @@ bridge.onEvent((event, data) => {
     if (clientOpId) {
       void settleCommitMessageAfterCommit(clientOpId);
     }
+    return;
+  }
+  if (event === "pushStateChanged") {
+    // host 在 push 真正开始/结束时成对广播，驱动工具栏推送按钮的推送中
+    // 状态（呼吸动画、禁用），覆盖本工具栏之外的推送入口（如「提交并推送」）。
+    const { pushing } = (data ?? {}) as { pushing?: boolean };
+    useCommitStore.setState({ pushing: pushing === true });
     return;
   }
   if (event === "commitStateChanged" || event === "gitStateChanged") {
