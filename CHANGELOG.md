@@ -4,6 +4,18 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.34.0
+**新功能**
+- **Webview**: 分支侧栏新增「新建标签」按钮及创建标签弹窗
+- **Commit**: 新增强制推送入口并优化推送被拒处理流程
+
+**Bug 修复**
+- **样式**: 修复 2026 深色主题下次级按钮近乎不可见的问题
+
+**改进**
+- **Webview**: 版本预设按钮改为独立按钮样式
+- **TaskService**: 增强包管理器检测逻辑
+
 #### 1.33.0
 **新功能**
 - **Webview**: 新增共享 ConfirmDialog/PromptDialog，支持 webview 侧确认弹窗
