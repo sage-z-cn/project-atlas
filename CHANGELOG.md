@@ -4,6 +4,14 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### 1.36.0
+**新功能**
+- **Commit**: 推送时广播 pushStateChanged，工具栏可展示推送中状态
+
+**改进**
+- **Webview**: 为忙碌态工具栏按钮添加 progressBar 语义色染色
+- **Commit**: 移除忙碌状态按钮的背景着色
+
 #### 1.35.0
 **新功能**
 - **NewVersion**: 新增 changelog 生成语言配置项 newVersionLanguage
