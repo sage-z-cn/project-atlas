@@ -147,7 +147,7 @@ function LanguageChip({
     <span className="new-version-lang-wrap" ref={wrapRef}>
       <button
         type="button"
-        className="new-version-lang-chip interactive"
+        className="new-version-lang-chip new-version-lang-chip-ghost interactive"
         title={label}
         aria-label={label}
         aria-haspopup="menu"

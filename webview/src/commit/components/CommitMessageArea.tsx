@@ -583,7 +583,7 @@ function AiLanguageChip({
     <span className="new-version-lang-wrap" ref={wrapRef}>
       <button
         type="button"
-        className="new-version-lang-chip interactive"
+        className="new-version-lang-chip new-version-lang-chip-ghost interactive"
         title={title}
         aria-label={title}
         aria-haspopup="menu"
