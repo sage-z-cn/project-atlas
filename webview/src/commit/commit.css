@@ -1421,9 +1421,9 @@ button.commit-dropdown-item:hover:not(:disabled) {
 }
 
 /* ── Version controls (bottom bar) ──
- * One wrapping row: [Patch|Minor|Major] segmented group + version input
- * filling the rest. On narrow panels the input drops to its own full-width
- * line instead of being squeezed unusable. */
+ * One wrapping row: Patch / Minor / Major independent preset buttons +
+ * version input filling the rest. On narrow panels the input drops to its
+ * own full-width line instead of being squeezed unusable. */
 .new-version-version-controls {
   display: flex;
   align-items: center;
@@ -1431,8 +1431,21 @@ button.commit-dropdown-item:hover:not(:disabled) {
   flex-wrap: wrap;
 }
 
+/* Presets render as independent spaced buttons here — not the shared
+ * segmented group (the changelog init language picker keeps that look). */
 .new-version-version-controls .new-version-bump-group {
   flex-shrink: 0;
+  gap: 6px;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* Each preset is its own bordered control, matching the adjacent
+ * .new-version-input (same border color and 6px radius). */
+.new-version-version-controls .new-version-bump-btn {
+  border: 1px solid var(--border);
+  border-radius: 6px;
 }
 
 .new-version-version-input {
