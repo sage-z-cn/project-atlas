@@ -126,6 +126,8 @@ export type CommandType =
   | "openPushPanel"
   | "getRemoteBranches"
   | "dropCommit"
+  // 标签：createTag 传 { tagName, hash, message? }，message 非空则创建 annotated tag。
+  | "createTag"
   | "closePushPanel"
   | "openRollbackPanel"
   | "executeRollback"

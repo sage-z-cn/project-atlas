@@ -6,10 +6,11 @@ import { useModifierClickSelection } from "../../shared/hooks/useModifierClickSe
 import { usePreventSelect } from "../../shared/hooks/usePreventSelect";
 import { t } from "../../shared/i18n";
 import { usePanelStore } from "../../shared/store/panel-store";
-import type { BranchInfo, TagInfo } from "../../shared/types/git";
+import type { BranchInfo, TagInfo, Commit } from "../../shared/types/git";
 import { RepoSelector } from "../../shared/components/RepoSelector";
 import { BranchSidebar as BranchSidebarComponent } from "./BranchSidebar";
 import { CreateBranchDialog } from "./CreateBranchDialog";
+import { CreateTagDialog } from "./CreateTagDialog";
 import { ManageRemotesDialog } from "./ManageRemotesDialog";
 import IconStarFilled from "~icons/codicon/star-full";
 
@@ -297,6 +298,34 @@ function collectVisibleLeaves(
   return result;
 }
 
+// --- Create-tag dialog title ---------------------------------------------
+
+// Sentinel passed as {1} — the title template is split on it so the subject
+// segment can be wrapped in <em> (t() only returns plain strings).
+const SUBJECT_SENTINEL = "\u0000";
+
+// First line of the commit subject, truncated with an ellipsis.
+function truncateSubject(subject: string, max = 30): string {
+  const firstLine = subject.split("\n")[0].trim();
+  return firstLine.length > max ? `${firstLine.slice(0, max)}...` : firstLine;
+}
+
+function buildCreateTagContext(
+  headCommit: Commit,
+  headBranch: BranchInfo | undefined,
+): {
+  hash: string;
+  branch: string;
+  subject: string;
+} {
+  return {
+    hash: headCommit.hash,
+    // Detached HEAD has no current branch — fall back to the short hash.
+    branch: headBranch?.name ?? headCommit.shortHash,
+    subject: truncateSubject(headCommit.subject),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Components
 // ---------------------------------------------------------------------------
@@ -340,6 +369,13 @@ export function BranchTree({
   const [createBranchDialog, setCreateBranchDialog] = useState<{
     startPoint: string;
     defaultName: string;
+  } | null>(null);
+
+  // Create tag dialog state — target commit defaults to HEAD
+  const [createTagDialog, setCreateTagDialog] = useState<{
+    hash: string;
+    branch: string;
+    subject: string;
   } | null>(null);
 
   // Manage remotes dialog state
@@ -542,6 +578,15 @@ export function BranchTree({
         onNewBranch={() =>
           setCreateBranchDialog({ startPoint: "HEAD", defaultName: "" })
         }
+        onNewTag={() => {
+          if (!headCommit) {
+            usePanelStore
+              .getState()
+              .setPanelError(t("No commit found to tag. Clear filters and retry."));
+            return;
+          }
+          setCreateTagDialog(buildCreateTagContext(headCommit, headBranch));
+        }}
         onManageRemotes={() => setShowManageRemotes(true)}
       />
       {/* Outer column: repo list pinned at top; only the lower half scrolls. */}
@@ -862,6 +907,55 @@ export function BranchTree({
                   return match
                     ? match[1]
                     : t("Branch '{0}' already exists.\nChange the name or overwrite existing branch.", branchName);
+                }
+              }}
+            />,
+            document.body,
+          )}
+
+        {/* Create Tag Dialog */}
+        {createTagDialog &&
+          createPortal(
+            <CreateTagDialog
+              title={
+                (() => {
+                  // {1} marks the subject segment; t() returns a plain
+                  // string, so pass a sentinel and split to render that
+                  // segment in italics.
+                  const parts = t(
+                    "Create tag at '{0} {1}'",
+                    createTagDialog.branch,
+                    SUBJECT_SENTINEL,
+                  ).split(SUBJECT_SENTINEL);
+                  return (
+                    <>
+                      {parts[0]}
+                      <em>{createTagDialog.subject}</em>
+                      {parts[1]}
+                    </>
+                  );
+                })()
+              }
+              placeholder="tag-name"
+              onClose={() => setCreateTagDialog(null)}
+              onConfirm={async ({ tagName, message }) => {
+                try {
+                  await bridgeWithProgress("createTag", {
+                    tagName,
+                    hash: createTagDialog.hash,
+                    ...(message ? { message } : {}),
+                  });
+                  setCreateTagDialog(null);
+                  void bridge.request("showInfoNotification", {
+                    message: t("Created tag '{0}'", tagName),
+                  });
+                  return undefined;
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : String(err);
+                  // Extract the useful part from git error; otherwise surface
+                  // the raw message (non-git failures must not be masked).
+                  const match = msg.match(/fatal:\s*(.+)/);
+                  return match ? match[1] : msg;
                 }
               }}
             />,

@@ -8,6 +8,7 @@ import IconCollapseAll from "~icons/codicon/collapse-all";
 import IconChevronLeft from "~icons/codicon/chevron-left";
 import IconChevronRight from "~icons/codicon/chevron-right";
 import IconAdd from "~icons/codicon/add";
+import IconTag from "~icons/codicon/tag";
 import IconStar from "~icons/codicon/star-full";
 import IconLocate from "~icons/codicon/target";
 import IconListTree from "~icons/codicon/list-tree";
@@ -21,12 +22,14 @@ export function BranchSidebar({
   onTogglePanel,
   panelVisible = true,
   onNewBranch,
+  onNewTag,
   onManageRemotes,
 }: {
   onTogglePanel?: () => void;
   /** False = branch content area collapsed; the toolbar stays rendered. */
   panelVisible?: boolean;
   onNewBranch?: () => void;
+  onNewTag?: () => void;
   onManageRemotes?: () => void;
 } = {}) {
   const selectedBranches = usePanelStore((s) => s.selectedBranches);
@@ -45,6 +48,53 @@ export function BranchSidebar({
       bridge.request("createBranchPrompt", {});
     }
   }, [onNewBranch]);
+
+  // Fallback mirrors CommitContextMenu.handleNewTag: host-side input box,
+  // tagging the current HEAD commit.
+  const handleNewTag = useCallback(async () => {
+    if (onNewTag) {
+      onNewTag();
+      return;
+    }
+    const headHash = usePanelStore
+      .getState()
+      .commits.find((c) => c.refs.some((r) => r.type === "HEAD"))?.hash;
+    if (!headHash) {
+      usePanelStore
+        .getState()
+        .setPanelError(t("No commit found to tag. Clear filters and retry."));
+      return;
+    }
+    let result: { value: string | null };
+    try {
+      // Native input box waits for user input; the default 10s bridge timeout
+      // would silently drop it. Allow up to 10 minutes.
+      result = (await bridge.request(
+        "showInputBox",
+        {
+          prompt: t("Create tag at {0}:", headHash.slice(0, 8)),
+          placeHolder: "tag-name",
+        },
+        { timeout: 600_000 },
+      )) as { value: string | null };
+    } catch (err) {
+      usePanelStore
+        .getState()
+        .setPanelError(err instanceof Error ? err.message : String(err));
+      return;
+    }
+    if (!result.value || !result.value.trim()) return;
+    try {
+      await bridge.request("createTag", {
+        tagName: result.value.trim(),
+        hash: headHash,
+      });
+    } catch (err) {
+      usePanelStore
+        .getState()
+        .setPanelError(err instanceof Error ? err.message : String(err));
+    }
+  }, [onNewTag]);
 
   const handleManageRemotes = useCallback(() => {
     onManageRemotes?.();
@@ -119,6 +169,15 @@ export function BranchSidebar({
           onClick={handleNewBranch}
         >
           <IconAdd />
+        </button>
+      </Tooltip>
+      <Tooltip text={t("New Tag")}>
+        <button
+          type="button"
+          className="branch-sidebar-btn"
+          onClick={handleNewTag}
+        >
+          <IconTag />
         </button>
       </Tooltip>
       <Tooltip text={t("Manage Remotes")}>

@@ -119,6 +119,7 @@ export type CommandType =
   | "getRemoteBranches"
   | "getRemoteUrl"
   | "getRemotes"
+  | "createTag"
   | "deleteTag"
   | "pushTag"
   | "dropCommit"
