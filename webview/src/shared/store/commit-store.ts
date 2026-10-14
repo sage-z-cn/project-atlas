@@ -216,13 +216,16 @@ interface CommitStore {
   /** 对话框内选择 rebase/merge 后：拉取整合远端变更并重试推送。 */
   resolvePushRejected: (mode: "rebase" | "merge") => Promise<void>;
   /**
-   * 推送成功后短暂打勾：true 时当前仓库 chip 用 ✓ 替换 ahead/behind
-   * （约 3s）。用布尔而非 path，避免 currentRepoPath / repo.path 字符串
-   * 变体导致对不上、勾不显示。
+   * 推送成功后短暂打勾：值为目标仓库 path，仅该仓库 chip 用 ✓ 替换
+   * ahead/behind（约 3s）。推送期间切换仓库不会错显到新当前仓库，
+   * 打勾始终落在真正被推送的那个仓库上。
    */
-  successFlash: boolean;
-  /** 在当前仓库 chip 的 ahead/behind 位短暂显示打勾（默认 3s）。 */
-  showRepoSuccessFlash: (ms?: number) => void;
+  successFlash: string | null;
+  /**
+   * 在指定仓库 chip 的 ahead/behind 位短暂显示打勾（默认 3s）。
+   * repoPath 缺省时回落当前仓库，无仓库则不打勾。
+   */
+  showRepoSuccessFlash: (repoPath?: string, ms?: number) => void;
   // AI commit message 生成
   aiGenerating: boolean;
   /** 用户已请求取消当前生成（generateCommitMessage 的 catch 据此跳过错误提示）。 */
@@ -551,7 +554,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       } | null;
       if (result?.pushed) {
         set({ pushRejected: null });
-        get().showRepoSuccessFlash();
+        get().showRepoSuccessFlash(rejected.repoPath);
         return;
       }
       if (result?.rejected) {
@@ -575,13 +578,15 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       set({ pushResolveBusy: null });
     }
   },
-  successFlash: false,
-  showRepoSuccessFlash: (ms = 3000) => {
+  successFlash: null,
+  showRepoSuccessFlash: (repoPath, ms = 3000) => {
+    const target = repoPath ?? get().currentRepoPath;
+    if (!target) return;
     const myToken = ++successFlashSeq;
-    set({ successFlash: true });
+    set({ successFlash: target });
     setTimeout(() => {
       if (successFlashSeq === myToken && useCommitStore.getState().successFlash) {
-        useCommitStore.setState({ successFlash: false });
+        useCommitStore.setState({ successFlash: null });
       }
     }, ms);
   },
@@ -992,6 +997,9 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     if (get().pendingCommitOpId !== null) return false;
     const { commitMessage, amend, changes, selectedFiles } = get();
     if (!commitMessage.trim()) return false;
+    // 推送目标在请求发起时固化：推送期间切换仓库后，打勾仍落在
+    // 原仓库 chip 上，且请求本身也不受切换影响。
+    const pushRepoPath = get().currentRepoPath;
     // 清除上一次的内联错误，避免残留干扰本次结果。
     set({ commitError: null });
 
@@ -1012,7 +1020,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
           message: commitMessage,
           amend,
           filePaths: filesToStage,
-          repoPath: get().currentRepoPath,
+          repoPath: pushRepoPath,
           clientOpId,
           force,
         },
@@ -1030,8 +1038,9 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       await settleCommitMessageAfterCommit(clientOpId);
       // 推送被拒时 commit 已落地，不能回滚。
       if (result?.pushed) {
-        // 与工具栏推送一致：当前仓库 chip 短暂打勾，不再走 MessageBanner。
-        get().showRepoSuccessFlash();
+        // 与工具栏推送一致：按请求发起时固化的仓库 chip 短暂打勾，
+        // 不再走 MessageBanner。
+        get().showRepoSuccessFlash(pushRepoPath ?? undefined);
       } else if (result?.rejected) {
         // 远程有新提交需要 rebase/merge：在 commit 面板内弹出
         // Rebase/Merge 对话框（PushRejectedModal），不再转交 PushPanel。
@@ -1740,7 +1749,7 @@ bridge.onEvent((event, data) => {
         submittedCommitMessage: null,
         commitError: null,
         remoteError: null,
-        successFlash: false,
+        successFlash: null,
       });
       useCommitStore.getState().refresh();
       useCommitStore.getState().fetchRepoStatuses();
@@ -1777,7 +1786,7 @@ bridge.onEvent((event, data) => {
       // 推送被拒弹窗也是 per-repo 状态，切仓时一并清理；in-flight 的
       // resolvePushRejected 更新路径会先判空，不会被旧请求重新打开。
       pushRejected: null,
-      successFlash: false,
+      successFlash: null,
     });
     useCommitStore.getState().fetchChanges();
     // Stash 列表也是 per-repo 状态（上面已整体清空），切换后同样要回填。

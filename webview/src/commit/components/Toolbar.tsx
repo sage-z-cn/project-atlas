@@ -59,7 +59,7 @@ export function Toolbar({
       await bridge.request("openPushPanel");
       return;
     }
-    const { setRemoteError, showRepoSuccessFlash } = useCommitStore.getState();
+    const { setRemoteError, showRepoSuccessFlash, currentRepoPath } = useCommitStore.getState();
     setRemoteError(null);
     setPushing(true);
     try {
@@ -81,9 +81,9 @@ export function Toolbar({
         return;
       }
       if (result?.pushed) {
-        // 成功反馈：在对应仓库 chip 的 ahead/behind 位短暂打勾（约 3s），
-        // 期间隐藏 ahead/behind；不再走顶部 MessageBanner。
-        showRepoSuccessFlash();
+        // 成功反馈：按点击瞬间的仓库 chip 的 ahead/behind 位短暂打勾
+        // （约 3s），期间隐藏 ahead/behind；不再走顶部 MessageBanner。
+        showRepoSuccessFlash(currentRepoPath ?? undefined);
         return;
       }
       // rejected：后端不再打开 PushPanel，改为在 commit 面板内弹出

@@ -109,10 +109,12 @@ interface BodyProps {
   /** host 快照中正在刷新的仓库，chip 最右渲染旋转 loading。 */
   refreshingRepos: string[];
   /**
-   * 推送成功后短暂打勾。命中当前仓库 chip（单仓库 strip 则是唯一 chip），
-   * 用 ✓ 替换 ahead/behind（dirty 仍显示），约 3s 后恢复。仅 commit 面板启用。
+   * 推送成功后短暂打勾，值为目标仓库 path：仅命中该仓库 chip（单仓库
+   * strip 则是唯一 chip），用 ✓ 替换 ahead/behind（dirty 仍显示），约 3s
+   * 后恢复。即使推送期间切走，打勾也只落在真正被推送的仓库上。
+   * 仅 commit 面板启用。
    */
-  successFlash?: boolean;
+  successFlash?: string | null;
   /** Layout direction: both current hosts pass "vertical" (branch/commit sidebars). */
   orientation: "horizontal" | "vertical";
 }
@@ -210,7 +212,7 @@ function RepoSelectorBody({
           <RepoBranch status={repoStatuses[repo.path]} />
           <RepoBadges
             status={repoStatuses[repo.path]}
-            flashSuccess={!!successFlash}
+            flashSuccess={successFlash === repo.path}
           />
           {refreshingRepos.includes(repo.path) && (
             <LoadingIcon className="repo-refreshing" width={12} height={12} />
@@ -298,7 +300,7 @@ function RepoSelectorBody({
             <RepoBranch status={repoStatuses[repo.path]} />
             <RepoBadges
               status={repoStatuses[repo.path]}
-              flashSuccess={!!successFlash && repo.path === currentRepoPath}
+              flashSuccess={successFlash === repo.path}
             />
             {refreshingRepos.includes(repo.path) && (
               <LoadingIcon className="repo-refreshing" width={12} height={12} />
