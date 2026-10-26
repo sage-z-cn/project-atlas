@@ -207,6 +207,80 @@
   overflow-x: hidden;
 }
 
+/* ─── Bulk operation wait overlay ──────────────────────────────── */
+/* 数千文件的批量 git 操作（暂存/放弃/贮藏等）进行中，覆盖在更改列表区域
+   上方的等待遮罩：旋转进度图标 + 含文件数的说明文案 + 交互阻断（遮罩
+   拦截指针事件，等待期间列表不可再次触发批量操作）。提交信息输入框等
+   列表外区域不受影响。 */
+.commit-bulk-list-wrap {
+  position: relative; /* 遮罩的定位基准，仅覆盖列表区域 */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.commit-bulk-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 24px;
+  /* 半透明列表底色压暗下层行：保留内容上下文又明确「处理中」；
+     不支持 color-mix 的环境回落为不透明底色。 */
+  background: var(--vscode-editor-background, #1e1e1e);
+  animation: commit-bulk-fade 0.12s ease;
+}
+
+@supports (background: color-mix(in srgb, #000 50%, transparent)) {
+  .commit-bulk-overlay {
+    background: color-mix(
+      in srgb,
+      var(--vscode-editor-background, #1e1e1e) 82%,
+      transparent
+    );
+  }
+}
+
+@keyframes commit-bulk-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.commit-bulk-spinner {
+  flex-shrink: 0;
+  /* 与工具栏「操作进行中」图标同源的 progressBar 语义色，深浅色主题自适应 */
+  color: var(
+    --vscode-progressBar-background,
+    var(--vscode-focusBorder, #3794ff)
+  );
+  animation: commit-bulk-spin 0.9s linear infinite;
+}
+
+@keyframes commit-bulk-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.commit-bulk-message {
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  text-align: center;
+  /* 大数字（如 7,234）窄面板下允许任意断行，避免撑破遮罩 */
+  overflow-wrap: anywhere;
+}
+
 .commit-dir-row {
   display: flex;
   align-items: center;

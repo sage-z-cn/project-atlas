@@ -12,32 +12,26 @@ import { FileItem } from "./FileItem";
 import { Toolbar } from "./Toolbar";
 import { RemoteBanner } from "./MessageBanner";
 import { VscodeCommitList } from "./VscodeCommitList";
+import { BulkOperationOverlay } from "./BulkOperationOverlay";
 import {
   buildDirTree,
   collectDirFiles,
-  collectFileKeys,
-  countFiles,
   dirCollapseKey,
   type DirNode,
 } from "../utils/dirTree";
 import { promptAndStash } from "../utils/stashPrompt";
 
 export function CommitTab() {
-  const {
-    changes,
-    selectedFiles,
-    highlightedFiles,
-    expandedGroups,
-    groupByDirectory,
-    showUnversioned,
-    commitListStyle,
-    toggleGroup,
-    toggleFileSelection,
-    setFileKeys,
-    highlightFile,
-    showDiff,
-    fetchChanges,
-  } = useCommitStore();
+  // Field-level subscriptions: unrelated store updates (commit message typing,
+  // highlight changes, loading flips) must not re-render this tree.
+  const changes = useCommitStore((s) => s.changes);
+  const showUnversioned = useCommitStore((s) => s.showUnversioned);
+  const commitListStyle = useCommitStore((s) => s.commitListStyle);
+  const fetchChanges = useCommitStore((s) => s.fetchChanges);
+
+  // Scroll container shared with VscodeCommitList's virtualizer — owned here
+  // so the DOM structure (.commit-file-list as THE scroller) stays unchanged.
+  const listScrollRef = useRef<HTMLDivElement>(null);
 
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -131,8 +125,11 @@ export function CommitTab() {
           bridge.request("fetchAll");
         }}
         onRollback={() => {
+          // Read the live state at click time — no highlight subscription here.
+          const { changes: currentChanges, highlightedFiles } =
+            useCommitStore.getState();
           // Use highlighted files (click/focus selection), not checkbox selection
-          const highlightedPaths = changes
+          const highlightedPaths = currentChanges
             .filter((f) => highlightedFiles.has(`${f.path}:${f.staged}`))
             .map((f) => ({ path: f.path, status: f.status, staged: f.staged }));
 
@@ -140,7 +137,7 @@ export function CommitTab() {
             bridge.request("openRollbackPanel", { files: highlightedPaths });
           } else {
             // No highlighted files: fall back to all working tree change files
-            const allFiles = changes.map((f) => ({
+            const allFiles = currentChanges.map((f) => ({
               path: f.path,
               status: f.status,
               staged: f.staged,
@@ -154,9 +151,13 @@ export function CommitTab() {
       {/* 远程操作（拉取/推送）反馈 banner：紧跟工具栏按钮就近展示。 */}
       <RemoteBanner />
 
-      <div className="commit-file-list">
+      {/* 包裹层只为给批量操作等待遮罩提供定位基准：.commit-file-list
+          仍是唯一的滚动容器（ref 与滚动行为不变），遮罩仅覆盖列表区域，
+          不触及提交信息输入框等列表外区域。 */}
+      <div className="commit-bulk-list-wrap">
+        <div className="commit-file-list" ref={listScrollRef}>
         {commitListStyle === "vscode" ? (
-          <VscodeCommitList />
+          <VscodeCommitList scrollRef={listScrollRef} />
         ) : (
           <>
             {/* Merge Conflicts */}
@@ -165,16 +166,7 @@ export function CommitTab() {
                 label={t("Merge Conflicts")}
                 files={conflictedFiles}
                 count={conflictedFiles.length}
-                groupKey="conflicts"
-                expanded={expandedGroups.has("conflicts")}
-                groupByDirectory={groupByDirectory}
-                onToggle={() => toggleGroup("conflicts")}
-                selectedFiles={selectedFiles}
-                highlightedFiles={highlightedFiles}
-                onToggleFile={toggleFileSelection}
-                onSetFileKeys={setFileKeys}
-                onHighlightFile={highlightFile}
-                onShowDiff={showDiff}
+                groupId="conflicts"
                 onContextMenu={handleContextMenu}
                 onDirContextMenu={handleDirContextMenu}
                 action={
@@ -200,16 +192,7 @@ export function CommitTab() {
                 label={t("Changes")}
                 files={changedFiles}
                 count={changedFiles.length}
-                groupKey="changes"
-                expanded={expandedGroups.has("changes")}
-                groupByDirectory={groupByDirectory}
-                onToggle={() => toggleGroup("changes")}
-                selectedFiles={selectedFiles}
-                highlightedFiles={highlightedFiles}
-                onToggleFile={toggleFileSelection}
-                onSetFileKeys={setFileKeys}
-                onHighlightFile={highlightFile}
-                onShowDiff={showDiff}
+                groupId="changes"
                 onContextMenu={handleContextMenu}
                 onDirContextMenu={handleDirContextMenu}
               />
@@ -221,16 +204,7 @@ export function CommitTab() {
                 label={t("Staged")}
                 files={stagedFiles}
                 count={stagedFiles.length}
-                groupKey="staged"
-                expanded={expandedGroups.has("staged")}
-                groupByDirectory={groupByDirectory}
-                onToggle={() => toggleGroup("staged")}
-                selectedFiles={selectedFiles}
-                highlightedFiles={highlightedFiles}
-                onToggleFile={toggleFileSelection}
-                onSetFileKeys={setFileKeys}
-                onHighlightFile={highlightFile}
-                onShowDiff={showDiff}
+                groupId="staged"
                 onContextMenu={handleContextMenu}
                 onDirContextMenu={handleDirContextMenu}
               />
@@ -242,16 +216,7 @@ export function CommitTab() {
                 label={t("Unversioned Files")}
                 files={untrackedFiles}
                 count={untrackedFiles.length}
-                groupKey="unversioned"
-                expanded={expandedGroups.has("unversioned")}
-                groupByDirectory={groupByDirectory}
-                onToggle={() => toggleGroup("unversioned")}
-                selectedFiles={selectedFiles}
-                highlightedFiles={highlightedFiles}
-                onToggleFile={toggleFileSelection}
-                onSetFileKeys={setFileKeys}
-                onHighlightFile={highlightFile}
-                onShowDiff={showDiff}
+                groupId="unversioned"
                 onContextMenu={handleContextMenu}
                 onDirContextMenu={handleDirContextMenu}
               />
@@ -262,6 +227,9 @@ export function CommitTab() {
         {changes.length === 0 && (
           <div className="commit-empty">{t("No changes detected")}</div>
         )}
+        </div>
+
+        <BulkOperationOverlay />
       </div>
 
       <CommitMessageArea />
@@ -293,16 +261,8 @@ interface FileGroupProps {
   label: string;
   files: WorkingTreeFile[];
   count: number;
-  groupKey: string;
-  expanded: boolean;
-  groupByDirectory: boolean;
-  onToggle: () => void;
-  selectedFiles: Set<string>;
-  highlightedFiles: Set<string>;
-  onToggleFile: (key: string) => void;
-  onSetFileKeys: (keys: string[], selected: boolean) => void;
-  onHighlightFile: (key: string, mode: "single" | "toggle") => void;
-  onShowDiff: (file: WorkingTreeFile) => Promise<void>;
+  /** expandedGroups / collapsedDirs scope id. */
+  groupId: string;
   onContextMenu: (e: React.MouseEvent, file: WorkingTreeFile) => void;
   onDirContextMenu: (
     e: React.MouseEvent,
@@ -318,20 +278,17 @@ function FileGroup({
   label,
   files,
   count,
-  groupKey,
-  expanded,
-  groupByDirectory,
-  onToggle,
-  selectedFiles,
-  highlightedFiles,
-  onToggleFile,
-  onSetFileKeys,
-  onHighlightFile,
-  onShowDiff,
+  groupId,
   onContextMenu,
   onDirContextMenu,
   action,
 }: FileGroupProps) {
+  const selectedFiles = useCommitStore((s) => s.selectedFiles);
+  const expandedGroups = useCommitStore((s) => s.expandedGroups);
+  const groupByDirectory = useCommitStore((s) => s.groupByDirectory);
+  const collapsedDirs = useCommitStore((s) => s.collapsedDirs);
+  const expanded = expandedGroups.has(groupId);
+
   const allKeys = useMemo(
     () => files.map((f) => `${f.path}:${f.staged}`),
     [files],
@@ -340,28 +297,22 @@ function FileGroup({
   const someSelected = allKeys.some((k) => selectedFiles.has(k));
 
   const handleGroupCheckbox = () => {
-    if (allSelected) {
-      onSetFileKeys(allKeys, false);
-    } else {
-      onSetFileKeys(allKeys, true);
-    }
+    useCommitStore.getState().setFileKeys(allKeys, !allSelected);
   };
 
   // Build flat ordered list of visible file keys for keyboard navigation
-  const { collapsedDirs } = useCommitStore();
   const visibleKeys = useMemo(() => {
     if (!expanded) return [];
     if (!groupByDirectory) {
-      return files.map((f) => `${f.path}:${f.staged}`);
+      return allKeys;
     }
     // In directory mode, walk the tree respecting collapsed state
+    // (children pre-sorted by buildDirTree)
     const tree = buildDirTree(files);
     const keys: string[] = [];
     function walk(node: DirNode) {
-      for (const child of [...node.children].sort((a, b) =>
-        a.name.localeCompare(b.name),
-      )) {
-        if (!collapsedDirs.has(dirCollapseKey(groupKey, child.fullPath))) {
+      for (const child of node.children) {
+        if (!collapsedDirs.has(dirCollapseKey(groupId, child.fullPath))) {
           walk(child);
         }
       }
@@ -371,7 +322,7 @@ function FileGroup({
     }
     walk(tree);
     return keys;
-  }, [expanded, groupByDirectory, files, collapsedDirs, groupKey]);
+  }, [expanded, groupByDirectory, allKeys, files, collapsedDirs, groupId]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -379,6 +330,9 @@ function FileGroup({
       e.preventDefault();
 
       if (visibleKeys.length === 0) return;
+
+      // Read the live highlight state at keypress time
+      const { highlightedFiles, highlightFile } = useCommitStore.getState();
 
       // Find current highlighted index
       let currentIdx = -1;
@@ -397,16 +351,18 @@ function FileGroup({
         nextIdx = currentIdx > 0 ? currentIdx - 1 : 0;
       }
 
-      onHighlightFile(visibleKeys[nextIdx], "single");
+      highlightFile(visibleKeys[nextIdx], "single");
     },
-    [visibleKeys, highlightedFiles, onHighlightFile],
+    [visibleKeys],
   );
 
   return (
     <div className="commit-group">
       <div
         className="commit-group-header"
-        onClick={onToggle}
+        onClick={() => {
+          useCommitStore.getState().toggleGroup(groupId);
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -444,13 +400,8 @@ function FileGroup({
           {groupByDirectory ? (
             <DirectoryTree
               files={files}
-              groupKey={groupKey}
+              groupId={groupId}
               selectedFiles={selectedFiles}
-              highlightedFiles={highlightedFiles}
-              onToggleFile={onToggleFile}
-              onSetFileKeys={onSetFileKeys}
-              onHighlightFile={onHighlightFile}
-              onShowDiff={onShowDiff}
               onContextMenu={onContextMenu}
               onDirContextMenu={onDirContextMenu}
             />
@@ -458,19 +409,7 @@ function FileGroup({
             files.map((file) => {
               const key = `${file.path}:${file.staged}`;
               return (
-                <FileItem
-                  key={key}
-                  file={file}
-                  selected={selectedFiles.has(key)}
-                  highlighted={highlightedFiles.has(key)}
-                  onToggle={() => onToggleFile(key)}
-                  onShowDiff={() => onShowDiff(file)}
-                  onContextMenu={(e) => onContextMenu(e, file)}
-                  onClick={(e) => {
-                    const mode = e.metaKey || e.ctrlKey ? "toggle" : "single";
-                    onHighlightFile(key, mode);
-                  }}
-                />
+                <FileItem key={key} file={file} onContextMenu={onContextMenu} />
               );
             })
           )}
@@ -484,24 +423,14 @@ function FileGroup({
 
 function DirectoryTree({
   files,
-  groupKey,
+  groupId,
   selectedFiles,
-  highlightedFiles,
-  onToggleFile,
-  onSetFileKeys,
-  onHighlightFile,
-  onShowDiff,
   onContextMenu,
   onDirContextMenu,
 }: {
   files: WorkingTreeFile[];
-  groupKey: string;
+  groupId: string;
   selectedFiles: Set<string>;
-  highlightedFiles: Set<string>;
-  onToggleFile: (key: string) => void;
-  onSetFileKeys: (keys: string[], selected: boolean) => void;
-  onHighlightFile: (key: string, mode: "single" | "toggle") => void;
-  onShowDiff: (file: WorkingTreeFile) => Promise<void>;
   onContextMenu: (e: React.MouseEvent, file: WorkingTreeFile) => void;
   onDirContextMenu: (
     e: React.MouseEvent,
@@ -511,22 +440,16 @@ function DirectoryTree({
     fullPath?: string,
   ) => void;
 }) {
-  const { collapsedDirs, toggleDir } = useCommitStore();
+  const collapsedDirs = useCommitStore((s) => s.collapsedDirs);
   const tree = useMemo(() => buildDirTree(files), [files]);
 
   return (
     <DirNodeView
       node={tree}
       depth={0}
-      groupKey={groupKey}
+      groupId={groupId}
       collapsed={collapsedDirs}
-      toggleDir={toggleDir}
       selectedFiles={selectedFiles}
-      highlightedFiles={highlightedFiles}
-      onToggleFile={onToggleFile}
-      onSetFileKeys={onSetFileKeys}
-      onHighlightFile={onHighlightFile}
-      onShowDiff={onShowDiff}
       onContextMenu={onContextMenu}
       onDirContextMenu={onDirContextMenu}
     />
@@ -536,29 +459,17 @@ function DirectoryTree({
 function DirNodeView({
   node,
   depth,
-  groupKey,
+  groupId,
   collapsed,
-  toggleDir,
   selectedFiles,
-  highlightedFiles,
-  onToggleFile,
-  onSetFileKeys,
-  onHighlightFile,
-  onShowDiff,
   onContextMenu,
   onDirContextMenu,
 }: {
   node: DirNode;
   depth: number;
-  groupKey: string;
+  groupId: string;
   collapsed: Set<string>;
-  toggleDir: (group: string, path: string) => void;
   selectedFiles: Set<string>;
-  highlightedFiles: Set<string>;
-  onToggleFile: (key: string) => void;
-  onSetFileKeys: (keys: string[], selected: boolean) => void;
-  onHighlightFile: (key: string, mode: "single" | "toggle") => void;
-  onShowDiff: (file: WorkingTreeFile) => Promise<void>;
   onContextMenu: (e: React.MouseEvent, file: WorkingTreeFile) => void;
   onDirContextMenu: (
     e: React.MouseEvent,
@@ -568,102 +479,84 @@ function DirNodeView({
     fullPath?: string,
   ) => void;
 }) {
+  const toggleDir = useCommitStore((s) => s.toggleDir);
   return (
     <>
-      {/* Render subdirectories */}
-      {node.children
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((child) => {
-          const isCollapsed = collapsed.has(dirCollapseKey(groupKey, child.fullPath));
-          const childKeys = collectFileKeys(child);
-          const allChecked =
-            childKeys.length > 0 &&
-            childKeys.every((k) => selectedFiles.has(k));
-          const someChecked = childKeys.some((k) => selectedFiles.has(k));
+      {/* Render subdirectories (pre-sorted by buildDirTree) */}
+      {node.children.map((child) => {
+        const isCollapsed = collapsed.has(dirCollapseKey(groupId, child.fullPath));
+        const childKeys = child.fileKeys;
+        const allChecked =
+          childKeys.length > 0 &&
+          childKeys.every((k) => selectedFiles.has(k));
+        const someChecked = childKeys.some((k) => selectedFiles.has(k));
 
-          return (
-            <div key={child.fullPath}>
-              <div
-                className="commit-dir-row"
-                style={{ paddingLeft: `${12 + depth * 16}px` }}
-                onClick={() => toggleDir(groupKey, child.fullPath)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const allFiles = collectDirFiles(child);
-                  onDirContextMenu(
-                    e,
-                    allFiles,
-                    child.name,
-                    false,
-                    child.fullPath,
-                  );
-                }}
+        return (
+          <div key={child.fullPath}>
+            <div
+              className="commit-dir-row"
+              style={{ paddingLeft: `${12 + depth * 16}px` }}
+              onClick={() => toggleDir(groupId, child.fullPath)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const allFiles = collectDirFiles(child);
+                onDirContextMenu(
+                  e,
+                  allFiles,
+                  child.name,
+                  false,
+                  child.fullPath,
+                );
+              }}
+            >
+              <span
+                className={`commit-group-chevron ${isCollapsed ? "collapsed" : ""}`}
               >
-                <span
-                  className={`commit-group-chevron ${isCollapsed ? "collapsed" : ""}`}
-                >
-                  <ChevronIcon />
-                </span>
-                <input
-                  type="checkbox"
-                  className="commit-dir-checkbox"
-                  checked={allChecked}
-                  ref={(el) => {
-                    if (el) el.indeterminate = someChecked && !allChecked;
-                  }}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    if (allChecked) {
-                      onSetFileKeys(childKeys, false);
-                    } else {
-                      onSetFileKeys(childKeys, true);
-                    }
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <FolderIcon />
-                <span className="commit-dir-name">{child.name}</span>
-                <span className="commit-dir-count">
-                  {t("{0} file(s)", countFiles(child))}
-                </span>
-              </div>
-              {!isCollapsed && (
-                <DirNodeView
-                  node={child}
-                  depth={depth + 1}
-                  groupKey={groupKey}
-                  collapsed={collapsed}
-                  toggleDir={toggleDir}
-                  selectedFiles={selectedFiles}
-                  highlightedFiles={highlightedFiles}
-                  onToggleFile={onToggleFile}
-                  onSetFileKeys={onSetFileKeys}
-                  onHighlightFile={onHighlightFile}
-                  onShowDiff={onShowDiff}
-                  onContextMenu={onContextMenu}
-                  onDirContextMenu={onDirContextMenu}
-                />
-              )}
+                <ChevronIcon />
+              </span>
+              <input
+                type="checkbox"
+                className="commit-dir-checkbox"
+                checked={allChecked}
+                ref={(el) => {
+                  if (el) el.indeterminate = someChecked && !allChecked;
+                }}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  useCommitStore.getState().setFileKeys(childKeys, !allChecked);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <FolderIcon />
+              <span className="commit-dir-name">{child.name}</span>
+              <span className="commit-dir-count">
+                {t("{0} file(s)", child.fileCount)}
+              </span>
             </div>
-          );
-        })}
+            {!isCollapsed && (
+              <DirNodeView
+                node={child}
+                depth={depth + 1}
+                groupId={groupId}
+                collapsed={collapsed}
+                selectedFiles={selectedFiles}
+                onContextMenu={onContextMenu}
+                onDirContextMenu={onDirContextMenu}
+              />
+            )}
+          </div>
+        );
+      })}
       {/* Render files in this directory */}
       {node.files.map((file) => {
         const key = `${file.path}:${file.staged}`;
         return (
           <div key={key} style={{ paddingLeft: `${(depth + 1) * 16}px` }}>
             <FileItem
-              file={{ ...file, path: file.path.split("/").pop() || file.path }}
-              selected={selectedFiles.has(key)}
-              highlighted={highlightedFiles.has(key)}
-              onToggle={() => onToggleFile(key)}
-              onShowDiff={() => onShowDiff(file)}
-              onContextMenu={(e) => onContextMenu(e, file)}
-              onClick={(e) => {
-                const mode = e.metaKey || e.ctrlKey ? "toggle" : "single";
-                onHighlightFile(key, mode);
-              }}
+              file={file}
+              fileNameOnly={file.path.split("/").pop() || file.path}
+              onContextMenu={onContextMenu}
             />
           </div>
         );

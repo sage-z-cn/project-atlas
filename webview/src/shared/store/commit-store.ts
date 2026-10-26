@@ -56,6 +56,27 @@ export interface GitConfirmPrompt {
   run: () => void;
 }
 
+/**
+ * 批量 git 操作的种类。仅作等待文案的动词来源（用户语言），与具体
+ * 命令名无关。discard 对应 rollbackFiles（放弃多文件更改）。
+ */
+export type BulkOperationKind =
+  | "stage"
+  | "unstage"
+  | "discard"
+  | "stash"
+  | "unstash";
+
+/** 批量 git 操作进行中的等待状态（见 CommitStore.bulkOperation）。 */
+export interface BulkOperationState {
+  kind: BulkOperationKind;
+  /**
+   * 操作发起时的影响文件数快照。unstash 无自然计数，为发起时的
+   * changes.length 粗略代理（仅用于慢操作预判，不展示给用户）。
+   */
+  count: number;
+}
+
 type TabType = "commit" | "stash" | "newVersion" | "release";
 
 interface CommitStore {
@@ -132,6 +153,15 @@ interface CommitStore {
    * 列表与右键菜单的交互禁用。
    */
   stashLoading: boolean;
+  /**
+   * 批量 git 操作（暂存/取消暂存/放弃/贮藏/取消贮藏大批文件）进行中
+   * 的慢操作等待状态，仅当预判影响文件数达到阈值（BULK_OP_SLOW_
+   * THRESHOLD）时置位；null = 无。独立于 `loading`（后者由
+   * fetchChanges/commit 等高频复用，语义不同）。驱动更改列表区域的
+   * 等待遮罩（BulkOperationOverlay）：组件侧上升沿延迟显示防闪烁，
+   * 操作结束（成功/失败/超时）经 action 的 finally 立即清除。
+   */
+  bulkOperation: BulkOperationState | null;
   /**
    * Monotonic counter bumped on EVERY fetchStashes call. repoSeq only guards
    * cross-repo races; concurrent fetchStashes within the SAME repo can still
@@ -272,8 +302,10 @@ interface CommitStore {
    * Pull working-tree changes. `silent` skips the progress-bar `loading`
    * flag — used by event-driven auto-refresh so a user-facing operation's
    * bar isn't followed by a second flash from the debounced refetch.
+   * `timeoutMs` overrides the bridge's default request timeout — used by
+   * bulk actions whose post-operation refetch on huge repos can outlive it.
    */
-  fetchChanges: (opts?: { silent?: boolean }) => Promise<void>;
+  fetchChanges: (opts?: { silent?: boolean; timeoutMs?: number }) => Promise<void>;
   fetchStashes: () => Promise<void>;
   setCommitMessage: (msg: string) => void;
   /** 从 host 读取当前 repo 的草稿并回填（不走持久化，避免回写）。 */
@@ -286,7 +318,7 @@ interface CommitStore {
   highlightFile: (key: string, mode: "single" | "toggle") => void;
   stageFile: (filePath: string) => Promise<void>;
   unstageFile: (filePath: string) => Promise<void>;
-  stageAll: () => Promise<void>;
+  stageAll: () => Promise<boolean>;
   unstageAll: () => Promise<void>;
   stageFiles: (filePaths: string[]) => Promise<void>;
   unstageFiles: (filePaths: string[]) => Promise<void>;
@@ -435,6 +467,70 @@ let stashPromptResolver: ((result: StashPromptResult | null) => void) | null =
 let stageConfirmResolver: ((confirmed: boolean) => void) | null = null;
 
 /**
+ * 批量本地 git 操作的请求超时。bridge 默认 10s 只适合小仓库：数千文件的
+ * git add -A / reset / checkout 在 Windows（含杀软实时扫描）上可达数十秒，
+ * 默认超时会在操作实际仍在执行、稍后必然成功时误报失败。与 push/pull/
+ * commit 已有的 60s 口径对齐。
+ */
+const BULK_GIT_TIMEOUT_MS = 60_000;
+
+/**
+ * stash 写入与恢复要重建整棵工作树快照（含未跟踪文件时还要打包索引），
+ * 成本约为 add -A 的两倍，超时上限再放宽一档。
+ */
+const STASH_TIMEOUT_MS = 120_000;
+
+/**
+ * 慢操作预判阈值：批量操作影响的文件数达到该值才置位 bulkOperation
+ * 等待状态（进入「慢操作」预期）。低于阈值的操作完全不进入该路径，
+ * 中小仓库的常规批量操作无感。
+ */
+const BULK_OP_SLOW_THRESHOLD = 300;
+
+/**
+ * 批量操作互斥标记（同步，模块级）。bulkOperation 状态在组件侧有
+ * 400ms 上升沿延迟，置位前后都存在不可见窗口，纯状态互斥挡不住该
+ * 窗口内的重复触发；此标记在 action 入口同步检查，覆盖延迟窗口与
+ * 整个在途期间，杜绝并发批量操作的竞态（重复请求 / 相互覆盖的
+ * refetch）。不入 store：它不是可订阅的 UI 状态，只是执行互斥。
+ */
+let bulkOpInFlight = false;
+
+/**
+ * 批量操作进入：互斥防并发（已有批量操作在途时返回 false，调用方
+ * 直接 no-op）；预判为慢操作时置位 bulkOperation（BulkOperationOverlay
+ * 据此延迟显示等待遮罩）。
+ */
+function beginBulkOp(kind: BulkOperationKind, count: number): boolean {
+  if (bulkOpInFlight) {
+    // 互斥挡下时不能静默丢弃（放弃更改/贮藏恢复等破坏性操作会被吞掉）：
+    // 写入内联错误提示后再返回 false，由调用方中止。
+    useCommitStore.setState({
+      commitError: t(
+        "Another bulk operation is in progress. Please wait for it to finish.",
+      ),
+    });
+    return false;
+  }
+  bulkOpInFlight = true;
+  if (count >= BULK_OP_SLOW_THRESHOLD) {
+    useCommitStore.setState({ bulkOperation: { kind, count } });
+  }
+  return true;
+}
+
+/**
+ * 批量操作退出（成功/失败/超时一律经 finally 到此）：清互斥标记与
+ * 等待状态，遮罩立即消失。
+ */
+function endBulkOp(): void {
+  bulkOpInFlight = false;
+  if (useCommitStore.getState().bulkOperation) {
+    useCommitStore.setState({ bulkOperation: null });
+  }
+}
+
+/**
  * 仓库 chip 打勾的单调 token：每次 showRepoSuccessFlash 递增，旧定时器
  * 回调发现 token 已变（被更新的打勾接管）即放弃关闭，防旧定时器误关新打勾。
  */
@@ -504,6 +600,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   amend: false,
   stashes: [],
   stashLoading: false,
+  bulkOperation: null,
   stashSeq: 0,
   stashPrompt: { open: false, paths: [] },
   gitConfirm: null,
@@ -723,9 +820,13 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     const repoPath = get().currentRepoPath;
     if (!silent) set({ loading: true });
     try {
-      const result = (await bridge.request("getWorkingTreeChanges", {
-        repoPath,
-      })) as WorkingTreeFile[];
+      const result = (await bridge.request(
+        "getWorkingTreeChanges",
+        {
+          repoPath,
+        },
+        { timeout: opts?.timeoutMs },
+      )) as WorkingTreeFile[];
       // ★ Race guard: a switch happened during the fetch → drop stale changes.
       if (mySeq !== get().repoSeq) return;
       if (Array.isArray(result)) {
@@ -895,46 +996,93 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   },
 
   async stageAll() {
+    // 计数口径：仅统计当前未暂存的文件（已暂存的再 stage 是 no-op，
+    // 不该计入慢操作预判的影响规模）。
+    if (
+      !beginBulkOp(
+        "stage",
+        get().changes.filter((f) => !f.staged).length,
+      )
+    ) {
+      return false;
+    }
     try {
-      await bridge.request("stageAll", { repoPath: get().currentRepoPath });
-      await get().fetchChanges();
+      await bridge.request(
+        "stageAll",
+        { repoPath: get().currentRepoPath },
+        { timeout: BULK_GIT_TIMEOUT_MS },
+      );
+      await get().fetchChanges({ timeoutMs: BULK_GIT_TIMEOUT_MS });
+      return true;
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });
+      return false;
+    } finally {
+      endBulkOp();
     }
   },
 
   async unstageAll() {
+    // 同 stageAll：仅统计已暂存的文件（实际会被 reset 的数量）。
+    if (
+      !beginBulkOp(
+        "unstage",
+        get().changes.filter((f) => f.staged).length,
+      )
+    ) {
+      return;
+    }
     try {
-      await bridge.request("unstageAll", { repoPath: get().currentRepoPath });
-      await get().fetchChanges();
+      await bridge.request(
+        "unstageAll",
+        { repoPath: get().currentRepoPath },
+        { timeout: BULK_GIT_TIMEOUT_MS },
+      );
+      await get().fetchChanges({ timeoutMs: BULK_GIT_TIMEOUT_MS });
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });
+    } finally {
+      endBulkOp();
     }
   },
 
   async stageFiles(filePaths: string[]) {
     if (filePaths.length === 0) return;
+    if (!beginBulkOp("stage", filePaths.length)) return;
     try {
-      await bridge.request("stageFiles", {
-        filePaths,
-        repoPath: get().currentRepoPath,
-      });
-      await get().fetchChanges();
+      await bridge.request(
+        "stageFiles",
+        {
+          filePaths,
+          repoPath: get().currentRepoPath,
+        },
+        { timeout: BULK_GIT_TIMEOUT_MS },
+      );
+      await get().fetchChanges({ timeoutMs: BULK_GIT_TIMEOUT_MS });
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });
+    } finally {
+      endBulkOp();
     }
   },
 
   async unstageFiles(filePaths: string[]) {
     if (filePaths.length === 0) return;
+    if (!beginBulkOp("unstage", filePaths.length)) return;
     try {
-      await bridge.request("unstageFiles", {
-        filePaths,
-        repoPath: get().currentRepoPath,
-      });
-      await get().fetchChanges();
+      await bridge.request(
+        "unstageFiles",
+        {
+          filePaths,
+          repoPath: get().currentRepoPath,
+        },
+        { timeout: BULK_GIT_TIMEOUT_MS },
+      );
+      await get().fetchChanges({ timeoutMs: BULK_GIT_TIMEOUT_MS });
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });
+    } finally {
+      endBulkOp();
     }
   },
 
@@ -1133,22 +1281,33 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
     filePaths?: string[],
     stagedOnly?: boolean,
   ) {
+    // 慢操作预判：指定 filePaths 用其长度；全量贮藏用当前更改总数。
+    const bulkCount =
+      filePaths && filePaths.length > 0
+        ? filePaths.length
+        : get().changes.length;
+    if (!beginBulkOp("stash", bulkCount)) return;
     try {
       set({ loading: true });
-      await bridge.request("stashChanges", {
-        // 空消息传 undefined：由 extension 侧兜底英文 "Stashed changes"，
-        // 不再把本地化默认文案写进 stash message。
-        message: message?.trim() || undefined,
-        filePaths,
-        stagedOnly,
-        repoPath: get().currentRepoPath,
-      } satisfies StashChangesParams);
-      await get().fetchChanges();
+      await bridge.request(
+        "stashChanges",
+        {
+          // 空消息传 undefined：由 extension 侧兜底英文 "Stashed changes"，
+          // 不再把本地化默认文案写进 stash message。
+          message: message?.trim() || undefined,
+          filePaths,
+          stagedOnly,
+          repoPath: get().currentRepoPath,
+        } satisfies StashChangesParams,
+        { timeout: STASH_TIMEOUT_MS },
+      );
+      await get().fetchChanges({ timeoutMs: BULK_GIT_TIMEOUT_MS });
       await get().fetchStashes();
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });
     } finally {
       set({ loading: false });
+      endBulkOp();
     }
   },
 
@@ -1181,6 +1340,8 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   },
 
   async unstashChanges(stashRef: string, drop = true) {
+    // 无自然计数：按当前更改总数作慢操作粗略代理。
+    if (!beginBulkOp("unstash", get().changes.length)) return;
     try {
       set({ stashLoading: true });
       const result = await bridge.request<{ success: boolean }>(
@@ -1190,6 +1351,7 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
           drop,
           repoPath: get().currentRepoPath,
         } satisfies UnstashChangesParams,
+        { timeout: STASH_TIMEOUT_MS },
       );
       // Host 对业务取消（如确认弹窗点取消）正常 resolve { success: false }
       // 而非 reject —— 取消时不得乐观移除、不得 refetch。
@@ -1199,16 +1361,17 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
       if (drop) {
         set({ stashes: get().stashes.filter((s) => s.sha !== stashRef) });
       }
-      await get().fetchChanges();
+      await get().fetchChanges({ timeoutMs: BULK_GIT_TIMEOUT_MS });
       await get().fetchStashes();
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });
       // apply/pop 冲突失败时 git 已改写工作区（部分文件可能已恢复），
       // 必须刷新两个列表，否则 Changes 显示的是失败前的假状态。
-      void get().fetchChanges();
+      void get().fetchChanges({ timeoutMs: BULK_GIT_TIMEOUT_MS });
       void get().fetchStashes();
     } finally {
       set({ stashLoading: false });
+      endBulkOp();
     }
   },
 
@@ -1634,15 +1797,22 @@ export const useCommitStore = create<CommitStore>((set, get) => ({
   },
 
   async rollbackFiles(items: { path: string; staged: boolean }[]) {
+    if (!beginBulkOp("discard", items.length)) return;
     try {
-      await bridge.request("rollbackFiles", {
-        items,
-        repoPath: get().currentRepoPath,
-        confirmed: true,
-      });
-      await get().fetchChanges();
+      await bridge.request(
+        "rollbackFiles",
+        {
+          items,
+          repoPath: get().currentRepoPath,
+          confirmed: true,
+        },
+        { timeout: BULK_GIT_TIMEOUT_MS },
+      );
+      await get().fetchChanges({ timeoutMs: BULK_GIT_TIMEOUT_MS });
     } catch (err) {
       set({ commitError: err instanceof Error ? err.message : String(err) });
+    } finally {
+      endBulkOp();
     }
   },
 

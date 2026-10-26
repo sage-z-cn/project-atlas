@@ -1,28 +1,39 @@
+import { memo } from "react";
+import type React from "react";
 import type { WorkingTreeFile } from "../../shared/store/commit-store";
+import { useCommitStore } from "../../shared/store/commit-store";
 import { getCommitFileIcon } from "../utils/file-icon";
 
 export interface FileItemProps {
   file: WorkingTreeFile;
-  selected: boolean;
-  highlighted: boolean;
-  onToggle: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
-  onShowDiff: () => void;
-  onClick: (e: React.MouseEvent) => void;
+  /** Directory-tree mode: display just this name (path already truncated by
+   *  the tree). When omitted, derive the name + dir suffix from file.path. */
+  fileNameOnly?: string;
+  /** Stable parent callback (takes the row's own file) — no inline closures. */
+  onContextMenu: (e: React.MouseEvent, file: WorkingTreeFile) => void;
 }
 
-export function FileItem({
+/** Memoized JetBrains-style file row. selected/highlighted are subscribed
+ *  per-row (boolean selectors) so selection/highlight changes only re-render
+ *  the affected rows; every mutation resolves the latest store state via
+ *  getState() so parents never pass per-row closures. */
+export const FileItem = memo(function FileItem({
   file,
-  selected,
-  highlighted,
-  onToggle,
+  fileNameOnly,
   onContextMenu,
-  onShowDiff,
-  onClick,
 }: FileItemProps) {
+  const key = `${file.path}:${file.staged}`;
+  const selected = useCommitStore((s) => s.selectedFiles.has(key));
+  const highlighted = useCommitStore((s) => s.highlightedFiles.has(key));
+
   const parts = file.path.split("/");
-  const fileName = parts.pop() || parts.pop() || file.path;
-  const dirPath = parts.length > 0 ? parts.join("/") : "";
+  const derivedName = parts.pop() || parts.pop() || file.path;
+  const dirPath =
+    fileNameOnly == null && parts.length > 0 ? parts.join("/") : "";
+  const fileName = fileNameOnly ?? derivedName;
+  // Dir mode previously received a basename-truncated copy, so the tooltip
+  // showed just the file name — keep that exact behavior.
+  const titlePath = fileNameOnly ?? file.path;
 
   const statusLabel = getStatusLabel(file.status);
   const statusColor = getStatusColor(file.status);
@@ -31,26 +42,33 @@ export function FileItem({
   return (
     <div
       className={`commit-file-item ${highlighted ? "highlighted" : ""}`}
-      onDoubleClick={onShowDiff}
-      onClick={onClick}
+      onDoubleClick={() => {
+        useCommitStore.getState().showDiff(file);
+      }}
+      onClick={(e) => {
+        const mode = e.metaKey || e.ctrlKey ? "toggle" : "single";
+        useCommitStore.getState().highlightFile(`${file.path}:${file.staged}`, mode);
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onContextMenu(e);
+        onContextMenu(e, file);
       }}
     >
       <input
         type="checkbox"
         className="commit-file-checkbox"
         checked={selected}
-        onChange={onToggle}
+        onChange={() => {
+          useCommitStore.getState().toggleFileSelection(`${file.path}:${file.staged}`);
+        }}
       />
       <span className="commit-file-icon">
         <FileIcon style={{ width: 16, height: 16 }} />
       </span>
       <span
         className="commit-file-name"
-        title={file.path}
+        title={titlePath}
         style={{ color: statusColor }}
       >
         {fileName}
@@ -65,7 +83,7 @@ export function FileItem({
       </span>
     </div>
   );
-}
+});
 
 function getStatusLabel(status: WorkingTreeFile["status"]): string {
   switch (status) {

@@ -15,31 +15,33 @@ import CloseIcon from "~icons/codicon/close";
 type AiLanguageValue = "auto" | "en" | "zh" | "follow-locale";
 
 export function CommitMessageArea() {
-  const {
-    commitMessage,
-    setCommitMessage,
-    amend,
-    setAmend,
-    commit,
-    commitAndPush,
-    stageAll,
-    loading,
-    selectedFiles,
-    commitListStyle,
-    skipPushConfirmation,
-    hasRemote,
-    commitError,
-    setCommitError,
-    changes,
-    aiGenerating,
-    aiConfigured,
-    aiApiUrl,
-    aiModel,
-    aiLanguage,
-    setAiLanguage,
-    generateCommitMessage,
-    cancelCommitMessage,
-  } = useCommitStore();
+  // Field-level subscriptions — a whole-store subscription would re-render the
+  // message area on every list highlight click.
+  const commitMessage = useCommitStore((s) => s.commitMessage);
+  const setCommitMessage = useCommitStore((s) => s.setCommitMessage);
+  const amend = useCommitStore((s) => s.amend);
+  const setAmend = useCommitStore((s) => s.setAmend);
+  const commit = useCommitStore((s) => s.commit);
+  const commitAndPush = useCommitStore((s) => s.commitAndPush);
+  const stageAll = useCommitStore((s) => s.stageAll);
+  const loading = useCommitStore((s) => s.loading);
+  const selectedFiles = useCommitStore((s) => s.selectedFiles);
+  const commitListStyle = useCommitStore((s) => s.commitListStyle);
+  const skipPushConfirmation = useCommitStore((s) => s.skipPushConfirmation);
+  const hasRemote = useCommitStore((s) => s.hasRemote);
+  const commitError = useCommitStore((s) => s.commitError);
+  const setCommitError = useCommitStore((s) => s.setCommitError);
+  const changes = useCommitStore((s) => s.changes);
+  const aiGenerating = useCommitStore((s) => s.aiGenerating);
+  const aiConfigured = useCommitStore((s) => s.aiConfigured);
+  const aiApiUrl = useCommitStore((s) => s.aiApiUrl);
+  const aiModel = useCommitStore((s) => s.aiModel);
+  const aiLanguage = useCommitStore((s) => s.aiLanguage);
+  const setAiLanguage = useCommitStore((s) => s.setAiLanguage);
+  const generateCommitMessage = useCommitStore(
+    (s) => s.generateCommitMessage,
+  );
+  const cancelCommitMessage = useCommitStore((s) => s.cancelCommitMessage);
 
   const [showDropdown, setShowDropdown] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -76,7 +78,9 @@ export function CommitMessageArea() {
     if (changes.length === 0) return false;
     const confirmed = await useCommitStore.getState().requestStageConfirm();
     if (!confirmed) return false;
-    await stageAll();
+    // stageAll 被批量互斥挡下时返回 false（commitError 已由 beginBulkOp
+    // 设置），必须中止提交流程，不能带着空暂存继续走 commit。
+    if (!(await stageAll())) return false;
     return true;
   }, [commitListStyle, amend, changes, stageAll]);
 

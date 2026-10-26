@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type React from "react";
 import type { WorkingTreeFile } from "../../shared/store/commit-store";
 import { useCommitStore } from "../../shared/store/commit-store";
@@ -15,15 +16,13 @@ export type VscodeGroupType = "merge" | "staged" | "changes";
 export interface VscodeFileItemProps {
   file: WorkingTreeFile;
   /** When set (directory-tree mode), display just this name (path already
-   * truncated by the tree). When omitted (flat mode), derive from file.path. */
+   *  truncated by the tree). When omitted (flat mode), derive from file.path. */
   fileNameOnly?: string;
   /** Optional directory path suffix to render after the file name (flat mode). */
   dirPath?: string;
   groupType: VscodeGroupType;
-  highlighted: boolean;
-  onContextMenu: (e: React.MouseEvent) => void;
-  onShowDiff: () => void;
-  onClick: (e: React.MouseEvent) => void;
+  /** Stable parent callback (takes the row's own file) — no inline closures. */
+  onContextMenu: (e: React.MouseEvent, file: WorkingTreeFile) => void;
 }
 
 function getStatusLabel(status: WorkingTreeFile["status"]): string {
@@ -64,17 +63,20 @@ function getStatusClass(status: WorkingTreeFile["status"]): string {
   }
 }
 
-export function VscodeFileItem({
+/** Memoized file row. Highlight is subscribed per-row (boolean selector), so a
+ *  highlight change only re-renders the affected rows, not the whole list.
+ *  Click / double-click / action handlers resolve the latest store state via
+ *  getState() so the parent never passes per-row closures. */
+export const VscodeFileItem = memo(function VscodeFileItem({
   file,
   fileNameOnly,
   dirPath,
   groupType,
-  highlighted,
   onContextMenu,
-  onShowDiff,
-  onClick,
 }: VscodeFileItemProps) {
   const FileIcon = getCommitFileIcon(file.path);
+  const key = `${file.path}:${file.staged}`;
+  const highlighted = useCommitStore((s) => s.highlightedFiles.has(key));
 
   // Derive display name + dir suffix for flat mode.
   const parts = file.path.split("/");
@@ -90,12 +92,17 @@ export function VscodeFileItem({
     <div
       className={`vscode-file-item ${highlighted ? "highlighted" : ""}`}
       title={file.path}
-      onDoubleClick={onShowDiff}
-      onClick={onClick}
+      onDoubleClick={() => {
+        useCommitStore.getState().showDiff(file);
+      }}
+      onClick={(e) => {
+        const mode = e.metaKey || e.ctrlKey ? "toggle" : "single";
+        useCommitStore.getState().highlightFile(`${file.path}:${file.staged}`, mode);
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onContextMenu(e);
+        onContextMenu(e, file);
       }}
     >
       <span className="vscode-file-icon">
@@ -186,4 +193,4 @@ export function VscodeFileItem({
       </span>
     </div>
   );
-}
+});

@@ -658,5 +658,11 @@
   "Set Gitee Token": "设置 Gitee 令牌",
   "Open in browser": "在浏览器中打开",
   "Release Published": "发布完成",
-  "Published with Errors": "发布完成（存在失败项）"
+  "Published with Errors": "发布完成（存在失败项）",
+  "Staging {0} files...": "正在暂存 {0} 个文件...",
+  "Unstaging {0} files...": "正在取消暂存 {0} 个文件...",
+  "Discarding changes in {0} files...": "正在放弃 {0} 个文件的更改...",
+  "Stashing {0} files...": "正在贮藏 {0} 个文件...",
+  "Restoring stashed changes...": "正在取消贮藏...",
+  "Another bulk operation is in progress. Please wait for it to finish.": "有其他批量操作正在进行，请等待完成后再试。"
 }

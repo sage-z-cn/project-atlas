@@ -918,16 +918,22 @@ export class GitService {
 
   async stageFile(filePath: string): Promise<void> {
     await this.execGit(["add", filePath]);
+    // stage/unstage 也只失效 statusCache（理由同 stageFiles，refs 未动）。
+    this.invalidateStatusCache();
   }
 
   async acceptOurs(filePath: string): Promise<void> {
     await this.execGit(["checkout", "--ours", filePath]);
     await this.execGit(["add", filePath]);
+    // conflict 侧 accept 后同样只改写 index（refs 未动），只失效 statusCache。
+    this.invalidateStatusCache();
   }
 
   async acceptTheirs(filePath: string): Promise<void> {
     await this.execGit(["checkout", "--theirs", filePath]);
     await this.execGit(["add", filePath]);
+    // 同 acceptOurs：只改写 index（refs 未动），只失效 statusCache。
+    this.invalidateStatusCache();
   }
 
   async checkout(branchName: string): Promise<void> {
@@ -1537,14 +1543,18 @@ export class GitService {
 
   async getWorkingTreeChanges(): Promise<import("./types").WorkingTreeFile[]> {
     // 同一事件窗口内多个调用方（状态栏/徽标/getRepoStatuses/fetchChanges）
-    // 各自触发一次 `git status` 子进程，短 TTL 只为把它们合并为一次执行；
-    // 真实变化由 watcher 的 svc.invalidateCache() 清缓存保证，不读旧值。
-    const cached = this.statusCache.get<import("./types").WorkingTreeFile[]>(
+    // 并发到达时，短 TTL 只能合并已完成的结果 —— TTL 刚被 watcher 失效的
+    // 窗口内它们仍会各自 spawn 一次 `git status`。getOrLoad 的 in-flight
+    // 共享把并发调用合并为同一次子进程执行；真实变化仍由 watcher 的
+    // svc.invalidateCache() 清缓存保证，不读旧值。
+    return this.statusCache.getOrLoad(
       "wtChanges",
+      (): Promise<import("./types").WorkingTreeFile[]> =>
+        this.loadWorkingTreeChanges(),
     );
-    if (cached) {
-      return cached;
-    }
+  }
+
+  private async loadWorkingTreeChanges(): Promise<import("./types").WorkingTreeFile[]> {
     const output = await this.execGit(["status", "--porcelain=v1", "-uall"]);
     const files: import("./types").WorkingTreeFile[] = [];
 
@@ -1635,7 +1645,6 @@ export class GitService {
         });
       }
     }
-    this.statusCache.set("wtChanges", files);
     return files;
   }
 

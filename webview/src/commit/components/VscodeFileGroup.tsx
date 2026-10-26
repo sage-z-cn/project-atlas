@@ -1,212 +1,145 @@
-import { useMemo } from "react";
+import { memo } from "react";
 import type React from "react";
 import type { WorkingTreeFile } from "../../shared/store/commit-store";
 import { useCommitStore } from "../../shared/store/commit-store";
 import { bridge } from "../../shared/bridge";
 import { t } from "../../shared/i18n";
-import {
-  buildDirTree,
-  collectDirFiles,
-  countFiles,
-  dirCollapseKey,
-  type DirNode,
-} from "../utils/dirTree";
-import { VscodeFileItem, type VscodeGroupType } from "./VscodeFileItem";
+import { collectDirFiles, type DirNode } from "../utils/dirTree";
+import type { VscodeGroupType } from "./VscodeFileItem";
 import ChevronIcon from "~icons/codicon/chevron-right";
 import FolderIcon from "~icons/codicon/folder";
 import AddIcon from "~icons/codicon/add";
 import RemoveIcon from "~icons/codicon/remove";
 import DiscardIcon from "~icons/codicon/discard";
 
-export interface VscodeFileGroupProps {
-  groupType: VscodeGroupType;
+/**
+ * Row components for the virtualized vscode-style change list.
+ *
+ * VscodeCommitList flattens group headers, directory rows and file rows into
+ * one row array and renders them through a single useVirtualizer; these are
+ * the memoized row renderers. All store mutations resolve via getState() or
+ * stable action selectors so no per-row closures are ever passed down.
+ */
+
+/** One top-level file group in the vscode-style list (flattened row model). */
+export interface VscodeGroupSpec {
+  /** expandedGroups / collapsedDirs scope id (merge normalizes to "conflicts"). */
+  id: "conflicts" | "staged" | "changes";
+  type: VscodeGroupType;
   label: string;
   files: WorkingTreeFile[];
+}
+
+export const VscodeGroupHeaderRow = memo(function VscodeGroupHeaderRow({
+  group,
+  expanded,
+  onGroupContextMenu,
+}: {
+  group: VscodeGroupSpec;
   expanded: boolean;
-  groupByDirectory: boolean;
-  highlightedFiles: Set<string>;
-  onToggle: () => void;
-  onContextMenu: (
-    e: React.MouseEvent,
-    file: WorkingTreeFile,
-  ) => void;
   onGroupContextMenu: (
     e: React.MouseEvent,
     files: WorkingTreeFile[],
     groupType: VscodeGroupType,
   ) => void;
-  onDirContextMenu: (
-    e: React.MouseEvent,
-    files: WorkingTreeFile[],
-    groupType: VscodeGroupType,
-    fullPath?: string,
-  ) => void;
-}
-
-export function VscodeFileGroup({
-  groupType,
-  label,
-  files,
-  expanded,
-  groupByDirectory,
-  highlightedFiles,
-  onToggle,
-  onContextMenu,
-  onGroupContextMenu,
-  onDirContextMenu,
-}: VscodeFileGroupProps) {
-  const { collapsedDirs, toggleDir, unstageAll, stageAll, requestRollbackFiles } =
-    useCommitStore();
-  // Normalize merge -> conflicts so both list styles share the same scoped key.
-  const groupKey = groupType === "merge" ? "conflicts" : groupType;
-
-  const tree = useMemo(
-    () => (groupByDirectory ? buildDirTree(files) : null),
-    [files, groupByDirectory],
-  );
+}) {
+  const toggleGroup = useCommitStore((s) => s.toggleGroup);
+  const unstageAll = useCommitStore((s) => s.unstageAll);
+  const stageAll = useCommitStore((s) => s.stageAll);
+  const requestRollbackFiles = useCommitStore((s) => s.requestRollbackFiles);
+  const { type: groupType, label, files, id } = group;
 
   return (
-    <div className="vscode-scm-group">
-      <div
-        className="vscode-scm-group-header"
-        onClick={onToggle}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onGroupContextMenu(e, files, groupType);
-        }}
-      >
-        <span className={`vscode-scm-chevron ${expanded ? "" : "collapsed"}`}>
-          <ChevronIcon />
-        </span>
-        <span className="vscode-scm-group-label">{label}</span>
-        <span className="vscode-scm-group-tail">
-        <span className="vscode-scm-group-actions">
-          {groupType === "merge" && (
-            <button
-              type="button"
-              className="vscode-scm-group-action-btn"
-              title={t("Resolve Conflicts")}
-              onClick={(e) => {
-                e.stopPropagation();
-                bridge.request("openConflictsPanel");
-              }}
-            >
-              {t("Resolve")}
-            </button>
-          )}
-          {groupType === "staged" && (
+    <div
+      className="vscode-scm-group-header"
+      onClick={() => toggleGroup(id)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onGroupContextMenu(e, files, groupType);
+      }}
+    >
+      <span className={`vscode-scm-chevron ${expanded ? "" : "collapsed"}`}>
+        <ChevronIcon />
+      </span>
+      <span className="vscode-scm-group-label">{label}</span>
+      <span className="vscode-scm-group-tail">
+      <span className="vscode-scm-group-actions">
+        {groupType === "merge" && (
+          <button
+            type="button"
+            className="vscode-scm-group-action-btn"
+            title={t("Resolve Conflicts")}
+            onClick={(e) => {
+              e.stopPropagation();
+              bridge.request("openConflictsPanel");
+            }}
+          >
+            {t("Resolve")}
+          </button>
+        )}
+        {groupType === "staged" && (
+          <button
+            type="button"
+            className="vscode-file-action-btn"
+            title={t("Unstage All Changes")}
+            onClick={(e) => {
+              e.stopPropagation();
+              void unstageAll();
+            }}
+          >
+            <RemoveIcon />
+          </button>
+        )}
+        {groupType === "changes" && (
+          <>
             <button
               type="button"
               className="vscode-file-action-btn"
-              title={t("Unstage All Changes")}
+              title={t("Discard All Changes...")}
               onClick={(e) => {
                 e.stopPropagation();
-                void unstageAll();
+                // webview 内确认弹窗（store 驱动），确认后 confirmed:true。
+                void requestRollbackFiles(
+                  files.map((f) => ({ path: f.path, staged: f.staged })),
+                );
               }}
             >
-              <RemoveIcon />
+              <DiscardIcon />
             </button>
-          )}
-          {groupType === "changes" && (
-            <>
-              <button
-                type="button"
-                className="vscode-file-action-btn"
-                title={t("Discard All Changes...")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // webview 内确认弹窗（store 驱动），确认后 confirmed:true。
-                  void requestRollbackFiles(
-                    files.map((f) => ({ path: f.path, staged: f.staged })),
-                  );
-                }}
-              >
-                <DiscardIcon />
-              </button>
-              <button
-                type="button"
-                className="vscode-file-action-btn"
-                title={t("Stage All Changes")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void stageAll();
-                }}
-              >
-                <AddIcon />
-              </button>
-            </>
-          )}
-        </span>
-        <span className="vscode-scm-group-count">{files.length}</span>
-        </span>
-      </div>
-      {expanded && (
-        <div className="vscode-scm-group-files">
-          {groupByDirectory && tree ? (
-            <VscodeDirNodeView
-              node={tree}
-              depth={0}
-              groupType={groupType}
-              groupKey={groupKey}
-              collapsed={collapsedDirs}
-              toggleDir={toggleDir}
-              highlightedFiles={highlightedFiles}
-              onContextMenu={onContextMenu}
-              onDirContextMenu={onDirContextMenu}
-            />
-          ) : (
-            files.map((file) => {
-              const key = `${file.path}:${file.staged}`;
-              return (
-                <VscodeFileItem
-                  key={key}
-                  file={file}
-                  groupType={groupType}
-                  highlighted={highlightedFiles.has(key)}
-                  onContextMenu={(e) => onContextMenu(e, file)}
-                  onShowDiff={() =>
-                    useCommitStore.getState().showDiff(file)
-                  }
-                  onClick={(e) => {
-                    const mode =
-                      e.metaKey || e.ctrlKey ? "toggle" : "single";
-                    useCommitStore
-                      .getState()
-                      .highlightFile(key, mode);
-                  }}
-                />
-              );
-            })
-          )}
-        </div>
-      )}
+            <button
+              type="button"
+              className="vscode-file-action-btn"
+              title={t("Stage All Changes")}
+              onClick={(e) => {
+                e.stopPropagation();
+                void stageAll();
+              }}
+            >
+              <AddIcon />
+            </button>
+          </>
+        )}
+      </span>
+      <span className="vscode-scm-group-count">{files.length}</span>
+      </span>
     </div>
   );
-}
+});
 
-function VscodeDirNodeView({
+export const VscodeDirRow = memo(function VscodeDirRow({
   node,
   depth,
   groupType,
-  groupKey,
+  groupId,
   collapsed,
-  toggleDir,
-  highlightedFiles,
-  onContextMenu,
   onDirContextMenu,
 }: {
   node: DirNode;
   depth: number;
   groupType: VscodeGroupType;
-  groupKey: string;
-  collapsed: Set<string>;
-  toggleDir: (group: string, path: string) => void;
-  highlightedFiles: Set<string>;
-  onContextMenu: (
-    e: React.MouseEvent,
-    file: WorkingTreeFile,
-  ) => void;
+  groupId: VscodeGroupSpec["id"];
+  collapsed: boolean;
   onDirContextMenu: (
     e: React.MouseEvent,
     files: WorkingTreeFile[],
@@ -214,136 +147,86 @@ function VscodeDirNodeView({
     fullPath?: string,
   ) => void;
 }) {
-  const { stageFiles, unstageFiles, requestRollbackFiles } = useCommitStore();
+  const toggleDir = useCommitStore((s) => s.toggleDir);
+  const stageFiles = useCommitStore((s) => s.stageFiles);
+  const unstageFiles = useCommitStore((s) => s.unstageFiles);
+  const requestRollbackFiles = useCommitStore((s) => s.requestRollbackFiles);
+
   return (
-    <>
-      {/* Subdirectories */}
-      {node.children
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((child) => {
-          const isCollapsed = collapsed.has(dirCollapseKey(groupKey, child.fullPath));
-          return (
-            <div key={child.fullPath}>
-              <div
-                className="vscode-dir-row"
-                style={{ paddingLeft: `${12 + depth * 16}px` }}
-                onClick={() => toggleDir(groupKey, child.fullPath)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onDirContextMenu(
-                    e,
-                    collectDirFiles(child),
-                    groupType,
-                    child.fullPath,
-                  );
-                }}
-              >
-                <span
-                  className={`vscode-scm-chevron ${isCollapsed ? "collapsed" : ""}`}
-                >
-                  <ChevronIcon />
-                </span>
-                <FolderIcon className="vscode-dir-folder-icon" />
-                <span className="vscode-dir-name">{child.name}</span>
-                <span className="vscode-dir-tail">
-                <span className="vscode-dir-actions">
-                  {groupType === "changes" && (
-                    <>
-                      <button
-                        type="button"
-                        className="vscode-file-action-btn"
-                        title={t("Discard All Changes...")}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // webview 内确认弹窗（store 驱动），确认后 confirmed:true。
-                          void requestRollbackFiles(
-                            collectDirFiles(child).map((f) => ({
-                              path: f.path,
-                              staged: f.staged,
-                            })),
-                          );
-                        }}
-                      >
-                        <DiscardIcon />
-                      </button>
-                      <button
-                        type="button"
-                        className="vscode-file-action-btn"
-                        title={t("Stage All Changes")}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void stageFiles(
-                            collectDirFiles(child).map((f) => f.path),
-                          );
-                        }}
-                      >
-                        <AddIcon />
-                      </button>
-                    </>
-                  )}
-                  {groupType === "staged" && (
-                    <button
-                      type="button"
-                      className="vscode-file-action-btn"
-                      title={t("Unstage All Changes")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void unstageFiles(
-                          collectDirFiles(child).map((f) => f.path),
-                        );
-                      }}
-                    >
-                      <RemoveIcon />
-                    </button>
-                  )}
-                  {/* merge group: no batch buttons (conflicts handled individually) */}
-                </span>
-                <span className="vscode-dir-count">
-                  {t("{0} file(s)", countFiles(child))}
-                </span>
-                </span>
-              </div>
-              {!isCollapsed && (
-                <VscodeDirNodeView
-                  node={child}
-                  depth={depth + 1}
-                  groupType={groupType}
-                  groupKey={groupKey}
-                  collapsed={collapsed}
-                  toggleDir={toggleDir}
-                  highlightedFiles={highlightedFiles}
-                  onContextMenu={onContextMenu}
-                  onDirContextMenu={onDirContextMenu}
-                />
-              )}
-            </div>
-          );
-        })}
-      {/* Files in this directory */}
-      {node.files.map((file) => {
-        const key = `${file.path}:${file.staged}`;
-        const fileName = file.path.split("/").pop() || file.path;
-        return (
-          <div key={key} style={{ paddingLeft: `${(depth + 1) * 16}px` }}>
-            <VscodeFileItem
-              file={file}
-              fileNameOnly={fileName}
-              groupType={groupType}
-              highlighted={highlightedFiles.has(key)}
-              onContextMenu={(e) => onContextMenu(e, file)}
-              onShowDiff={() =>
-                useCommitStore.getState().showDiff(file)
-              }
+    <div
+      className="vscode-dir-row"
+      style={{ paddingLeft: `${12 + depth * 16}px` }}
+      onClick={() => toggleDir(groupId, node.fullPath)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onDirContextMenu(e, collectDirFiles(node), groupType, node.fullPath);
+      }}
+    >
+      <span
+        className={`vscode-scm-chevron ${collapsed ? "collapsed" : ""}`}
+      >
+        <ChevronIcon />
+      </span>
+      <FolderIcon className="vscode-dir-folder-icon" />
+      <span className="vscode-dir-name">{node.name}</span>
+      <span className="vscode-dir-tail">
+      <span className="vscode-dir-actions">
+        {groupType === "changes" && (
+          <>
+            <button
+              type="button"
+              className="vscode-file-action-btn"
+              title={t("Discard All Changes...")}
               onClick={(e) => {
-                const mode = e.metaKey || e.ctrlKey ? "toggle" : "single";
-                useCommitStore.getState().highlightFile(key, mode);
+                e.stopPropagation();
+                // webview 内确认弹窗（store 驱动），确认后 confirmed:true。
+                void requestRollbackFiles(
+                  collectDirFiles(node).map((f) => ({
+                    path: f.path,
+                    staged: f.staged,
+                  })),
+                );
               }}
-            />
-          </div>
-        );
-      })}
-    </>
+            >
+              <DiscardIcon />
+            </button>
+            <button
+              type="button"
+              className="vscode-file-action-btn"
+              title={t("Stage All Changes")}
+              onClick={(e) => {
+                e.stopPropagation();
+                void stageFiles(
+                  collectDirFiles(node).map((f) => f.path),
+                );
+              }}
+            >
+              <AddIcon />
+            </button>
+          </>
+        )}
+        {groupType === "staged" && (
+          <button
+            type="button"
+            className="vscode-file-action-btn"
+            title={t("Unstage All Changes")}
+            onClick={(e) => {
+              e.stopPropagation();
+              void unstageFiles(
+                collectDirFiles(node).map((f) => f.path),
+              );
+            }}
+          >
+            <RemoveIcon />
+          </button>
+        )}
+        {/* merge group: no batch buttons (conflicts handled individually) */}
+      </span>
+      <span className="vscode-dir-count">
+        {t("{0} file(s)", node.fileCount)}
+      </span>
+      </span>
+    </div>
   );
-}
+});

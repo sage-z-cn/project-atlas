@@ -33,17 +33,17 @@ export function Toolbar({
   const [showViewMenu, setShowViewMenu] = useState(false);
   const [pulling, setPulling] = useState(false);
   const [pushing, setPushing] = useState(false);
-  const {
-    expandedGroups,
-    toggleGroup,
-    expandAllDirs,
-    collapseAllDirs,
-    commitListStyle,
-    groupByDirectory,
-    changes,
-    skipPushConfirmation,
-    hasRemote,
-  } = useCommitStore();
+  // Field-level subscriptions — a whole-store subscription would re-render the
+  // toolbar on every keystroke / highlight change.
+  const expandedGroups = useCommitStore((s) => s.expandedGroups);
+  const toggleGroup = useCommitStore((s) => s.toggleGroup);
+  const expandAllDirs = useCommitStore((s) => s.expandAllDirs);
+  const collapseAllDirs = useCommitStore((s) => s.collapseAllDirs);
+  const commitListStyle = useCommitStore((s) => s.commitListStyle);
+  const groupByDirectory = useCommitStore((s) => s.groupByDirectory);
+  const changes = useCommitStore((s) => s.changes);
+  const skipPushConfirmation = useCommitStore((s) => s.skipPushConfirmation);
+  const hasRemote = useCommitStore((s) => s.hasRemote);
   // host 侧推送真实执行中（「提交并推送」等入口也会置位），与本地点击反馈
   // 取或：任一为真即展示推送中状态。
   const storePushing = useCommitStore((s) => s.pushing);
@@ -292,16 +292,20 @@ export function Toolbar({
 /* ─── View Options Menu ──────────────────────────────────────────── */
 
 function ViewOptionsMenu({ onClose }: { onClose: () => void }) {
-  const {
-    groupByDirectory,
-    toggleGroupByDirectory,
-    showUnversioned,
-    toggleShowUnversioned,
-    commitListStyle,
-    setCommitListStyle,
-    commitBadgeMode,
-    setCommitBadgeMode,
-  } = useCommitStore();
+  // Only mounted while the menu is open; field selectors keep unrelated store
+  // updates from re-rendering it.
+  const groupByDirectory = useCommitStore((s) => s.groupByDirectory);
+  const toggleGroupByDirectory = useCommitStore(
+    (s) => s.toggleGroupByDirectory,
+  );
+  const showUnversioned = useCommitStore((s) => s.showUnversioned);
+  const toggleShowUnversioned = useCommitStore(
+    (s) => s.toggleShowUnversioned,
+  );
+  const commitListStyle = useCommitStore((s) => s.commitListStyle);
+  const setCommitListStyle = useCommitStore((s) => s.setCommitListStyle);
+  const commitBadgeMode = useCommitStore((s) => s.commitBadgeMode);
+  const setCommitBadgeMode = useCommitStore((s) => s.setCommitBadgeMode);
 
   useEffect(() => {
     const handleBlur = () => onClose();

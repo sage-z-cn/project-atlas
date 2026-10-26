@@ -565,7 +565,11 @@ function PushRejectedModal() {
 }
 
 export function CommitApp() {
-  const { activeTab, setActiveTab, loading } = useCommitStore();
+  // Field-level subscriptions — a whole-store subscription here would re-render
+  // the active tab (and its file list) on every keystroke / highlight change.
+  const activeTab = useCommitStore((s) => s.activeTab);
+  const setActiveTab = useCommitStore((s) => s.setActiveTab);
+  const loading = useCommitStore((s) => s.loading);
   const repos = useCommitStore((s) => s.repos);
   const repoInitialized = useCommitStore((s) => s.repoInitialized);
 
