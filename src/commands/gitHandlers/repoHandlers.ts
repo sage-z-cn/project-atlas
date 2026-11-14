@@ -244,6 +244,27 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
     }
   });
 
+  // 手动深层扫描：工作区根向下最多 2 层子目录（共 3 层路径）。
+  // 首次触发即把扫描深度持久化到 workspaceState，后续 rescan 沿用该深度，
+  // 避免深层发现的仓库在下次重扫时消失；扫描期间 registry 广播
+  // repoScanStateChanged 供 webview 显示动画。
+  messageRouter.handle("deepScanRepos", async () => {
+    await registry.whenReady;
+    const roots = (vscode.workspace.workspaceFolders ?? []).map(
+      (f) => f.uri.fsPath,
+    );
+    if (roots.length === 0) {
+      return { success: false as const, error: "No workspace folder available" };
+    }
+    try {
+      const { found, total } = await registry.deepScanRepos(roots);
+      return { success: true as const, found, total };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false as const, error: message };
+    }
+  });
+
   // ── Multi-repo batch operations (every repo, not just the active one) ──
   // 两个 handler 都是多仓库维度操作，requireGit 只解析"当前仓库"，不适用，
   // 直接基于 ctx.registry 手写（与 refreshGitState 同类，自行兜底竞态）。

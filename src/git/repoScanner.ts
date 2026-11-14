@@ -14,12 +14,20 @@ export interface RepoInfo {
   /** Repository directory basename. */
   name: string;
   /**
-   * Path relative to the owning workspace root.
+   * Path relative to the owning workspace root, always forward-slash separated.
    * `"."` for a repo sitting at the workspace root itself, otherwise the
-   * direct child directory name (1-level scan only).
+   * sub-path such as `packages` or `packages/app`.
    */
   relativePath: string;
 }
+
+/**
+ * 向下扫描的最大层数（工作区根记为第 1 层）：
+ * 1 = 工作区根 + 直接子目录（`root/a`）；
+ * 2 = 再加一层（`root/a/b`），即最多覆盖 3 层路径。
+ * 深层扫描由用户手动触发，此常量是深度的硬上限。
+ */
+export const MAX_SCAN_DEPTH = 2;
 
 /**
  * Whether `dir` looks like a git working tree. Both a real `.git` directory
@@ -42,77 +50,107 @@ async function isGitRepo(dir: string): Promise<boolean> {
  */
 const SKIP_DIRS = new Set(["node_modules", ".git"]);
 
+/** Whether a directory entry is a candidate repo directory at any depth. */
+function isCandidateDir(entry: Dirent): boolean {
+  if (!entry.isDirectory()) return false;
+  if (SKIP_DIRS.has(entry.name)) return false;
+  // Skip dot-directories (e.g. .vscode, .cache) — not user repos.
+  if (entry.name.startsWith(".")) return false;
+  return true;
+}
+
 /**
- * Scan every workspace root for git repositories.
+ * Scan every workspace root for git repositories, breadth-first.
  *
  * For each root:
  *   1. If `<root>/.git` exists → register the root itself as a repo
  *      (relativePath `"."`).
- *   2. Read `<root>` direct children (1 level only — no recursion, to stay
- *      within the agreed scope and avoid perf cliffs on large workspaces).
- *      Each child directory that itself contains `.git` is registered as a
- *      sub-repo (relativePath = child name).
+ *   2. Walk down up to `maxDepth` directory levels (workspace root counted as
+ *      level 1; `maxDepth` 2 therefore reaches `root/a/b`). Every candidate
+ *      directory containing `.git` is registered, and the walk continues
+ *      below it — nested repos / submodules must still be discovered.
+ *      Non-directories, `node_modules`/`.git`, and dot-directories are
+ *      filtered at every level.
  *
  * Robustness:
- *   - A single unreadable root/child (permissions, broken symlink) is skipped
- *     via try/catch and never aborts the whole scan.
+ *   - A single unreadable root/directory (permissions, broken symlink) is
+ *     skipped and never aborts the whole scan.
  *   - Duplicate normalized paths are deduplicated so an overlapping
  *     multi-root workspace cannot produce two services for one repo.
- *   - Output order: roots first (in input order), then children of each root
- *     in readdir order. RepoRegistry relies on `infos[0]` as a sane default
+ *   - Output order is deterministic: for each root the root repo first, then
+ *     the remaining repos in breadth-first order (readdir order within each
+ *     directory). RepoRegistry relies on `infos[0]` as a sane default
  *     fallback for currentRepoPath.
  */
 export async function scanRepos(
   workspaceRoots: string[],
+  options?: { maxDepth?: number },
 ): Promise<RepoInfo[]> {
+  const requestedDepth = options?.maxDepth ?? 1;
+  // 深度硬限制在 [1, MAX_SCAN_DEPTH]，非法值按 1 处理。
+  const maxDepth = Number.isFinite(requestedDepth)
+    ? Math.min(Math.max(Math.floor(requestedDepth), 1), MAX_SCAN_DEPTH)
+    : 1;
+
   const results: RepoInfo[] = [];
   const seen = new Set<string>();
+
+  /** 把命中 `.git` 的目录登记为仓库（按 normalized path 去重）。 */
+  const register = (absDir: string, relativePath: string): void => {
+    const normalized = normalizePath(absDir);
+    if (seen.has(normalized)) return;
+    seen.add(normalized);
+    results.push({
+      path: normalized,
+      name: path.basename(normalized),
+      relativePath,
+    });
+  };
 
   for (const root of workspaceRoots) {
     // 1. Root repo
     if (await isGitRepo(root)) {
-      const normalized = normalizePath(root);
-      if (!seen.has(normalized)) {
-        seen.add(normalized);
-        results.push({
-          path: normalized,
-          name: path.basename(normalized),
-          relativePath: ".",
-        });
-      }
+      register(root, ".");
     }
 
-    // 2. Direct children (1 level)
-    let entries: Dirent[];
-    try {
-      entries = await nodefs.readdir(root, { withFileTypes: true });
-    } catch {
-      // Unreadable root (permissions / missing) — skip its children scan.
-      continue;
-    }
+    // 2. Breadth-first walk: level 1 = direct children of root, level 2 =
+    //    their children, ...
+    let currentLevel: Array<{ abs: string; rel: string }> = [
+      { abs: root, rel: "" },
+    ];
+    for (let depth = 1; depth <= maxDepth && currentLevel.length > 0; depth++) {
+      const nextLevel: Array<{ abs: string; rel: string }> = [];
 
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      if (SKIP_DIRS.has(entry.name)) continue;
-      // Skip dot-directories (e.g. .vscode, .cache) — not user repos.
-      if (entry.name.startsWith(".")) continue;
+      for (const dir of currentLevel) {
+        let entries: Dirent[];
+        try {
+          entries = await nodefs.readdir(dir.abs, { withFileTypes: true });
+        } catch {
+          // Unreadable directory (permissions / missing) — skip its subtree.
+          continue;
+        }
 
-      const childPath = path.join(root, entry.name);
-      try {
-        if (await isGitRepo(childPath)) {
-          const normalized = normalizePath(childPath);
-          if (!seen.has(normalized)) {
-            seen.add(normalized);
-            results.push({
-              path: normalized,
-              name: entry.name,
-              relativePath: entry.name,
-            });
+        const candidates = entries.filter(isCandidateDir);
+        // Per-directory parallel `.git` probes; Promise.all preserves the
+        // candidate order so registration stays deterministic.
+        const flags = await Promise.all(
+          candidates.map((entry) => isGitRepo(path.join(dir.abs, entry.name))),
+        );
+
+        for (let i = 0; i < candidates.length; i++) {
+          const name = candidates[i].name;
+          const absPath = path.join(dir.abs, name);
+          const relPath = dir.rel ? `${dir.rel}/${name}` : name;
+          if (flags[i]) {
+            register(absPath, relPath);
+          }
+          if (depth < maxDepth) {
+            nextLevel.push({ abs: absPath, rel: relPath });
           }
         }
-      } catch {
-        // Skip individual unreadable child (permissions / symlink loop).
       }
+
+      currentLevel = nextLevel;
     }
   }
 

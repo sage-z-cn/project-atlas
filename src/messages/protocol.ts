@@ -144,6 +144,8 @@ export type CommandType =
   | "renameRemote"
   // 在工作区非 git 目录执行 `git init`，返回 { success, repoPath?, error? }。
   | "initializeRepository"
+  // 手动深层扫描（工作区根向下最多 2 层子目录），返回 { success, found, total }。
+  | "deepScanRepos"
   // 多仓库批量操作（作用于 registry 中所有仓库，而非仅当前仓库）：
   // refreshAllRepos 重新扫描并刷新全部仓库缓存；pullAllRepos 串行 pull 所有
   // 含 remote 的仓库，返回 { pulled, skipped, failed }；pushAllRepos 串行
@@ -208,6 +210,10 @@ export type EventType =
   // 集合 { repoPaths }，host 每次集合变化全量广播，webview 整体替换本地
   // 集合，RepoSelector 据此在各仓库 chip 上渲染独立 loading。
   | "reposRefreshing"
+  // 手动深层扫描状态：data 为 `{ scanning: boolean, found?: number, total?: number }`，
+  // 开始（scanning: true）与结束（scanning: false，带 found/total）成对广播，
+  // webview 据此显示扫描动画，并在结束时按 found 决定是否提示未找到。
+  | "repoScanStateChanged"
   | "gitConfigChanged"
   | "aiConfigChanged"
   | "focusCommit"

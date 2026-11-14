@@ -262,6 +262,44 @@ export function registerGitCommands(
     vscode.commands.registerCommand("git-atlas.refreshAllRepos", () =>
       refreshAllReposImpl(ctx),
     ),
+    // 手动深层扫描：每个工作区根向下最多再扫 2 层目录（共 3 层路径），
+    // 用于工作区根与直接子目录都没有 git 仓库的场景。扫描深度会持久化，
+    // 后续重扫沿用；扫描中的动画由 RepoRegistry 广播的
+    // repoScanStateChanged 驱动，这里额外用 SourceControl 进度条兜底反馈。
+    vscode.commands.registerCommand("git-atlas.deepScanRepos", async () => {
+      await ctx.registry.whenReady;
+      const roots = (vscode.workspace.workspaceFolders ?? []).map(
+        (f) => f.uri.fsPath,
+      );
+      if (roots.length === 0) {
+        void vscode.window.showWarningMessage(
+          vscode.l10n.t("No workspace folder available"),
+        );
+        return;
+      }
+      try {
+        const { found } = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.SourceControl,
+            title: vscode.l10n.t(
+              "Scanning deeper folders for Git repositories...",
+            ),
+          },
+          () => ctx.registry.deepScanRepos(roots),
+        );
+        if (found === 0) {
+          void vscode.window.showInformationMessage(
+            vscode.l10n.t("No Git repository found in deeper folders."),
+          );
+        }
+      } catch (err) {
+        console.error("[Git Atlas] deepScanRepos:", err);
+        const message = err instanceof Error ? err.message : String(err);
+        void vscode.window.showErrorMessage(
+          vscode.l10n.t("Failed to scan deeper folders: {0}", message),
+        );
+      }
+    }),
     // 打开 commit 面板的「拉取/推送仓库」勾选弹窗。命令本身不执行网络
     // 操作，确认后由 webview 调用 pullAllRepos / pushAllRepos handler。
     vscode.commands.registerCommand("git-atlas.pullAllRepos", () => {

@@ -5,13 +5,20 @@ import { GitService } from "./gitService";
 import { GitWatcher } from "../watchers/gitWatcher";
 import { normalizePath } from "./repoPaths";
 import type { RepoInfo } from "./repoScanner";
-import { scanRepos } from "./repoScanner";
+import { MAX_SCAN_DEPTH, scanRepos } from "./repoScanner";
 
 /**
  * Workspace-state key under which the user's last-selected repo path is
  * persisted between sessions.
  */
 const CURRENT_REPO_KEY = "gitAtlas.currentRepoPath";
+
+/**
+ * 用户手动深层扫描后持久化的扫描深度（1..MAX_SCAN_DEPTH）。后续 rescan
+ * （watcher / refreshGitState / 窗口重载 init）沿用该深度，避免深层发现的
+ * 仓库在下次重扫时消失。
+ */
+const SCAN_DEPTH_KEY = "gitAtlas.scanDepth";
 
 /**
  * Workspace-state key for the user-defined RepoSelector display order
@@ -63,6 +70,17 @@ export class RepoRegistry implements vscode.Disposable {
    * 在途持久化影响。null = 尚未从 workspaceState 加载；[] = 无保存顺序。
    */
   private repoOrderCache: string[] | null = null;
+  /** 当前扫描深度（1 = 根 + 直接子目录；2 = 再加一层）。默认 1。 */
+  private scanDepth = 1;
+  /** deepScanRepos 的 in-flight Promise：并发触发共享同一轮扫描。 */
+  private deepScanInFlight: Promise<{ found: number; total: number }> | null =
+    null;
+  /**
+   * rescan 串行队列：watcher / 手动刷新 / 深层扫描可能并发触发 rescan。
+   * 若浅层扫描晚于深层扫描完成，会把深层仓库当作“已消失”拆掉；所有扫描
+   * 排入同一队列按调用顺序执行，保证最后一次扫描的结果生效。
+   */
+  private rescanQueue: Promise<void> = Promise.resolve();
 
   private readonly _onGitStateChanged = new vscode.EventEmitter<void>();
   /**
@@ -107,6 +125,9 @@ export class RepoRegistry implements vscode.Disposable {
    */
   async init(workspaceRoots: string[]): Promise<void> {
     try {
+      // 深层扫描一旦由用户触发过，扫描深度就持久化在 workspaceState 中，
+      // 首次扫描即沿用，保证深层仓库在窗口重载后仍然存在。
+      this.scanDepth = this.loadScanDepth();
       await this.rescan(workspaceRoots);
 
       const saved = this.context.workspaceState.get<string>(CURRENT_REPO_KEY);
@@ -132,14 +153,35 @@ export class RepoRegistry implements vscode.Disposable {
    *
    * Safe to call repeatedly (e.g. on workspace folder changes in a later
    * phase) — only the delta is created/destroyed.
+   *
+   * `options.maxDepth` overrides the persistent scan depth for this call only;
+   * default is {@link scanDepth} (1 unless the user ran a deep scan).
    */
-  async rescan(workspaceRoots: string[]): Promise<void> {
+  rescan(
+    workspaceRoots: string[],
+    options?: { maxDepth?: number },
+  ): Promise<void> {
+    const run = this.rescanQueue.then(() =>
+      this.rescanImpl(workspaceRoots, options),
+    );
+    // 队列自身吞掉异常以便继续接收后续扫描；调用方仍拿到原始 rejection。
+    this.rescanQueue = run.catch(() => undefined);
+    return run;
+  }
+
+  /** {@link rescan} 的实际执行体（已由 rescanQueue 串行化）。 */
+  private async rescanImpl(
+    workspaceRoots: string[],
+    options?: { maxDepth?: number },
+  ): Promise<void> {
     // 重扫前的快照,用于末尾判断是否需要广播事件。
     // repoInfos 初始为 [],currentRepoPath 初始为 null。
     const prevPathsKey = this.repoInfos.map((i) => i.path).join("\n");
     const prevCurrent = this.currentRepoPath;
 
-    const rawInfos = await scanRepos(workspaceRoots);
+    const rawInfos = await scanRepos(workspaceRoots, {
+      maxDepth: options?.maxDepth ?? this.scanDepth,
+    });
     // Normalize paths once at the ingress so every downstream map key
     // (services/watchers) and lookup (getService/getCurrent) stays consistent.
     // Without this, getService(normalizePath(p)) could miss a repo stored under
@@ -237,6 +279,75 @@ export class RepoRegistry implements vscode.Disposable {
       "gitAtlas.multiRepo",
       this.services.size > 1,
     );
+  }
+
+  /**
+   * 手动深层扫描：把扫描深度提升到 {@link MAX_SCAN_DEPTH} 并持久化，然后
+   * 重扫全部工作区根。
+   *
+   * 一旦触发，后续所有 rescan（watcher / refreshGitState / 窗口重载 init）
+   * 都沿用该深度，深层发现的仓库不会在下次重扫时消失。
+   *
+   * 扫描前后成对广播 `repoScanStateChanged`（`{ scanning: true }` /
+   * `{ scanning: false, found, total }`），供 webview 渲染扫描动画；finally
+   * 保证异常也能结束动画。并发触发共享同一个 in-flight Promise，不会并发
+   * 跑两轮扫描。首次 init 的扫描不广播该事件（此时 webview 尚未挂载）。
+   */
+  async deepScanRepos(
+    workspaceRoots: string[],
+  ): Promise<{ found: number; total: number }> {
+    if (this.deepScanInFlight) return this.deepScanInFlight;
+    const task = this.runDeepScan(workspaceRoots);
+    this.deepScanInFlight = task;
+    try {
+      return await task;
+    } finally {
+      this.deepScanInFlight = null;
+    }
+  }
+
+  /** {@link deepScanRepos} 的实际执行体（已由外层做 in-flight 合并）。 */
+  private async runDeepScan(
+    workspaceRoots: string[],
+  ): Promise<{ found: number; total: number }> {
+    const before = new Set(this.services.keys());
+    this.messageRouter.broadcastEvent("repoScanStateChanged", {
+      scanning: true,
+    });
+
+    let found = 0;
+    let total = before.size;
+    try {
+      this.scanDepth = MAX_SCAN_DEPTH;
+      await this.context.workspaceState.update(SCAN_DEPTH_KEY, MAX_SCAN_DEPTH);
+      await this.rescan(workspaceRoots, { maxDepth: MAX_SCAN_DEPTH });
+
+      total = this.services.size;
+      for (const repoPath of this.services.keys()) {
+        if (!before.has(repoPath)) found++;
+      }
+    } finally {
+      this.messageRouter.broadcastEvent("repoScanStateChanged", {
+        scanning: false,
+        found,
+        total,
+      });
+    }
+    return { found, total };
+  }
+
+  /** 从 workspaceState 读取持久化的扫描深度，非法值回退 1。 */
+  private loadScanDepth(): number {
+    const saved = this.context.workspaceState.get<number>(SCAN_DEPTH_KEY);
+    if (
+      typeof saved === "number" &&
+      Number.isInteger(saved) &&
+      saved >= 1 &&
+      saved <= MAX_SCAN_DEPTH
+    ) {
+      return saved;
+    }
+    return 1;
   }
 
   /**

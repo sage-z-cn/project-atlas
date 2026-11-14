@@ -282,3 +282,61 @@
     transform: rotate(360deg);
   }
 }
+
+/* ─── Deep-scan indicator ──────────────────────────────────────────────
+ * Shown while a deep scan runs, whether it was started from the empty-state
+ * button or from the view/title command. An extra entry is appended to the
+ * list (never a repo chip): dashed outline + muted foreground keep it
+ * subordinate, it carries no click/hover/drag affordances, and
+ * pointer-events: none guarantees it can never become a drop target. */
+.repo-scanning-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  height: 22px;
+  border-radius: 3px;
+  border: 1px dashed var(--border);
+  color: var(--vscode-descriptionForeground, var(--app-fg));
+  font-size: var(--font-size);
+  font-family: var(--font-family);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.repo-selector.vertical .repo-scanning-chip {
+  width: 100%;
+}
+
+.repo-selector.horizontal .repo-scanning-chip {
+  flex-shrink: 0;
+}
+
+.repo-scanning-chip svg,
+.repo-scanning-indicator svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.repo-scanning-spin {
+  flex-shrink: 0;
+  animation: repo-spin 0.9s linear infinite;
+}
+
+/* Single-repo status strip: a lone spinner trailing the badges, with the
+ * same rhythm as the per-repo refresh glyph so the two read as one system. */
+.repo-scanning-indicator {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--vscode-descriptionForeground, var(--app-fg));
+}
+
+/* Reduced motion: slow the scan spinner down rather than removing it — the
+ * indicator is the only sign a scan is still running. */
+@media (prefers-reduced-motion: reduce) {
+  .repo-scanning-spin,
+  .repo-selector .repo-chip .repo-refreshing {
+    animation-duration: 2.4s;
+  }
+}

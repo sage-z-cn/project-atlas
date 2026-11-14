@@ -384,6 +384,11 @@
         "command": "git-atlas.pushAllRepos",
         "title": "%command.git-atlas.pushAllRepos%",
         "icon": "$(repo-push)"
+      },
+      {
+        "command": "git-atlas.deepScanRepos",
+        "title": "%command.git-atlas.deepScanRepos%",
+        "icon": "$(search)"
       }
     ],
     "menus": {
@@ -632,7 +637,7 @@
         {
           "command": "git-atlas.openGitLog",
           "when": "view == git-atlas.commitPanel && config.gitAtlas.enableGitLogPanel != false",
-          "group": "navigation@3"
+          "group": "navigation@4"
         },
         {
           "command": "git-atlas.openCommitPanel",
@@ -653,6 +658,16 @@
           "command": "git-atlas.pushAllRepos",
           "when": "view == git-atlas.commitPanel && gitAtlas.multiRepo",
           "group": "navigation@2.5"
+        },
+        {
+          "command": "git-atlas.deepScanRepos",
+          "when": "view == git-atlas.gitLog",
+          "group": "navigation@6"
+        },
+        {
+          "command": "git-atlas.deepScanRepos",
+          "when": "view == git-atlas.commitPanel",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [

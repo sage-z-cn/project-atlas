@@ -58,7 +58,7 @@
 > An activity-bar commit panel with Changes / Staged / Unversioned groups, directory tree, amend, recent commit messages, and commit-and-push split button. Includes git stash (Shelf) and IDEA-compatible shelf (`.idea/shelf/`) with patch import/export.
 
 **Multi-repo Support**
-> Workspaces with sub-directory git repos get a repo selector in both the Git Log and Commit views. Switch the active repo with one click; status badges (↑ahead / ↓behind / ●uncommitted) update in real time.
+> Workspaces with sub-directory git repos get a repo selector in both the Git Log and Commit views. Switch the active repo with one click; status badges (↑ahead / ↓behind / ●uncommitted) update in real time. Repos nested up to three levels deep can be discovered on demand via Deep Scan (empty-state card or view title), with scan progress shown in the webviews.
 
 **Branch Operations**
 > Checkout, create, rename, delete (with force-delete and merge checks), merge, rebase (including checkout-and-rebase), and compare with current — all from the branch tree context menu.

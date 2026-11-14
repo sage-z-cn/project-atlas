@@ -1,9 +1,10 @@
 /* ─── Empty-repo state (shared by commit + Git Log panels) ──────── */
 /* Shown when the ready handshake confirms repos.length === 0. The card
  * follows VSCode webview design language: CSS variables for theme tokens,
- * circular badge behind a large muted icon, a single primary CTA, and an
- * inline error banner that reuses the inputValidation error palette
- * (matching commit-message-banner / panel-message-banner). */
+ * circular badge behind a large muted icon, a primary CTA over a quieter
+ * secondary action, and an inline error banner that reuses the
+ * inputValidation error palette (matching commit-message-banner /
+ * panel-message-banner). */
 
 .repo-empty-root {
   flex: 1;
@@ -12,6 +13,9 @@
   justify-content: center;
   padding: 32px 20px;
   min-height: 0;
+  /* The action stack can exceed a short, heavily zoomed panel — keep every
+   * control reachable instead of clipping the card. */
+  overflow-y: auto;
 }
 
 .repo-empty-card {
@@ -20,6 +24,9 @@
   align-items: center;
   text-align: center;
   max-width: 360px;
+  /* Auto margins (not just the parent's centering) keep an overflowing card
+   * scrollable from its top edge. */
+  margin: auto;
 }
 
 .repo-empty-icon {
@@ -50,6 +57,14 @@
   color: var(--vscode-descriptionForeground);
 }
 
+.repo-empty-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
 .repo-empty-btn {
   display: inline-flex;
   align-items: center;
@@ -74,9 +89,52 @@
   background: var(--vscode-button-hoverBackground);
 }
 
+.repo-empty-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, #3574f0);
+  outline-offset: 2px;
+}
+
 .repo-empty-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Secondary action (deep scan): same height, visibly quieter than the
+ * primary CTA — muted fill, thinner weight, and a hairline border.
+ * 2026 dark themes resolve secondaryBackground to a near-transparent tint,
+ * so mix in the foreground to keep it distinct from the card background. */
+.repo-empty-btn-secondary {
+  font-size: 12px;
+  font-weight: 400;
+  background: color-mix(
+    in srgb,
+    var(--vscode-button-secondaryBackground, #3a3d41),
+    var(--vscode-foreground, #cccccc) 12%
+  );
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground, #cccccc));
+  border: 1px solid var(--vscode-button-secondaryBorder, rgba(128, 128, 128, 0.4));
+}
+
+.repo-empty-btn-secondary:hover:not(:disabled) {
+  background: color-mix(
+    in srgb,
+    var(--vscode-button-secondaryHoverBackground, #45494e),
+    var(--vscode-foreground, #cccccc) 18%
+  );
+}
+
+/* Neutral inline note (a scan that found nothing is not an error). */
+.repo-empty-notice {
+  margin-top: 14px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-word;
+  color: var(--vscode-descriptionForeground, var(--app-fg));
+  background: var(--vscode-textBlockQuote-background, rgba(128, 128, 128, 0.1));
+  border: 1px solid var(--border);
 }
 
 .repo-empty-error {
@@ -92,6 +150,24 @@
   border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
 }
 
+/* While a deep scan runs the icon badge breathes softly — a quiet "still
+ * looking" cue that complements the spinning button glyph without adding a
+ * second focal point. */
+.repo-empty-icon.scanning {
+  animation: repo-empty-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes repo-empty-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 0 8px
+      color-mix(in srgb, var(--vscode-focusBorder, #3574f0) 14%, transparent);
+  }
+}
+
 .repo-empty-spin {
   animation: repo-empty-spin 0.8s linear infinite;
 }
@@ -99,5 +175,17 @@
 @keyframes repo-empty-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Reduced motion: drop the decorative pulse, keep the spinner but slow it
+ * down so the in-progress state stays visible without busy rotation. */
+@media (prefers-reduced-motion: reduce) {
+  .repo-empty-icon.scanning {
+    animation: none;
+  }
+
+  .repo-empty-spin {
+    animation-duration: 2.4s;
   }
 }

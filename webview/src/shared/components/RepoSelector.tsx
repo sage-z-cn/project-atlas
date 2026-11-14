@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { bridge } from "../bridge";
 import { useCommitStore } from "../store/commit-store";
 import { usePanelStore } from "../store/panel-store";
@@ -144,6 +144,22 @@ function RepoSelectorBody({
    */
   const [dropSide, setDropSide] = useState<"before" | "after">("before");
 
+  /**
+   * Deep-scan progress. A scan may be started from this webview or from the
+   * view/title command, so the indicator is driven solely by the host's
+   * repoScanStateChanged event; the stores stay unaware of it.
+   */
+  const [scanning, setScanning] = useState(false);
+
+  useEffect(() => {
+    return bridge.onEvent((event, data) => {
+      if (event !== "repoScanStateChanged") return;
+      const state = data as { scanning?: boolean } | null;
+      if (typeof state?.scanning !== "boolean") return;
+      setScanning(state.scanning);
+    });
+  }, []);
+
   const openMenu = (e: React.MouseEvent, repo: RepoInfo) => {
     e.preventDefault();
     setMenu({ x: e.clientX, y: e.clientY, repo });
@@ -216,6 +232,20 @@ function RepoSelectorBody({
           />
           {refreshingRepos.includes(repo.path) && (
             <LoadingIcon className="repo-refreshing" width={12} height={12} />
+          )}
+          {scanning && (
+            <span
+              className="repo-scanning-indicator"
+              title={t("Scanning deeper folders...")}
+              role="status"
+              aria-label={t("Scanning deeper folders...")}
+            >
+              <LoadingIcon
+                className="repo-scanning-spin"
+                width={12}
+                height={12}
+              />
+            </span>
           )}
         </div>
         {menuEl}
@@ -308,6 +338,12 @@ function RepoSelectorBody({
           </button>
         );
       })}
+      {scanning && (
+        <div className="repo-scanning-chip" role="status">
+          <LoadingIcon className="repo-scanning-spin" width={12} height={12} />
+          <span>{t("Scanning...")}</span>
+        </div>
+      )}
       {menuEl}
     </div>
   );

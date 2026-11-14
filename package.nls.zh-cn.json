@@ -121,5 +121,6 @@
   "command.git-atlas.clearGiteeToken": "Git Atlas: 清除 Gitee 令牌",
   "command.git-atlas.refreshAllRepos": "Git Atlas: 刷新全部仓库",
   "command.git-atlas.pullAllRepos": "Git Atlas: 拉取全部仓库",
-  "command.git-atlas.pushAllRepos": "Git Atlas: 推送仓库"
+  "command.git-atlas.pushAllRepos": "Git Atlas: 推送仓库",
+  "command.git-atlas.deepScanRepos": "Git Atlas: 深层扫描 Git 仓库"
 }

@@ -121,5 +121,6 @@
   "command.git-atlas.clearGiteeToken": "Git Atlas: Clear Gitee Token",
   "command.git-atlas.refreshAllRepos": "Git Atlas: Refresh All Repositories",
   "command.git-atlas.pullAllRepos": "Git Atlas: Pull All Repositories",
-  "command.git-atlas.pushAllRepos": "Git Atlas: Push Repositories"
+  "command.git-atlas.pushAllRepos": "Git Atlas: Push Repositories",
+  "command.git-atlas.deepScanRepos": "Git Atlas: Deep Scan for Git Repositories"
 }

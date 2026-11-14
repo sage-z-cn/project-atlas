@@ -90,6 +90,7 @@ export type CommandType =
   | "refreshGitState"
   | "refreshAllRepos"
   | "initializeRepository"
+  | "deepScanRepos"
   | "getRebaseState"
   | "rebaseAction"
   | "mergeAction"

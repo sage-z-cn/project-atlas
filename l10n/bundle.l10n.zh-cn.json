@@ -664,5 +664,11 @@
   "Discarding changes in {0} files...": "正在放弃 {0} 个文件的更改...",
   "Stashing {0} files...": "正在贮藏 {0} 个文件...",
   "Restoring stashed changes...": "正在取消贮藏...",
-  "Another bulk operation is in progress. Please wait for it to finish.": "有其他批量操作正在进行，请等待完成后再试。"
+  "Another bulk operation is in progress. Please wait for it to finish.": "有其他批量操作正在进行，请等待完成后再试。",
+  "Scanning deeper folders for Git repositories...": "正在扫描更深层目录...",
+  "No workspace folder available": "没有可用的工作区文件夹",
+  "Failed to scan deeper folders: {0}": "深层扫描失败：{0}",
+  "Deep Scan (up to 3 levels)": "深层扫描（最多 3 层）",
+  "Scanning deeper folders...": "正在扫描更深层目录...",
+  "No Git repository found in deeper folders.": "更深层目录中未找到 Git 仓库。"
 }
