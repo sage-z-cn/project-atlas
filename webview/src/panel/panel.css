@@ -57,18 +57,26 @@
 }
 
 /* ─── 分支行：悬停内联显示上游分支 ───────────────────────────────
- * 与分支名同一位置替换显示，故与名字共用省略号截断规则。
- * 颜色不随选中态反转：选中行的背景由 .selectable-row.selected 提供，
+ * 追加在分支名之后。上游单元格可收缩并省略号截断，名字单元格保留
+ * min-width 下限，因此窄侧栏下先截断上游、不会把分支名挤没。
+ * 颜色不随选中态反转：选中行背景由 .selectable-row.selected 提供，
  * 描述色在该背景下依然可读，比继承前景色更能暗示这是辅助信息。 */
 .branch-upstream {
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 0.9em;
   font-weight: 400;
   color: var(--description-fg, #999);
 }
 
 .branch-upstream.is-unset {
   font-style: italic;
+}
+
+.branch-upstream-arrow {
+  margin-right: 2px;
+  opacity: 0.7;
 }

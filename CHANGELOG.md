@@ -14,6 +14,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - **Commit**: 推送同名分支且本地无 upstream 时自动建立跟踪关系（等价 `git push -u`）
 - **Commit**: 修复推送成功打勾可能显示在非实际推送仓库上的问题
 
+**改进**
+- **Git**: 分支列表悬停时在分支名之后内联显示所跟踪的上游分支，无上游时显示「无上游分支」，不再依赖 tooltip
+
 #### 1.36.0
 **新功能**
 - **Commit**: 推送时广播 pushStateChanged，工具栏可展示推送中状态

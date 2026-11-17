@@ -1293,8 +1293,8 @@ function BranchItem({
   /** Hover tooltip; defaults to the branch name. */
   tooltipText?: string;
 }) {
-  // 悬停时上游文案占据分支名原有的位置（而不是在名字后面追加第二段），
-  // 避免侧栏较窄时两段文字挤成省略号。仅在鼠标悬停时切换。
+  // 悬停时在分支名之后追加内联的上游分支。分支名始终可见：上游单元格
+  // flex-shrink 且可省略，名字单元格再窄也保留一小段，不会被上游挤没。
   const [hovered, setHovered] = useState(false);
   const showUpstream = hovered;
 
@@ -1321,40 +1321,34 @@ function BranchItem({
       }}
     >
       <span style={{ flexShrink: 0 }}>{icon}</span>
-      <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          display: "flex",
-          alignItems: "center",
-          overflow: "hidden",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {showUpstream ? (
-          upstream ? (
-            <Tooltip text={t("Tracks {0}", upstream)}>
-              <span className="branch-upstream">{upstream}</span>
-            </Tooltip>
+      <Tooltip text={tooltipText || name}>
+        <span
+          style={{
+            flex: 1,
+            minWidth: "3ch",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {name}
+        </span>
+      </Tooltip>
+      {showUpstream && (
+        <span
+          className={`branch-upstream${upstream ? "" : " is-unset"}`}
+          title={upstream ? t("Tracks {0}", upstream) : t("No upstream")}
+        >
+          {upstream ? (
+            <>
+              <span className="branch-upstream-arrow">→</span>
+              {upstream}
+            </>
           ) : (
-            <span className="branch-upstream is-unset">
-              {t("No upstream")}
-            </span>
-          )
-        ) : (
-          <Tooltip text={tooltipText || name}>
-            <span
-              style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {name}
-            </span>
-          </Tooltip>
-        )}
-      </span>
+            t("No upstream")
+          )}
+        </span>
+      )}
       {isFavorite && (
         <IconStarFilled
           style={{
