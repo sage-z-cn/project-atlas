@@ -1010,12 +1010,12 @@ function TreeNodeView({
   const branch = node.branch;
   if (node.isLeaf && branch) {
     const isCurrent = branch.name === currentBranch;
+    // Remote leaves keep their URL tooltip; local leaves show upstream inline
+    // on hover instead (see BranchItem), so the tooltip only carries the name.
     const tooltipText = branch.isRemote
       ? remoteUrls[branch.name.substring(0, branch.name.indexOf("/"))] ||
         branch.name
-      : branch.upstream
-        ? t("Tracks {0}", branch.upstream)
-        : t("No upstream");
+      : branch.name;
     return (
       <BranchItem
         icon={
@@ -1040,6 +1040,7 @@ function TreeNodeView({
         depth={depth}
         ahead={branch.ahead}
         behind={branch.behind}
+        upstream={branch.isRemote ? undefined : branch.upstream}
         tooltipText={tooltipText}
       />
     );
@@ -1267,6 +1268,7 @@ function BranchItem({
   depth,
   ahead = 0,
   behind = 0,
+  upstream,
   tooltipText,
 }: {
   icon: React.ReactNode;
@@ -1281,15 +1283,29 @@ function BranchItem({
   depth: number;
   ahead?: number;
   behind?: number;
+  /**
+   * Configured upstream tracking branch shown inline while the row is hovered
+   * (e.g. `origin/cc-xc`). Undefined for remote branches and for local
+   * branches without a configured upstream — an explicit undefined means "no
+   * upstream" and renders the localized "No upstream" hint instead.
+   */
+  upstream?: string;
   /** Hover tooltip; defaults to the branch name. */
   tooltipText?: string;
 }) {
+  // 悬停时上游文案占据分支名原有的位置（而不是在名字后面追加第二段），
+  // 避免侧栏较窄时两段文字挤成省略号。仅在鼠标悬停时切换。
+  const [hovered, setHovered] = useState(false);
+  const showUpstream = hovered;
+
   return (
     <div
       className={`selectable-row${isSelected ? " selected" : ""}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         padding: `4px 8px 4px ${20 + depth * 12 + 16}px`,
         fontWeight: isCurrent || isFiltered ? 600 : 400,
@@ -1305,19 +1321,40 @@ function BranchItem({
       }}
     >
       <span style={{ flexShrink: 0 }}>{icon}</span>
-      <Tooltip text={tooltipText || name}>
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {name}
-        </span>
-      </Tooltip>
+      <span
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          alignItems: "center",
+          overflow: "hidden",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {showUpstream ? (
+          upstream ? (
+            <Tooltip text={t("Tracks {0}", upstream)}>
+              <span className="branch-upstream">{upstream}</span>
+            </Tooltip>
+          ) : (
+            <span className="branch-upstream is-unset">
+              {t("No upstream")}
+            </span>
+          )
+        ) : (
+          <Tooltip text={tooltipText || name}>
+            <span
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {name}
+            </span>
+          </Tooltip>
+        )}
+      </span>
       {isFavorite && (
         <IconStarFilled
           style={{

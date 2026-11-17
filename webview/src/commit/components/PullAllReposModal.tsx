@@ -7,8 +7,9 @@ import { ModalOverlay } from "../../shared/components/Modal";
 import CloseIcon from "~icons/codicon/close";
 
 // ── Pull-repositories selection modal ────────────────────────────────────────
-// 与 PushAllReposModal 同构，但不提供展开查看提交。默认勾选：有远程跟踪
-// 分支且 behind > 0。确认后调用 pullAllRepos 串行拉取选中仓库。
+// 与 PushAllReposModal 同构，但不提供展开查看提交。默认勾选：behind > 0
+// 的仓库——仅限定有 upstream 的仓库：pull 走当前分支的跟踪关系，无 upstream
+// 必然被后端 skipped。确认后调用 pullAllRepos 串行拉取选中仓库。
 
 interface PullResult {
   pulled: string[];
@@ -16,7 +17,7 @@ interface PullResult {
   failed: { repoPath: string; name: string; error: string }[];
 }
 
-/** 默认勾选：有 upstream 且 behind > 0 的仓库。 */
+/** 默认勾选：存在待拉取提交（behind > 0）的仓库。 */
 function pickDefaultSelected(
   repos: RepoInfo[],
   statuses: Record<string, RepoStatus>,
