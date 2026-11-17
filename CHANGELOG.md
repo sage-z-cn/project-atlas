@@ -4,6 +4,11 @@ All notable changes to the "project-atlas" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+#### Unreleased
+**Bug 修复**
+- **Commit**: 未配置 upstream 的仓库在 RepoSelector 上按同名远端分支回退计算 ↑/↓ 徽章，修复推送后看不到待推送提交数的问题
+- **Commit**: 推送同名分支且本地无 upstream 时自动建立跟踪关系（等价 `git push -u`）
+
 #### 1.36.0
 **新功能**
 - **Commit**: 推送时广播 pushStateChanged，工具栏可展示推送中状态

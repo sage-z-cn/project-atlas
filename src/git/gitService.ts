@@ -1008,6 +1008,25 @@ export class GitService {
     this.invalidateCache();
   }
 
+  /**
+   * Whether the local branch has a configured upstream tracking ref.
+   * `git rev-parse --abbrev-ref <branch>@{upstream}` exits non-zero when
+   * `branch.<name>.remote` / `.merge` are absent — exactly the "pushed without
+   * `-u`" state push() wants to repair.
+   */
+  private async hasConfiguredUpstream(branchName: string): Promise<boolean> {
+    try {
+      const output = await this.execGit([
+        "rev-parse",
+        "--abbrev-ref",
+        `${branchName}@{upstream}`,
+      ]);
+      return output.trim().length > 0;
+    } catch {
+      return false;
+    }
+  }
+
   async merge(branchName: string): Promise<void> {
     await this.execGit(["merge", branchName]);
     this.invalidateCache();
@@ -1061,10 +1080,43 @@ export class GitService {
     // Resolve the real remote name (upstream config → first configured remote)
     // instead of hard-coding "origin". See getDefaultRemote().
     const remoteName = remote ?? (await this.getDefaultRemote(branchName));
-    args.push(remoteName, `${branchName}:${targetBranch || branchName}`);
+    const target = targetBranch || branchName;
+    // 首次推送同名分支时顺带建立跟踪关系（等价 `git push -u`）：本地分支
+    // 没有 upstream 时，RepoSelector 的 ↑/↓ 徽章与 `git pull` 都无从计算。
+    // 仅在目标分支与本地同名时写入；推到别的目标分支时不改 upstream。
+    const needsUpstream =
+      target === branchName && !(await this.hasConfiguredUpstream(branchName));
+    if (needsUpstream) args.push("--set-upstream");
+    args.push(remoteName, `${branchName}:${target}`);
     const output = await this.execGit(args);
     this.invalidateCache();
     return output;
+  }
+
+  /**
+   * Commit divergence between a local branch and any comparison ref
+   * (`git rev-list --left-right --count <ref>...<branch>`).
+   *
+   * `ahead` = commits reachable from the branch but not from `compareRef`;
+   * `behind` = commits reachable from `compareRef` but not from the branch.
+   * Throws when the two refs share no merge base — callers treat that as
+   * "unknown" and hide the ↑/↓ badges.
+   */
+  async getAheadBehind(
+    branchName: string,
+    compareRef: string,
+  ): Promise<{ ahead: number; behind: number }> {
+    const output = await this.execGit([
+      "rev-list",
+      "--left-right",
+      "--count",
+      `${compareRef}...${branchName}`,
+    ]);
+    const [behindRaw, aheadRaw] = output.trim().split(/\s+/);
+    return {
+      ahead: Number.parseInt(aheadRaw ?? "0", 10) || 0,
+      behind: Number.parseInt(behindRaw ?? "0", 10) || 0,
+    };
   }
 
   /**

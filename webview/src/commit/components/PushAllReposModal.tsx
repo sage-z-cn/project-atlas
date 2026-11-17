@@ -12,8 +12,8 @@ import ChevronRightIcon from "~icons/codicon/chevron-right";
 // showPushAllReposDialog → 本组件挂载。确认后调用 pushAllRepos 串行推送
 // 选中仓库的当前分支，结果在弹窗内汇总展示。
 // 每行显示本地分支 → 远程分支、待推送提交数（↑N），可展开懒加载提交列表。
-// 禁选 = 无远程（hasRemote）；默认勾选 = 有 upstream 且 ahead > 0；无
-// upstream（新建分支）/ ahead=0 默认不勾但可手动勾选。
+// 禁选 = 无远程（hasRemote）；默认勾选 = ahead > 0（含无 upstream 但存在
+// 同名远端分支的回退计数）；无可比对远端分支 / ahead=0 默认不勾但可手动勾选。
 
 interface PushResult {
   pushed: string[];
@@ -24,7 +24,7 @@ interface PushResult {
 /** 展开区缓存：undefined = 未加载；null = 加载失败；Commit[] = 已加载。 */
 type AheadCache = Map<string, Commit[] | null>;
 
-/** 默认勾选：有 upstream 且 ahead > 0 的仓库。 */
+/** 默认勾选：存在待推送提交（ahead > 0）的仓库。 */
 function pickDefaultSelected(
   repos: RepoInfo[],
   statuses: Record<string, RepoStatus>,
@@ -32,7 +32,7 @@ function pickDefaultSelected(
   const paths = new Set<string>();
   for (const repo of repos) {
     const s = statuses[repo.path];
-    if (s?.upstream && typeof s.ahead === "number" && s.ahead > 0) {
+    if (typeof s?.ahead === "number" && s.ahead > 0) {
       paths.add(repo.path);
     }
   }

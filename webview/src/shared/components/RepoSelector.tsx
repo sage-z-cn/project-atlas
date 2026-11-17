@@ -366,8 +366,8 @@ function RepoBranch({ status }: { status?: RepoStatus }) {
 
 /**
  * ahead/behind/dirty badge cluster. Each badge renders only when its count is
- * truthy: `null` (no upstream / detached HEAD) hides ↑↓, and `0` hides any of
- * them. When all are zero/null the whole cluster is absent.
+ * truthy: `null` (no comparison ref / detached HEAD) hides ↑↓, and `0` hides
+ * any of them. When all are zero/null the whole cluster is absent.
  */
 function RepoBadges({
   status,

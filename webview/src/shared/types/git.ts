@@ -146,16 +146,21 @@ export interface RepoInfo {
  */
 export interface RepoStatus {
   repoPath: string;
-  /** Commits ahead of upstream. `null` when the branch has no upstream
-   *  (or is detached) — the chip hides the ↑ badge in that case. */
+  /** Commits ahead of the comparison ref (configured upstream, or the
+   *  same-named remote branch when no upstream is configured).
+   *  `null` when there is no comparison ref (never-pushed branch, no remote)
+   *  or the branch is detached — the chip hides the ↑ badge in that case. */
   ahead: number | null;
-  /** Commits behind upstream. `null` when no upstream — chip hides ↓. */
+  /** Commits behind the comparison ref. `null` under the same conditions as
+   *  {@link ahead} — chip hides ↓. */
   behind: number | null;
   /** Uncommitted file count (modified + staged + untracked). Chip hides ● when 0. */
   dirty: number;
   /** Current branch name. `null`/`undefined` for detached HEAD or unknown — chip hides it. */
   branch?: string | null;
-  /** Remote tracking branch (e.g. `origin/main`). `null` when no upstream. */
+  /** Configured upstream tracking branch (e.g. `origin/main`). `null` when the
+   *  branch has none — `ahead`/`behind` may still be non-null thanks to the
+   *  same-named remote-branch fallback, so do not infer "no upstream" from them. */
   upstream?: string | null;
   /**
    * Whether the repository has any configured remote (`git remote` non-empty).

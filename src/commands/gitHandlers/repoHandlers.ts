@@ -2,8 +2,10 @@ import * as vscode from "vscode";
 import type { GitHandlerContext } from "../gitContext";
 import { requireGit, withProgress, withRepoRefreshing } from "../gitContext";
 import { initGitRepo } from "../../git/gitService";
+import type { GitService } from "../../git/gitService";
 import { normalizePath } from "../../git/repoPaths";
 import type { RepoInfo } from "../../git/repoScanner";
+import type { BranchInfo } from "../../git/types";
 
 /**
  * Multi-repo management handlers: listing repos, querying the active repo,
@@ -118,16 +120,20 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
         svc.getWorkingTreeChanges(),
         svc.hasRemote(),
       ]);
-      const current = (branches ?? []).find((b) => b.isCurrent);
-      // BranchInfo.upstream is optional: when undefined/empty the branch
-      // has no upstream tracking ref, so ahead/behind are meaningless →
-      // report null (the chip hides ↑/↓). ahead/behind being 0 alone is
-      // NOT a reliable "no upstream" signal (they're just 0 when in sync).
+      const branchList = branches ?? [];
+      const current = branchList.find((b) => b.isCurrent);
+      // ↑/↓ 徽章的对比基准：已配置的 upstream 优先；缺失时回退到同名远端
+      // 分支（`git push` 的默认目标），否则 `git push` 没带 `-u` 的分支
+      // 徽章会永久缺席。`upstream` 字段仍只表示已配置的跟踪分支——推送/
+      // 拉取弹窗依赖它，因此不写入推断值。
       const hasUpstream = !!current?.upstream;
+      const divergence = current
+        ? await resolveAheadBehind(svc, current, branchList)
+        : null;
       return {
         repoPath: info.path,
-        ahead: hasUpstream ? current?.ahead ?? 0 : null,
-        behind: hasUpstream ? current?.behind ?? 0 : null,
+        ahead: divergence?.ahead ?? null,
+        behind: divergence?.behind ?? null,
         // getWorkingTreeChanges runs `git status --porcelain -uall`, so
         // this already includes modified + staged + untracked files.
         dirty: changes.length,
@@ -294,6 +300,49 @@ export function registerRepoHandlers(ctx: GitHandlerContext): void {
       : undefined;
     return pushAllReposImpl(ctx, repoPaths);
   });
+}
+
+/**
+ * Divergence counts behind the RepoSelector ↑/↓ badges.
+ *
+ * Configured upstream wins. Without one, fall back to the same-named
+ * remote-tracking branch (`origin/<branch>`) — the ref `git push` targets by
+ * default — so a branch pushed without `-u` still reports ↑n instead of a
+ * permanently blank badge. Returns null when no comparison ref exists (branch
+ * never pushed, no remote) or the refs share no history.
+ */
+async function resolveAheadBehind(
+  svc: GitService,
+  current: BranchInfo,
+  branches: BranchInfo[],
+): Promise<{ ahead: number; behind: number } | null> {
+  if (current.upstream) {
+    return { ahead: current.ahead ?? 0, behind: current.behind ?? 0 };
+  }
+  // detached HEAD 的伪分支名以 "(" 开头，没有同名远端分支可比较。
+  if (!current.name || current.name.startsWith("(")) {
+    return null;
+  }
+  const remotes = await svc.getRemotes();
+  // origin 优先（无 upstream 且配置了多个远端时 `git push` 的默认目标），
+  // 其余远端按配置顺序兜底。
+  const ordered = [
+    ...remotes.filter((r) => r.name === "origin"),
+    ...remotes.filter((r) => r.name !== "origin"),
+  ];
+  for (const remote of ordered) {
+    const ref = `${remote.name}/${current.name}`;
+    if (!branches.some((b) => b.isRemote && b.name === ref)) {
+      continue;
+    }
+    try {
+      return await svc.getAheadBehind(current.name, ref);
+    } catch {
+      // 无共同祖先（unrelated histories）等情况：当作未知，隐藏徽章。
+      return null;
+    }
+  }
+  return null;
 }
 
 /**
