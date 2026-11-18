@@ -220,7 +220,7 @@ export function PullAllReposModal() {
                   key={repo.path}
                   className={`push-all-item${selectable ? "" : " push-all-item-disabled"}`}
                 >
-                  <div className="push-all-row">
+                  <div className="push-all-row push-all-row-repo">
                     <input
                       type="checkbox"
                       checked={checked && selectable}
@@ -228,35 +228,29 @@ export function PullAllReposModal() {
                       disabled={pulling || !selectable}
                       aria-label={repo.name}
                     />
-                    <span className="push-all-name" title={repo.path}>
-                      {repo.name}
-                    </span>
+                    <span className="push-all-name">{repo.name}</span>
                     {status?.branch && (
-                      <span
-                        className="push-all-branch"
-                        title={
-                          status.upstream
-                            ? `${status.upstream} → ${status.branch}`
-                            : status.branch
-                        }
-                      >
+                      <span className="push-all-branch">
                         {status.upstream ? (
                           <>
                             <span className="push-all-upstream">
                               {status.upstream}
                             </span>
                             <span className="push-all-branch-arrow">→</span>
-                            <span>{status.branch}</span>
+                            <span className="push-all-branch-local">
+                              {status.branch}
+                            </span>
                           </>
                         ) : (
-                          status.branch
+                          <span className="push-all-branch-local">
+                            {status.branch}
+                          </span>
                         )}
                       </span>
                     )}
                     {typeof behind === "number" ? (
                       <span
                         className={`push-all-ahead${behind > 0 ? "" : " push-all-ahead-zero"}`}
-                        title={t("{0} commit(s) to pull", behind)}
                       >
                         ↓{behind}
                       </span>

@@ -302,7 +302,7 @@ export function PushAllReposModal() {
                 key={repo.path}
                 className={`push-all-item${selectable ? "" : " push-all-item-disabled"}`}
               >
-                <div className="push-all-row">
+                <div className="push-all-row push-all-row-repo">
                   <input
                     type="checkbox"
                     checked={checked && selectable}
@@ -310,19 +310,12 @@ export function PushAllReposModal() {
                     disabled={pushing || !selectable}
                     aria-label={repo.name}
                   />
-                  <span className="push-all-name" title={repo.path}>
-                    {repo.name}
-                  </span>
+                  <span className="push-all-name">{repo.name}</span>
                   {status?.branch && (
-                    <span
-                      className="push-all-branch"
-                      title={
-                        status.upstream
-                          ? `${status.branch} → ${status.upstream}`
-                          : status.branch
-                      }
-                    >
-                      {status.branch}
+                    <span className="push-all-branch">
+                      <span className="push-all-branch-local">
+                        {status.branch}
+                      </span>
                       {status.upstream && (
                         <>
                           <span className="push-all-branch-arrow">→</span>
@@ -336,7 +329,6 @@ export function PushAllReposModal() {
                   {aheadCount !== null ? (
                     <span
                       className={`push-all-ahead${aheadCount > 0 ? "" : " push-all-ahead-zero"}`}
-                      title={t("{0} commit(s) to push", aheadCount)}
                     >
                       ↑{aheadCount}
                     </span>
